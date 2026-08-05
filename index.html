@@ -732,64 +732,125 @@ function renderDetail(){
   afterRender();
 }
 /* 추가 방법 선택 — 버튼 2개를 1개로 합쳐 화면을 단순하게 */
-/* ===== 사진(캡처)으로 일정 추가 : 글자인식(OCR) + 항공권 파싱 ===== */
-var ocrDay=0, ocrSegs=[], ocrRaw='';
-function openPhotoAdd(dayIdx){ocrDay=dayIdx||0;ocrSegs=[];ocrRaw='';
+/* ===== 사진(캡처)으로 일정 추가 : 이미지 보정 + OCR + 수정가능 폼 ===== */
+var ocrDay=0, ocrRaw='', ocrGuess=[], ocrPlaces=[];
+function openPhotoAdd(dayIdx){ocrDay=dayIdx||0;ocrRaw='';ocrGuess=[];ocrPlaces=[];
   openSheet('<div class="grab"></div><h3>사진으로 추가</h3>'
-  +'<p class="muted small" style="margin:-8px 0 14px">항공권 예약화면·확인메일을 <b style="color:var(--ink)">캡처해서 올리면</b> 글자를 읽어 일정으로 만들어 드립니다.</p>'
+  +'<p class="muted small" style="margin:-8px 0 14px">항공권 예약화면을 <b style="color:var(--ink)">캡처해서 올리면</b> 날짜·시간·예약번호를 읽어 <b style="color:var(--ink)">미리 채워</b> 드립니다. 틀린 곳은 바로 고쳐서 저장하세요.</p>'
   +'<label class="btn brand" style="cursor:pointer" for="ocrFile">사진 선택하기</label>'
   +'<input type="file" id="ocrFile" accept="image/*" style="display:none" onchange="runOCR(event)">'
+  +'<div style="height:10px"></div><button class="btn ghost" onclick="buildForm([])">사진 없이 직접 입력</button>'
   +'<div id="ocrStat"></div><div id="ocrOut"></div>'
-  +'<div class="card" style="background:var(--paper);border-style:dashed;margin-top:14px"><div class="small muted">사진은 <b style="color:var(--ink)">저장하지 않고</b> 글자만 읽어 필요한 항목만 남깁니다.</div></div>');}
+  +'<div class="card" style="background:var(--paper);border-style:dashed;margin-top:14px"><div class="small muted">사진은 <b style="color:var(--ink)">저장하지 않고</b> 글자만 읽습니다.</div></div>');}
+function prepImage(file){return new Promise(function(res,rej){
+  var img=new Image(), url=URL.createObjectURL(file);
+  img.onload=function(){
+    var sc=Math.min(3,Math.max(1.6,1800/(img.width||800)));
+    var c=document.createElement('canvas'); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+    var x=c.getContext('2d'); x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
+    x.drawImage(img,0,0,c.width,c.height);
+    try{ var d=x.getImageData(0,0,c.width,c.height), p=d.data;
+      for(var i=0;i<p.length;i+=4){ var g=p[i]*0.299+p[i+1]*0.587+p[i+2]*0.114;
+        g=(g-128)*1.45+128; if(g<0)g=0; if(g>255)g=255; p[i]=p[i+1]=p[i+2]=g; }
+      x.putImageData(d,0,0);}catch(e){}
+    c.toBlob(function(b){URL.revokeObjectURL(url);res(b||file);},'image/png');
+  };
+  img.onerror=function(){URL.revokeObjectURL(url);rej(new Error('이미지를 열 수 없습니다'));};
+  img.src=url;});}
 function runOCR(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;
   var st=document.getElementById('ocrStat');
-  st.innerHTML='<div class="card" style="margin-top:12px"><b>사진에서 글자를 읽는 중…</b><div class="muted small" id="ocrPct" style="margin-top:4px">준비 중 (처음 한 번은 한글 데이터를 받느라 30초쯤 걸릴 수 있어요)</div></div>';
-  if(!window.Tesseract){st.innerHTML='<div class="err">글자 인식 기능을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.</div>';return;}
-  Tesseract.recognize(f,'kor+eng',{logger:function(m){var p=document.getElementById('ocrPct');if(p&&m&&m.status){p.textContent=(m.status==='recognizing text'?'글자 분석 중':'준비 중')+' '+Math.round((m.progress||0)*100)+'%';}}})
-  .then(function(res){ocrRaw=(res&&res.data&&res.data.text)||'';ocrSegs=parseFlights(ocrRaw);showOcrResult();})
-  .catch(function(e){st.innerHTML='<div class="err">글자를 읽지 못했어요: '+esc(e.message||'')+'</div>';});}
-function parseFlights(t){var txt=(t||'').replace(/\s+/g,' ');
-  var mR=txt.match(/예약\s*번호[^A-Z0-9]{0,8}([A-Z0-9]{5,8})/); var resv=mR?mR[1]:'';
-  if(!resv){var m2=txt.match(/\b([A-Z]{6})\b/); resv=m2?m2[1]:'';}
-  var fl=[],dt=[],rt=[],m;
-  var reF=/\b([A-Z]{2}\s?\d{3,4})\b/g; while((m=reF.exec(txt))!==null){fl.push(m[1].replace(/\s/g,''));}
-  var reD=/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})[^0-9]{0,16}(\d{1,2}):(\d{2})/g;
-  while((m=reD.exec(txt))!==null){dt.push({date:m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2),time:('0'+m[4]).slice(-2)+':'+m[5]});}
-  var reR=/\b([A-Z]{3})\s+([가-힣]{2,7})/g; while((m=reR.exec(txt))!==null){rt.push({code:m[1],name:m[2]});}
-  var out=[];
-  for(var i=0;i<fl.length;i++){var dep=dt[i*2];if(!dep)break;
-    out.push({flight:fl[i],dep:dep,arr:dt[i*2+1]||null,from:rt[i*2]||null,to:rt[i*2+1]||null,resv:resv});}
+  st.innerHTML='<div class="card" style="margin-top:12px"><b>사진에서 글자를 읽는 중…</b><div class="muted small" id="ocrPct" style="margin-top:4px">준비 중 (처음 한 번은 30초쯤 걸립니다)</div></div>';
+  if(!window.Tesseract){st.innerHTML='<div class="err">글자 인식 기능을 불러오지 못했습니다.</div>';return;}
+  prepImage(f).then(function(blob){
+    return Tesseract.recognize(blob,'kor+eng',{logger:function(m){var p=document.getElementById('ocrPct');
+      if(p&&m&&m.status)p.textContent=(m.status==='recognizing text'?'글자 분석 중':'준비 중')+' '+Math.round((m.progress||0)*100)+'%';}});
+  }).then(function(res){ocrRaw=(res&&res.data&&res.data.text)||'';
+    var g=readTicket(ocrRaw); ocrGuess=g.segs; ocrPlaces=g.places;
+    document.getElementById('ocrStat').innerHTML='';
+    buildForm(ocrGuess);
+  }).catch(function(e){st.innerHTML='<div class="err">글자를 읽지 못했어요: '+esc(e.message||'')+'</div>';});}
+function readTicket(t){var txt=(t||'').replace(/\s+/g,' ');
+  var resv='',mm=txt.match(/[A-Z]{5,8}/g);
+  if(mm){for(var q=0;q<mm.length;q++){if(!/^(TICKET|FLIGHT|DEPART|ARRIVE|AIRPORT|ADULT|CHILD|INFANT|TOTAL)$/.test(mm[q])){resv=mm[q];break;}}}
+  var dates=[],times=[],m;
+  var rd=/(20\d{2})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2})/g;
+  while((m=rd.exec(txt))!==null){var mo=+m[2],da=+m[3];
+    if(mo>=1&&mo<=12&&da>=1&&da<=31)dates.push({v:m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2),i:m.index});}
+  var rt2=/(\d{1,2})\s*[:;]\s*(\d{2})/g;
+  while((m=rt2.exec(txt))!==null){var hh=+m[1],mi=+m[2];
+    if(hh<=23&&mi<=59)times.push({v:('0'+m[1]).slice(-2)+':'+m[2],i:m.index});}
+  function dateFor(idx){var best='';for(var k=0;k<dates.length;k++){if(dates[k].i<=idx)best=dates[k].v;}
+    if(!best&&dates.length)best=dates[0].v;return best;}
+  var stop=/(번호|예약|출발|도착|시간|일자|공항|구간|왕복|편도|항공|에어|탑승|좌석|운임|총액|결제|취소|변경|정보|확인|상세|여정|성인|소아|유아|체크인|국내선|국제선|더보기|여행)/;
+  var places=[],seen={},rp=/([가-힣]{2,4})/g;
+  while((m=rp.exec(txt))!==null){var n=m[1];if(!stop.test(n)&&!seen[n]){seen[n]=1;places.push(n);}}
+  var fls=[],rf=/\b([A-Z]{2}\s?\d{3,4})\b/g;
+  while((m=rf.exec(txt))!==null)fls.push(m[1].replace(/\s/g,''));
+  var segs=[];
+  for(var i=0;i<times.length;i+=2){
+    segs.push({date:dateFor(times[i].i),time:times[i].v,arr:(times[i+1]?times[i+1].v:''),
+      from:(places[i]||''),to:(places[i+1]||''),flight:(fls[segs.length]||''),resv:resv});}
+  for(var z=1;z<segs.length;z++){
+    if(!segs[z].from&&!segs[z].to&&segs[z-1].from&&segs[z-1].to){segs[z].from=segs[z-1].to;segs[z].to=segs[z-1].from;}
+    if(!segs[z].resv&&segs[z-1].resv)segs[z].resv=segs[z-1].resv;}
+  return {segs:segs,places:places};}
+function segCard(i,g){
+  var chips='';
+  for(var k=0;k<Math.min(ocrPlaces.length,8);k++){
+    chips+='<button class="fchip" style="padding:5px 10px" onclick="fillPlace('+i+',\'from\',\''+ocrPlaces[k]+'\')">'+esc(ocrPlaces[k])+'</button>';}
+  return '<div class="card" style="padding:14px">'
+  +'<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>구간 '+(i+1)+'</b>'
+  +(i>0?'<button class="lnk" style="color:#B23B3B" onclick="delSeg('+i+')">삭제</button>':'')+'</div>'
+  +'<label class="fld">날짜</label><input class="input" type="date" id="sg'+i+'d" value="'+esc(g.date||'')+'">'
+  +'<div class="row" style="gap:8px"><div style="flex:1"><label class="fld">출발지</label><input class="input" id="sg'+i+'f" value="'+esc(g.from||'')+'" placeholder="예: 제주"></div>'
+  +'<div style="flex:1"><label class="fld">도착지</label><input class="input" id="sg'+i+'t" value="'+esc(g.to||'')+'" placeholder="예: 원주"></div></div>'
+  +'<div class="row" style="gap:8px"><div style="flex:1"><label class="fld">출발 시각</label><input class="input" type="time" id="sg'+i+'h" value="'+esc(g.time||'09:00')+'"></div>'
+  +'<div style="flex:1"><label class="fld">도착 시각</label><input class="input" type="time" id="sg'+i+'a" value="'+esc(g.arr||'')+'"></div></div>'
+  +'<div class="row" style="gap:8px"><div style="flex:1"><label class="fld">편명</label><input class="input" id="sg'+i+'n" value="'+esc(g.flight||'')+'" placeholder="예: LJ472"></div>'
+  +'<div style="flex:1"><label class="fld">예약번호</label><input class="input" id="sg'+i+'r" value="'+esc(g.resv||'')+'"></div></div>'
+  +(chips?'<div class="muted small" style="margin-bottom:6px">사진에서 찾은 지명 (누르면 출발지에 입력)</div><div class="filters" style="padding-bottom:4px">'+chips+'</div>':'')
+  +'</div>';}
+function buildForm(segs){
+  if(!segs||!segs.length)segs=[{date:'',time:'09:00',arr:'',from:'',to:'',flight:'',resv:''}];
+  ocrGuess=segs; var t=trip(curTrip);
+  var d0=(t&&t.days&&t.days[ocrDay])?t.days[ocrDay].date:'';
+  for(var i=0;i<segs.length;i++){ if(!segs[i].date) segs[i].date=d0; }
+  var h='<div class="eyebrow">'+svg('i-check','ic')+' 읽은 내용을 확인·수정하세요</div>';
+  for(var k=0;k<segs.length;k++) h+=segCard(k,segs[k]);
+  h+='<button class="btn ghost sm" onclick="addSeg()">＋ 구간 추가</button><div style="height:10px"></div>'
+   +'<button class="btn brand" onclick="saveOcr()">'+svg('i-check','ic')+' 여행에 저장</button>'
+   +(ocrRaw?'<div style="height:8px"></div><button class="lnk" onclick="ocrToPaste()">읽은 원문 보기 · 붙여넣기로 보내기</button>':'');
+  document.getElementById('ocrOut').innerHTML=h;}
+function readForm(){var out=[];
+  for(var i=0;i<ocrGuess.length;i++){var d=document.getElementById('sg'+i+'d');if(!d)continue;
+    out.push({date:d.value,time:(document.getElementById('sg'+i+'h')||{}).value||'09:00',
+      arr:(document.getElementById('sg'+i+'a')||{}).value||'',
+      from:((document.getElementById('sg'+i+'f')||{}).value||'').trim(),
+      to:((document.getElementById('sg'+i+'t')||{}).value||'').trim(),
+      flight:((document.getElementById('sg'+i+'n')||{}).value||'').trim(),
+      resv:((document.getElementById('sg'+i+'r')||{}).value||'').trim()});}
   return out;}
-function showOcrResult(){var st=document.getElementById('ocrStat'),ot=document.getElementById('ocrOut');
-  st.innerHTML='';
-  if(!ocrSegs.length){ot.innerHTML='<div class="eyebrow">읽은 내용</div><div class="card"><p class="muted small" style="margin:0 0 10px">항공편 형식을 자동으로 알아보지 못했어요. 아래 글자를 확인하고 직접 고쳐서 저장할 수 있습니다.</p>'
-    +'<textarea class="input" id="ocrText" style="min-height:140px;font-size:12.5px">'+esc(ocrRaw)+'</textarea>'
-    +'<button class="btn ghost" onclick="ocrToPaste()">이 내용을 붙여넣기 화면으로 보내기</button></div>';return;}
-  var t=trip(curTrip);var rows='';
-  for(var i=0;i<ocrSegs.length;i++){var g=ocrSegs[i];
-    var has=false;for(var k=0;k<(t.days||[]).length;k++){if(t.days[k].date===g.dep.date)has=true;}
-    rows+='<div class="card" style="padding:13px"><div class="row">'
-      +'<div class="tile" style="background:'+CAT_BG.transport+';color:var(--c-transport)">'+svg('i-plane')+'</div>'
-      +'<div style="flex:1"><b style="font-size:14.5px">'+esc((g.from?g.from.name:'출발')+' → '+(g.to?g.to.name:'도착'))+' ('+esc(g.flight)+')</b>'
-      +'<div class="muted small" style="margin-top:3px">'+esc(g.dep.date)+' '+esc(g.dep.time)+(g.arr?' → '+esc(g.arr.time):'')+'</div>'
-      +(g.resv?'<div class="muted small">예약번호 '+esc(g.resv)+'</div>':'')
-      +(has?'':'<div class="small" style="color:var(--brand-ink);font-weight:800;margin-top:4px">※ 이 날짜가 여행 기간에 없어 첫날에 저장됩니다</div>')
-      +'</div></div></div>';}
-  ot.innerHTML='<div class="eyebrow">'+svg('i-check','ic')+' 이렇게 읽었어요 ('+ocrSegs.length+'건)</div>'+rows
-    +'<button class="btn brand" onclick="saveOcr()">'+svg('i-check','ic')+' 여행에 저장</button>'
-    +'<div style="height:8px"></div><button class="lnk" onclick="ocrToPaste()">잘못 읽었어요 · 글자 직접 고치기</button>';}
-function ocrToPaste(){var el=document.getElementById('ocrText');var v=el?el.value:ocrRaw;closeOv();routeTo('paste');
-  setTimeout(function(){var b=document.getElementById('pbox');if(b)b.value=v;},250);}
-function saveOcr(){var t=trip(curTrip);if(!t)return;var added=0;
-  for(var i=0;i<ocrSegs.length;i++){var g=ocrSegs[i];var di=0;
-    for(var k=0;k<(t.days||[]).length;k++){if(t.days[k].date===g.dep.date){di=k;break;}}
+function fillPlace(i,which,val){var el=document.getElementById('sg'+i+(which==='from'?'f':'t'));
+  if(el){ if(el.value){var el2=document.getElementById('sg'+i+'t'); if(el2&&!el2.value){el2.value=val;return;} } el.value=val; }}
+function addSeg(){var cur=readForm();var last=cur[cur.length-1]||{};
+  cur.push({date:last.date||'',time:'09:00',arr:'',from:last.to||'',to:'',flight:'',resv:last.resv||''});buildForm(cur);}
+function delSeg(i){var cur=readForm();cur.splice(i,1);buildForm(cur);}
+function ocrToPaste(){closeOv();routeTo('paste');
+  setTimeout(function(){var b=document.getElementById('pbox');if(b)b.value=ocrRaw;},250);}
+function saveOcr(){var t=trip(curTrip);if(!t)return;var segs=readForm();var added=0,skipped=0;
+  for(var i=0;i<segs.length;i++){var g=segs[i];
+    if(!g.from&&!g.to&&!g.flight){skipped++;continue;}
+    var di=-1;
+    for(var k=0;k<(t.days||[]).length;k++){if(t.days[k].date===g.date){di=k;break;}}
+    if(di<0)di=ocrDay<(t.days||[]).length?ocrDay:0;
+    var title=(g.from||'출발')+' → '+(g.to||'도착')+(g.flight?' ('+g.flight+')':'');
     t.days[di].items=t.days[di].items||[];
-    t.days[di].items.push({_id:uid(),cat:'transport',time:g.dep.time,
-      title:(g.from?g.from.name:'출발')+' → '+(g.to?g.to.name:'도착')+' ('+g.flight+')',
-      place:(g.to?g.to.name+'공항':''),
-      sub:[g.resv?('예약번호 '+g.resv):'',g.arr?('도착 '+g.arr.time):''].filter(Boolean).join(' · '),
+    t.days[di].items.push({_id:uid(),cat:'transport',time:g.time||'09:00',title:title,
+      place:(g.to?g.to+'공항':''),
+      sub:[g.resv?('예약번호 '+g.resv):'',g.arr?('도착 '+g.arr):''].filter(Boolean).join(' · '),
       by:ME.name,comments:[],map:!!g.to});
     t.days[di].items.sort(function(a,b){return a.time.localeCompare(b.time);});added++;curDay=di;}
+  if(!added){toast('출발지·도착지 또는 편명을 입력해 주세요.');return;}
   closeOv();toast(added+'건을 저장했어요');rerender();save();}
 function openAddChoice(dayIdx){
   openSheet(`<div class="grab"></div><h3>무엇을 추가할까요?</h3>
