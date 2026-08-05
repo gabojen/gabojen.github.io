@@ -330,16 +330,29 @@ function authMode(m){authTab=m;
   $('nameWrap').style.display=m==='signup'?'block':'none';
   $('authBtn').textContent=m==='signup'?'가입하고 시작하기':'로그인';$('authErr').innerHTML='';}
 function authError(msg){$('authErr').innerHTML=`<div class="err">${esc(msg)}</div>`;}
+function fkey(e){return 'lf_'+(e||'').toLowerCase();}
+function getFails(e){try{return parseInt(localStorage.getItem(fkey(e))||'0');}catch(x){return 0;}}
+function setFails(e,n){try{localStorage.setItem(fkey(e),String(n));}catch(x){}}
+function clearFails(e){try{localStorage.removeItem(fkey(e));}catch(x){}}
+function lockPanel(){$('authErr').innerHTML='<div class="err">비밀번호를 5번 잘못 입력했습니다.<br>보안을 위해 로그인을 잠갔어요. 아래 <b>비밀번호 재설정 메일 보내기</b>를 눌러 이메일 인증으로 새 비밀번호를 설정해 주세요.</div>';$('authBtn').disabled=true;var rl=document.getElementById('resetLink');if(rl){rl.textContent='비밀번호 재설정 메일 보내기';rl.style.fontSize='14px';}}
+function okPanel(m){$('authErr').innerHTML='<div class="err" style="background:rgba(63,138,74,.12);color:#2f6b38">'+m+'</div>';}
 async function doAuth(){
   const email=$('aEmail').value.trim(),pw=$('aPw').value,name=($('aName').value||'').trim();
   if(!email||!pw){authError('이메일과 비밀번호를 입력해 주세요.');return;}
   if(authTab==='signup'&&!name){authError('이름을 입력해 주세요.');return;}
+  if(authTab==='login'&&getFails(email)>=5){lockPanel();return;}
   $('authBtn').disabled=true;$('authBtn').textContent='처리 중…';
   try{
     if(authTab==='signup')await window.FB.signup(email,pw,name);
-    else await window.FB.login(email,pw);
-  }catch(e){authError(window.FB.msg(e));}
-  $('authBtn').disabled=false;authMode(authTab);
+    else {await window.FB.login(email,pw);clearFails(email);}
+  }catch(e){var c=(e&&e.code)||'';
+    if(authTab==='login'&&/invalid-credential|wrong-password|user-not-found|invalid-login/.test(c)){
+      var n=getFails(email)+1;setFails(email,n);
+      if(n>=5){$('authBtn').disabled=false;$('authBtn').textContent='로그인';lockPanel();return;}
+      authError(window.FB.msg(e)+'  ('+n+'/5회 실패 · 5회 틀리면 재설정이 필요합니다)');
+    } else { authError(window.FB.msg(e)); }
+  }
+  $('authBtn').disabled=false;$('authBtn').textContent=(authTab==='signup'?'가입하고 시작하기':'로그인');
 }
 /* ---- 아바타(사진 또는 이니셜) ---- */
 function avatarStyle(m){return m&&m.photo?`background-image:url('${m.photo}')`:`background:${(m&&m.c)||AVCOL[0]}`;}
@@ -412,7 +425,7 @@ async function changePw(){try{await window.FB.resetPw(ME.email);toast('비밀번
   catch(e){toast('발송 실패: 잠시 후 다시 시도해 주세요.');}}
 async function doReset(){const email=$('aEmail').value.trim();
   if(!email){authError('먼저 이메일을 입력한 뒤 눌러주세요.');return;}
-  try{await window.FB.resetPw(email);authError('');toast('비밀번호 재설정 메일을 보냈어요.');}
+  try{await window.FB.resetPw(email);clearFails(email);$('authBtn').disabled=false;okPanel('재설정 메일을 보냈습니다. 메일함(스팸함 포함)에서 링크를 눌러 새 비밀번호를 설정한 뒤 다시 로그인해 주세요.');}
   catch(e){authError(window.FB.msg(e));}}
 function joinPrompt(){openSheet(`<div class="grab"></div><h3>초대코드로 참여</h3>
   <p class="muted small" style="margin:0 0 12px">함께 가는 사람이 알려준 <b>초대코드</b>를 입력하면 그 여행에 참여합니다.</p>
@@ -719,6 +732,65 @@ function renderDetail(){
   afterRender();
 }
 /* 추가 방법 선택 — 버튼 2개를 1개로 합쳐 화면을 단순하게 */
+/* ===== 사진(캡처)으로 일정 추가 : 글자인식(OCR) + 항공권 파싱 ===== */
+var ocrDay=0, ocrSegs=[], ocrRaw='';
+function openPhotoAdd(dayIdx){ocrDay=dayIdx||0;ocrSegs=[];ocrRaw='';
+  openSheet('<div class="grab"></div><h3>사진으로 추가</h3>'
+  +'<p class="muted small" style="margin:-8px 0 14px">항공권 예약화면·확인메일을 <b style="color:var(--ink)">캡처해서 올리면</b> 글자를 읽어 일정으로 만들어 드립니다.</p>'
+  +'<label class="btn brand" style="cursor:pointer" for="ocrFile">사진 선택하기</label>'
+  +'<input type="file" id="ocrFile" accept="image/*" style="display:none" onchange="runOCR(event)">'
+  +'<div id="ocrStat"></div><div id="ocrOut"></div>'
+  +'<div class="card" style="background:var(--paper);border-style:dashed;margin-top:14px"><div class="small muted">사진은 <b style="color:var(--ink)">저장하지 않고</b> 글자만 읽어 필요한 항목만 남깁니다.</div></div>');}
+function runOCR(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;
+  var st=document.getElementById('ocrStat');
+  st.innerHTML='<div class="card" style="margin-top:12px"><b>사진에서 글자를 읽는 중…</b><div class="muted small" id="ocrPct" style="margin-top:4px">준비 중 (처음 한 번은 한글 데이터를 받느라 30초쯤 걸릴 수 있어요)</div></div>';
+  if(!window.Tesseract){st.innerHTML='<div class="err">글자 인식 기능을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.</div>';return;}
+  Tesseract.recognize(f,'kor+eng',{logger:function(m){var p=document.getElementById('ocrPct');if(p&&m&&m.status){p.textContent=(m.status==='recognizing text'?'글자 분석 중':'준비 중')+' '+Math.round((m.progress||0)*100)+'%';}}})
+  .then(function(res){ocrRaw=(res&&res.data&&res.data.text)||'';ocrSegs=parseFlights(ocrRaw);showOcrResult();})
+  .catch(function(e){st.innerHTML='<div class="err">글자를 읽지 못했어요: '+esc(e.message||'')+'</div>';});}
+function parseFlights(t){var txt=(t||'').replace(/\s+/g,' ');
+  var mR=txt.match(/예약\s*번호[^A-Z0-9]{0,8}([A-Z0-9]{5,8})/); var resv=mR?mR[1]:'';
+  if(!resv){var m2=txt.match(/\b([A-Z]{6})\b/); resv=m2?m2[1]:'';}
+  var fl=[],dt=[],rt=[],m;
+  var reF=/\b([A-Z]{2}\s?\d{3,4})\b/g; while((m=reF.exec(txt))!==null){fl.push(m[1].replace(/\s/g,''));}
+  var reD=/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})[^0-9]{0,16}(\d{1,2}):(\d{2})/g;
+  while((m=reD.exec(txt))!==null){dt.push({date:m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2),time:('0'+m[4]).slice(-2)+':'+m[5]});}
+  var reR=/\b([A-Z]{3})\s+([가-힣]{2,7})/g; while((m=reR.exec(txt))!==null){rt.push({code:m[1],name:m[2]});}
+  var out=[];
+  for(var i=0;i<fl.length;i++){var dep=dt[i*2];if(!dep)break;
+    out.push({flight:fl[i],dep:dep,arr:dt[i*2+1]||null,from:rt[i*2]||null,to:rt[i*2+1]||null,resv:resv});}
+  return out;}
+function showOcrResult(){var st=document.getElementById('ocrStat'),ot=document.getElementById('ocrOut');
+  st.innerHTML='';
+  if(!ocrSegs.length){ot.innerHTML='<div class="eyebrow">읽은 내용</div><div class="card"><p class="muted small" style="margin:0 0 10px">항공편 형식을 자동으로 알아보지 못했어요. 아래 글자를 확인하고 직접 고쳐서 저장할 수 있습니다.</p>'
+    +'<textarea class="input" id="ocrText" style="min-height:140px;font-size:12.5px">'+esc(ocrRaw)+'</textarea>'
+    +'<button class="btn ghost" onclick="ocrToPaste()">이 내용을 붙여넣기 화면으로 보내기</button></div>';return;}
+  var t=trip(curTrip);var rows='';
+  for(var i=0;i<ocrSegs.length;i++){var g=ocrSegs[i];
+    var has=false;for(var k=0;k<(t.days||[]).length;k++){if(t.days[k].date===g.dep.date)has=true;}
+    rows+='<div class="card" style="padding:13px"><div class="row">'
+      +'<div class="tile" style="background:'+CAT_BG.transport+';color:var(--c-transport)">'+svg('i-plane')+'</div>'
+      +'<div style="flex:1"><b style="font-size:14.5px">'+esc((g.from?g.from.name:'출발')+' → '+(g.to?g.to.name:'도착'))+' ('+esc(g.flight)+')</b>'
+      +'<div class="muted small" style="margin-top:3px">'+esc(g.dep.date)+' '+esc(g.dep.time)+(g.arr?' → '+esc(g.arr.time):'')+'</div>'
+      +(g.resv?'<div class="muted small">예약번호 '+esc(g.resv)+'</div>':'')
+      +(has?'':'<div class="small" style="color:var(--brand-ink);font-weight:800;margin-top:4px">※ 이 날짜가 여행 기간에 없어 첫날에 저장됩니다</div>')
+      +'</div></div></div>';}
+  ot.innerHTML='<div class="eyebrow">'+svg('i-check','ic')+' 이렇게 읽었어요 ('+ocrSegs.length+'건)</div>'+rows
+    +'<button class="btn brand" onclick="saveOcr()">'+svg('i-check','ic')+' 여행에 저장</button>'
+    +'<div style="height:8px"></div><button class="lnk" onclick="ocrToPaste()">잘못 읽었어요 · 글자 직접 고치기</button>';}
+function ocrToPaste(){var el=document.getElementById('ocrText');var v=el?el.value:ocrRaw;closeOv();routeTo('paste');
+  setTimeout(function(){var b=document.getElementById('pbox');if(b)b.value=v;},250);}
+function saveOcr(){var t=trip(curTrip);if(!t)return;var added=0;
+  for(var i=0;i<ocrSegs.length;i++){var g=ocrSegs[i];var di=0;
+    for(var k=0;k<(t.days||[]).length;k++){if(t.days[k].date===g.dep.date){di=k;break;}}
+    t.days[di].items=t.days[di].items||[];
+    t.days[di].items.push({_id:uid(),cat:'transport',time:g.dep.time,
+      title:(g.from?g.from.name:'출발')+' → '+(g.to?g.to.name:'도착')+' ('+g.flight+')',
+      place:(g.to?g.to.name+'공항':''),
+      sub:[g.resv?('예약번호 '+g.resv):'',g.arr?('도착 '+g.arr.time):''].filter(Boolean).join(' · '),
+      by:ME.name,comments:[],map:!!g.to});
+    t.days[di].items.sort(function(a,b){return a.time.localeCompare(b.time);});added++;curDay=di;}
+  closeOv();toast(added+'건을 저장했어요');rerender();save();}
 function openAddChoice(dayIdx){
   openSheet(`<div class="grab"></div><h3>무엇을 추가할까요?</h3>
     <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();openAddItem(${dayIdx})">
@@ -727,7 +799,11 @@ function openAddChoice(dayIdx){
     <div style="height:10px"></div>
     <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();routeTo('paste')">
       <div class="tile" style="width:38px;height:38px;background:${CAT_BG.transport};color:var(--c-transport)">${svg('i-clip')}</div>
-      <div style="text-align:left"><b style="font-size:14.5px">예약 문자 붙여넣기</b><div class="muted small">항공·숙박·렌트카 문자를 자동 정리</div></div></button>`);}
+      <div style="text-align:left"><b style="font-size:14.5px">예약 문자 붙여넣기</b><div class="muted small">항공·숙박·렌트카 문자를 자동 정리</div></div></button>
+    <div style="height:10px"></div>
+    <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();openPhotoAdd(\${dayIdx})">
+      <div class="tile" style="width:38px;height:38px;background:\${CAT_BG.ticket};color:var(--c-ticket)">\${svg('i-camera')}</div>
+      <div style="text-align:left"><b style="font-size:14.5px">사진으로 추가 <span style="color:var(--brand)">NEW</span></b><div class="muted small">항공권·예약 화면 캡처를 올리면 자동 인식</div></div></button>`);}
 function selDay(i){curDay=i;renderDetail();}
 function selFilter(k){curFilter=k;renderDetail();}
 
@@ -1040,6 +1116,7 @@ window.onFbError=function(msg){$('splashMsg').textContent=msg;};
        (예: http://localhost:5500)
      · 지도가 안 뜨면 앱은 대체 그림 + '카카오맵에서 열기'로 계속 동작합니다.
      ============================================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=cd4d94df9f85458a17070058fdf67527&libraries=services&autoload=false"
         onerror="window.__kakaoLoadFailed=true"></script>
 <script>
