@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  여행가보젠 — v4 (Firebase 연결판 · 단일 HTML)
+  가족·지인·친구·동료 등 '함께 여행하는 그룹'을 위한 여행 노트
+  ----------------------------------------------------------------------------
+  ● 이 버전부터는 '진짜'입니다.
+    - 실제 회원가입 / 로그인 (Firebase Authentication)
+    - 내 여행·일정·댓글·투표가 클라우드에 저장 (Firestore) → 새로고침해도 남음
+    - 초대코드로 멤버가 들어오면, 같은 여행을 함께 보고 실시간으로 같이 편집
+
+  ● [중요] 실행 방법
+    가급적 '로컬 서버'로 여세요. (파일 더블클릭도 대개 되지만, 서버가 가장 안전)
+    가장 쉬운 방법: VS Code 설치 → 확장 'Live Server' 설치
+                   → 이 파일 우클릭 → "Open with Live Server"
+    ※ 로컬 서버로 열면 주소가 http://localhost:5500 처럼 됩니다.
+      Firebase 콘솔 > Authentication > 설정 > 승인된 도메인에 'localhost'가
+      기본 포함돼 있어 그대로 작동합니다.
+
+  ● [내 정보 바꾸기] 아래 FIREBASE_CONFIG 부분만 교체하면 다른 프로젝트에도 붙습니다.
+  ============================================================================
+-->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>여행가보젠</title>
+<style>
+  :root{
+    --ink:#12212E; --ink-2:#37464F; --muted:#6B665C;
+    --paper:#F7F4EE; --card:#FFFFFF; --line:#E7E0D4;
+    --brand:#E2603B; --brand-ink:#B0421B; --teal:#0E7C7B;
+    --c-transport:#2F7DB5; --c-stay:#7A5AF0; --c-rentcar:#0E9E8E;
+    --c-ticket:#C98717; --c-plan:#E2603B; --c-pack:#3F8A4A;
+    --r:18px; --shadow:0 6px 20px rgba(18,33,46,.07),0 1px 3px rgba(18,33,46,.06);
+    --shadow-lg:0 24px 50px rgba(18,33,46,.22);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;}
+  body{font-family:"Pretendard","Apple SD Gothic Neo","맑은 고딕",sans-serif;color:var(--ink);
+    background:radial-gradient(120% 80% at 50% -10%,#F3EEE4,#E1DACC 60%,#D6CFC0);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:22px;-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+  .phone{width:392px;max-width:100%;height:824px;max-height:94vh;background:var(--paper);border-radius:44px;
+    box-shadow:var(--shadow-lg);overflow:hidden;position:relative;display:flex;flex-direction:column;border:1px solid rgba(18,33,46,.06);}
+  .notch{height:30px;display:flex;justify-content:center;}
+  .notch::after{content:"";width:120px;height:24px;background:#12212E;border-radius:0 0 16px 16px;position:absolute;top:0;}
+  .topbar{display:flex;align-items:center;gap:10px;padding:6px 18px 12px;min-height:44px;}
+  .topbar.hidden{display:none;}
+  .topbar .kicker{font-size:11px;color:var(--muted);font-weight:700;}
+  .topbar h1{font-size:20px;margin:1px 0 0;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .topbar .flex{flex:1;min-width:0;}
+  .ibtn{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--card);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);flex-shrink:0;}
+  .ibtn:active{transform:scale(.93);}
+  .screen{flex:1;overflow-y:auto;padding:4px 18px 24px;display:none;}
+  .screen.active{display:block;animation:rise .28s cubic-bezier(.2,.7,.3,1);}
+  #login.active{display:flex;flex-direction:column;justify-content:center;padding:30px 26px;text-align:center;}
+  @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .screen::-webkit-scrollbar{width:0;}
+  .nav{display:flex;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:8px 12px;}
+  .nav.hidden{display:none;}
+  .nav button{flex:1;background:none;border:none;padding:6px 0;cursor:pointer;color:var(--muted);font-size:11px;
+    font-weight:700;display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .nav button svg{width:23px;height:23px;stroke-width:1.9;}
+  .nav button.on{color:var(--brand);} .nav button.on svg{stroke-width:2.3;}
+  svg.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;}
+  .btn{border:none;border-radius:14px;padding:15px 16px;font-size:15px;font-weight:800;width:100%;cursor:pointer;
+    font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);color:#fff;}
+  .btn svg{width:19px;height:19px;} .btn:active{transform:translateY(1px);}
+  .btn:disabled{opacity:.55;cursor:default;}
+  .btn.brand{background:var(--brand);} .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow);}
+  .btn.sm{padding:11px 12px;font-size:13.5px;border-radius:12px;}
+  .input,select.input{width:100%;padding:14px;border:1px solid var(--line);border-radius:14px;font-size:14.5px;margin-bottom:10px;
+    font-family:inherit;background:#fff;color:var(--ink);}
+  .input:focus{outline:2px solid rgba(226,96,59,.35);border-color:var(--brand);}
+  textarea.input{resize:vertical;min-height:120px;line-height:1.6;}
+  label.fld{display:block;font-size:12.5px;font-weight:800;color:var(--ink-2);margin:2px 2px 6px;}
+  .eyebrow{font-size:12.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+    margin:18px 2px 10px;display:flex;align-items:center;gap:7px;} .eyebrow:first-child{margin-top:4px;}
+  .muted{color:var(--muted);} .small{font-size:13px;} .center{text-align:center;}
+  .row{display:flex;align-items:center;gap:12px;}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;}
+  .pill svg{width:13px;height:13px;stroke-width:2.2;}
+  .tile{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .tile svg{width:21px;height:21px;stroke-width:1.9;}
+  .brandmark{width:70px;height:70px;border-radius:22px;margin:0 auto 16px;background:#E2603B;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 26px rgba(226,96,59,.4);}
+  .wordmark{font-size:27px;font-weight:800;letter-spacing:-.03em;}
+  .tagline{color:var(--brand-ink);font-weight:800;margin:6px 0 2px;}
+  .tabs2{display:flex;background:#EFEAE0;border-radius:14px;padding:4px;margin-bottom:14px;}
+  .tabs2 button{flex:1;border:none;background:none;padding:10px;border-radius:11px;font-weight:800;font-size:14px;cursor:pointer;color:var(--muted);font-family:inherit;}
+  .tabs2 button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow);}
+  .err{background:rgba(178,59,59,.1);color:#8E2F2F;border-radius:12px;padding:11px 13px;font-size:13px;font-weight:700;margin-bottom:10px;text-align:left;}
+  .hero{position:relative;border-radius:24px;overflow:hidden;color:#fff;margin-bottom:16px;box-shadow:var(--shadow);}
+  .hero .bg{position:absolute;inset:0;background:linear-gradient(145deg,#16404E,#0E7C7B 130%);}
+  .hero .bg::after{content:"";position:absolute;inset:0;opacity:.5;background:radial-gradient(80% 60% at 85% 0%,rgba(226,96,59,.55),transparent 60%);}
+  .hero .in{position:relative;padding:18px 18px 20px;}
+  .hero .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .hero .badge{background:rgba(255,255,255,.16);padding:5px 11px;border-radius:999px;font-size:12px;font-weight:800;display:inline-flex;gap:6px;align-items:center;max-width:62%;overflow:hidden;}
+  .hero .now{font-size:12.5px;color:#DCEEEC;font-weight:700;}
+  .hero .cap{font-size:12.5px;color:#BFE0DD;font-weight:800;}
+  .hero h2{font-size:22px;margin:2px 0 4px;font-weight:800;letter-spacing:-.02em;}
+  .hero .meta{color:#E4F1EF;font-size:13.5px;display:flex;align-items:center;gap:6px;}
+  .hero .cta{margin-top:16px;background:#fff;color:var(--ink);border:none;border-radius:13px;padding:12px;width:100%;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;}
+  .track{display:flex;gap:5px;margin-top:14px;} .track i{height:4px;border-radius:2px;flex:1;background:rgba(255,255,255,.28);} .track i.on{background:#fff;}
+  .tl{position:relative;padding-left:30px;}
+  .tl::before{content:"";position:absolute;left:14px;top:6px;bottom:10px;width:2px;background:var(--line);}
+  .tl .node{position:relative;margin-bottom:12px;}
+  .tl .dot{position:absolute;left:-30px;top:2px;width:30px;display:flex;justify-content:center;}
+  .tl .dot .r{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);}
+  .tl .dot .r svg{width:16px;height:16px;stroke-width:2;}
+  .tl .time{font-size:12.5px;font-weight:800;color:var(--ink-2);}
+  .tl .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-top:3px;box-shadow:var(--shadow);}
+  .tl .box b{font-size:14.5px;font-weight:700;} .tl .box .sub{font-size:13px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:5px;}
+  .tl .box .cbar{display:flex;align-items:center;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid var(--line);flex-wrap:wrap;}
+  .tl .box .cbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--teal);font-weight:800;font-size:12.5px;font-family:inherit;padding:0;}
+  .tl .box .cbtn.gray{color:var(--muted);}
+  .tl .box .cbtn svg{width:15px;height:15px;stroke-width:2;}
+  .tl .box .by{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-size:12px;font-weight:700;}
+  .tl .box .by svg{width:13px;height:13px;}
+  /* 지난 일정은 흐리게, 다음 일정은 강조 */
+  .tl .node.past .box{opacity:.5;}
+  .tl .node.past .time{color:var(--muted);}
+  .tl .node.past .dot .r{background:#F1EDE4;color:#B7B0A2 !important;}
+  .tl .node.next .box{border-color:var(--brand);box-shadow:0 0 0 3px rgba(226,96,59,.13),var(--shadow);}
+  .tl .node.next .dot .r{border-color:var(--brand);}
+  .nowtag{display:inline-flex;align-items:center;gap:4px;background:var(--brand);color:#fff;font-size:10.5px;
+    font-weight:800;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;}
+  .donetag{display:inline-flex;align-items:center;gap:3px;background:#EFEAE0;color:var(--muted);font-size:10.5px;
+    font-weight:800;padding:2px 8px;border-radius:999px;margin-left:6px;}
+  /* 일정 사이 이동거리·시간 */
+  .leg{display:flex;align-items:center;gap:6px;margin:-5px 0 11px;font-size:12px;color:var(--muted);font-weight:700;}
+  .leg svg{width:13px;height:13px;stroke-width:2;}
+  .leg .warn{color:var(--brand-ink);font-weight:800;}
+  .leg.hidden{display:none;}
+  .vote{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border:1px solid var(--line);border-radius:13px;margin-bottom:8px;background:#fff;box-shadow:var(--shadow);gap:10px;}
+  .vote.win{border-color:rgba(226,96,59,.5);background:rgba(226,96,59,.06);}
+  .vote .vbtn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-weight:800;font-size:12.5px;cursor:pointer;color:var(--ink);font-family:inherit;flex-shrink:0;}
+  .vote .vbtn.on{background:var(--brand);color:#fff;border-color:var(--brand);}
+  .vote .vbtn svg{width:14px;height:14px;stroke-width:2.2;}
+  .cmts{max-height:240px;overflow:auto;} .cmt{padding:9px 2px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.5;}
+  .cmt:last-child{border-bottom:none;} .cmt .cw{font-weight:800;margin-right:7px;}
+  .trip{padding:0;overflow:hidden;cursor:pointer;border:1px solid var(--line);}
+  .trip .cover{height:132px;position:relative;display:flex;align-items:flex-end;}
+  .trip .cover .grad{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.6));}
+  .trip .cover .cc{position:relative;padding:14px;color:#fff;width:100%;}
+  .trip .cover .dday{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.94);color:var(--ink);padding:5px 11px;border-radius:999px;font-size:12px;font-weight:800;}
+  .trip .cover h3{font-size:18px;margin:0;font-weight:800;}
+  .trip .cover .loc{font-size:12.5px;opacity:.94;display:flex;align-items:center;gap:5px;margin-top:3px;}
+  .trip .foot{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;}
+  .avatars{display:flex;} .avatars span{width:26px;height:26px;border-radius:50%;border:2px solid #fff;margin-left:-8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background-size:cover;background-position:center;overflow:hidden;} .avatars span:first-child{margin-left:0;}
+  .prof{width:88px;height:88px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;font-weight:800;background-size:cover;background-position:center;position:relative;}
+  .prof .cam{position:absolute;right:-2px;bottom:-2px;width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);}
+  .prof .cam svg{width:15px;height:15px;stroke-width:2;color:var(--ink);}
+  .lnk{background:none;border:none;color:var(--teal);font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline;padding:6px;}
+  .vbadge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;}
+  /* DAY 탭: 여행이 길면 좌우로 밀어서 보기 (오른쪽 끝에 흐림 힌트) */
+  .dayswrap{position:relative;}
+  .dayswrap::after{content:"";position:absolute;right:0;top:0;bottom:10px;width:26px;pointer-events:none;
+    background:linear-gradient(90deg,rgba(247,244,238,0),var(--paper));}
+  .days{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scroll-behavior:smooth;} .days::-webkit-scrollbar{height:0;}
+  .day{flex-shrink:0;min-width:56px;padding:9px 8px;border-radius:14px;border:1px solid var(--line);background:#fff;cursor:pointer;text-align:center;box-shadow:var(--shadow);}
+  .day .n{font-size:11px;color:var(--muted);font-weight:800;} .day .d{font-size:17px;font-weight:800;margin-top:1px;}
+  .day.on{background:var(--ink);border-color:var(--ink);color:#fff;} .day.on .n{color:#C7CDD2;}
+  /* 필터: 줄바꿈으로 모두 보이게 (가로 스크롤 불필요) */
+  .filters{display:flex;flex-wrap:wrap;gap:7px;padding-bottom:12px;}
+  .fchip{border:1px solid var(--line);background:#fff;color:var(--ink-2);padding:7px 12px;border-radius:999px;font-size:12.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .fchip:active{transform:scale(.96);}
+  .fchip svg{width:14px;height:14px;stroke-width:2.2;} .fchip.on{background:rgba(226,96,59,.1);color:var(--brand-ink);border-color:rgba(226,96,59,.35);}
+  .map{height:120px;border-radius:14px;overflow:hidden;border:1px solid var(--line);position:relative;margin-top:10px;background:#E9EEE9;cursor:pointer;}
+  .map .lbl{position:absolute;left:10px;bottom:9px;background:rgba(255,255,255,.94);padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;display:flex;align-items:center;gap:5px;color:var(--teal);}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .album{border-radius:18px;overflow:hidden;position:relative;height:150px;cursor:pointer;box-shadow:var(--shadow);}
+  .album .grad{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.62));}
+  .album .cap{position:absolute;left:12px;right:12px;bottom:11px;color:#fff;} .album .cap b{font-size:14px;font-weight:800;}
+  .album .yr{position:absolute;top:10px;left:12px;color:#fff;font-size:11px;font-weight:800;opacity:.9;}
+  .empty{text-align:center;padding:30px 16px;}
+  .empty .big{width:78px;height:78px;border-radius:24px;margin:0 auto 16px;background:rgba(226,96,59,.12);color:var(--brand);display:flex;align-items:center;justify-content:center;}
+  .empty .big svg{width:38px;height:38px;stroke-width:1.7;}
+  .steps{text-align:left;margin:16px auto 0;max-width:280px;}
+  .steps .s{display:flex;gap:11px;align-items:flex-start;margin-bottom:12px;}
+  .steps .num{width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .qr{width:150px;height:150px;margin:6px auto;display:block;}
+  .ov{position:absolute;inset:0;background:rgba(18,33,46,.5);display:none;z-index:60;}
+  .ov.on{display:flex;} .ov.bottom{align-items:flex-end;justify-content:center;} .ov.center{align-items:center;justify-content:center;padding:20px;}
+  .sheet{background:#fff;width:100%;border-radius:24px 24px 0 0;padding:18px 18px 22px;max-height:86%;overflow:auto;animation:up .28s cubic-bezier(.2,.7,.3,1);position:relative;}
+  .sheetX{position:absolute;right:14px;top:14px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+    background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);z-index:5;}
+  .sheetX svg{width:17px;height:17px;stroke-width:2.2;} .sheetX:active{transform:scale(.92);}
+  .modal{background:#fff;width:100%;border-radius:22px;padding:20px;animation:pop .24s ease;text-align:center;}
+  @keyframes up{from{transform:translateY(30px);}to{transform:none;}} @keyframes pop{from{transform:scale(.94);opacity:0;}to{transform:none;opacity:1;}}
+  .sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px;}
+  .sheet h3{font-size:18px;margin:0 0 14px;font-weight:800;}
+  .code{font-family:ui-monospace,Menlo,monospace;font-size:16px;font-weight:800;letter-spacing:.08em;color:var(--brand-ink);background:rgba(226,96,59,.1);padding:10px 14px;border-radius:12px;display:inline-block;}
+  .toast{position:absolute;left:20px;right:20px;bottom:92px;background:var(--ink);color:#fff;padding:13px 15px;border-radius:14px;font-size:13.5px;text-align:center;opacity:0;transform:translateY(8px);transition:.28s;pointer-events:none;box-shadow:var(--shadow-lg);z-index:80;}
+  .toast.show{opacity:1;transform:none;}
+  .splash{position:absolute;inset:0;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:90;}
+  .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:sp .8s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<svg id="sprite" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-suitcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.6"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3.4"/><path d="M22 21v-2a4 4 0 0 0-3-3.85M16 3.15a4 4 0 0 1 0 7.7"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L12 15l-4 1 1-4z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.7 4.8L18.5 9.5l-4.8 1.7L12 16l-1.7-4.8L5.5 9.5l4.8-1.7z"/><path d="M19 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+  <symbol id="i-plane" viewBox="0 0 24 24"><path d="M21.5 3.5 3 11l6 2.2M21.5 3.5 16 21l-4-6.2M21.5 3.5 9 13.2v5.3l3-3.7"/></symbol>
+  <symbol id="i-bed" viewBox="0 0 24 24"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 14h18M7 10V8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2M3 20v-2M21 20v-2"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 13l1.6-4.2A2 2 0 0 1 8.5 7.5h7a2 2 0 0 1 1.9 1.3L19 13M4 13h16v4a1 1 0 0 1-1 1h-1.5M4 13v4a1 1 0 0 0 1 1h1.5"/><circle cx="7.5" cy="17.5" r="1.4"/><circle cx="16.5" cy="17.5" r="1.4"/></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 9.5a2 2 0 0 0 0 5V17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5a2 2 0 0 1 0-5V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"/><path d="M13 5v14" stroke-dasharray="2 2.5"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M9 9V7a3 3 0 0 1 6 0v2M6 14h12"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 9h6M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4 4z"/></symbol>
+  <symbol id="i-vote" viewBox="0 0 24 24"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM7 11l4.5-8a2 2 0 0 1 2 2v3h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.5 20H7"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="5"/><path d="m11.5 11.5 8-8M17 6l2.5 2.5M14.5 8.5 17 11"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></symbol>
+</defs></svg>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="topbar hidden" id="topbar">
+    <button class="ibtn" id="backBtn" onclick="goBack()" aria-label="뒤로 가기" style="display:none;"><svg class="ic"><use href="#i-left"/></svg></button>
+    <div class="flex"><div class="kicker" id="kicker"></div><h1 id="ptitle">여행가보젠</h1></div>
+    <button class="ibtn" id="moreBtn" onclick="openTripMenu()" aria-label="여행 메뉴" style="display:none"><svg class="ic"><use href="#i-more"/></svg></button>
+    <button class="ibtn" id="acctBtn" onclick="openAccount()" aria-label="내 계정"><svg class="ic"><use href="#i-users"/></svg></button>
+  </div>
+
+  <!-- 로그인 / 회원가입 -->
+  <div class="screen active" id="login">
+    <div class="brandmark">
+      <svg width="40" height="40" viewBox="0 0 48 48" fill="none" aria-label="여행가보젠 로고">
+        <path d="M9 40C15 31 12 23 22 20.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="0.1 5.6"/>
+        <circle cx="9" cy="40" r="3.1" fill="#fff"/>
+        <path d="M31 6c-5.2 0-9.3 4.1-9.3 9.3 0 6.7 9.3 15.4 9.3 15.4s9.3-8.7 9.3-15.4C40.3 10.1 36.2 6 31 6z" fill="#fff"/>
+        <circle cx="31" cy="15.3" r="3.3" fill="#B0421B"/></svg>
+    </div>
+    <div class="wordmark">여행가보젠</div>
+    <div class="tagline">함께 떠나는 우리들의 여행 노트</div>
+    <p class="muted small" style="margin:0 0 20px;">흩어진 예약을 한 곳에 · 여행이 끝나면 추억으로</p>
+    <div class="tabs2"><button id="tabLogin" class="on" onclick="authMode('login')">로그인</button><button id="tabSignup" onclick="authMode('signup')">회원가입</button></div>
+    <div id="authErr"></div>
+    <div id="nameWrap" style="display:none"><input class="input" id="aName" placeholder="이름 (예: 김광석)" aria-label="이름"></div>
+    <input class="input" id="aEmail" type="email" placeholder="이메일" aria-label="이메일" autocomplete="username">
+    <input class="input" id="aPw" type="password" placeholder="비밀번호 (6자 이상)" aria-label="비밀번호" autocomplete="current-password">
+    <button class="btn brand" id="authBtn" onclick="doAuth()">로그인</button>
+    <button class="lnk" id="resetLink" onclick="doReset()">비밀번호를 잊으셨나요?</button>
+    <p class="muted small" style="margin-top:10px;">처음이시면 위 <b>회원가입</b> 탭을 눌러 계정을 만들어 주세요.<br>비밀번호는 <b>Firebase가 암호화해 보관</b>하며, 앱이나 저희가 볼 수 없습니다.</p>
+  </div>
+
+  <div class="screen" id="today"></div>
+  <div class="screen" id="trips"></div>
+  <div class="screen" id="detail"></div>
+  <div class="screen" id="paste"></div>
+  <div class="screen" id="history"></div>
+  <div class="screen" id="report"></div>
+
+  <div class="nav hidden" id="nav">
+    <button data-tab="today" onclick="switchTab('today')"><svg class="ic"><use href="#i-home"/></svg>홈</button>
+    <button data-tab="trips" onclick="switchTab('trips')"><svg class="ic"><use href="#i-suitcase"/></svg>내 여행</button>
+    <button data-tab="history" onclick="switchTab('history')"><svg class="ic"><use href="#i-camera"/></svg>추억</button>
+  </div>
+
+  <div class="ov" id="ov"><div id="ovc"></div></div>
+  <div class="toast" id="toast"></div>
+  <div class="splash" id="splash"><div class="spin"></div><div class="muted small" id="splashMsg">연결 중…</div></div>
+</div>
+
+<script>
+/* ============================================================================
+   앱 로직 (Firebase 연결은 아래 module 스크립트가 담당하고, 여기서 호출합니다)
+   ============================================================================ */
+const CAT={
+  transport:{name:"교통편",icon:"i-plane",color:"var(--c-transport)"},
+  stay:{name:"숙박",icon:"i-bed",color:"var(--c-stay)"},
+  rentcar:{name:"렌트카",icon:"i-car",color:"var(--c-rentcar)"},
+  ticket:{name:"입장권",icon:"i-ticket",color:"var(--c-ticket)"},
+  plan:{name:"일정/장소",icon:"i-pin",color:"var(--c-plan)"},
+  pack:{name:"준비물",icon:"i-bag",color:"var(--c-pack)"},
+};
+const CAT_ORDER=["transport","stay","rentcar","ticket","plan","pack"];
+const CAT_BG={transport:"rgba(47,125,181,.12)",stay:"rgba(122,90,240,.12)",rentcar:"rgba(14,158,142,.12)",
+  ticket:"rgba(201,135,23,.14)",plan:"rgba(226,96,59,.12)",pack:"rgba(63,138,74,.14)"};
+const AVCOL=["#E2603B","#0E7C7B","#7A5AF0","#D99A2B","#2F7DB5","#3F8A4A"];
+const COVERS=["linear-gradient(135deg,#1E7C86,#12414E)","linear-gradient(135deg,#E2603B,#B23A18)","linear-gradient(135deg,#4B5BC4,#232E77)","linear-gradient(135deg,#3F8A4A,#256030)"];
+
+let TRIPS=[];               // Firestore에서 실시간으로 받아오는 내 여행들
+let ME={uid:null,name:"나",email:"",photo:"",verified:false};
+let newPhoto=null;          // 프로필 편집 중 새로 고른 사진(임시)
+let curTrip=null,curDay=0,curFilter="all",stack=[],authTab="login";
+
+const $=id=>document.getElementById(id);
+const trip=id=>TRIPS.find(t=>t.id===id);
+const svg=(id,cls="ic",style="")=>`<svg class="${cls}" style="${style}"><use href="#${id}"/></svg>`;
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const KDOW=["일","월","화","수","목","금","토"];
+function dObj(ds,t){const[Y,M,D]=ds.split("-").map(Number);const[h,mi]=(t||"00:00").split(":").map(Number);return new Date(Y,M-1,D,h,mi);}
+function mdLabel(ds){const[,M,D]=ds.split("-").map(Number);return M+"/"+D;}
+function dowOf(ds){return KDOW[dObj(ds).getDay()];}
+function daysBetween(a,b){const out=[];let d=dObj(a),e=dObj(b);while(d<=e){out.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`);d.setDate(d.getDate()+1);}return out;}
+function ddayOf(t){const n=new Date();const today=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  const s=dObj(t.start),e=dObj(t.end);const diff=Math.ceil((s-today)/86400000);
+  if(diff>0)return"D-"+diff; if(today<=e)return"여행중"; return"종료";}
+function nextItem(t){const now=new Date();let best=null;(t.days||[]).forEach((d,di)=>(d.items||[]).forEach(it=>{const dt=dObj(d.date,it.time);if(dt>=now&&(!best||dt<best.dt))best={item:it,dayIdx:di,dt};}));return best;}
+function relText(dt,now){let m=Math.round((dt-now)/60000);if(m<0)return"";if(m<60)return m+"분 후";
+  const h=Math.floor(m/60);if(h<24)return h+"시간"+(m%60?" "+(m%60)+"분":"")+" 후";return Math.floor(h/24)+"일 후";}
+function focusDayIdx(t){const now=new Date();let idx=0;(t.days||[]).forEach((d,i)=>{if(now>=dObj(d.date)&&now<=dObj(d.date,"23:59"))idx=i;});return idx;}
+function uid(){return Math.random().toString(36).slice(2,9);}
+function initial(name){return (name||"?").trim().charAt(0)||"?";}
+
+/* ---- 인증 화면 ---- */
+function authMode(m){authTab=m;
+  $('tabLogin').classList.toggle('on',m==='login');$('tabSignup').classList.toggle('on',m==='signup');
+  $('nameWrap').style.display=m==='signup'?'block':'none';
+  $('authBtn').textContent=m==='signup'?'가입하고 시작하기':'로그인';$('authErr').innerHTML='';}
+function authError(msg){$('authErr').innerHTML=`<div class="err">${esc(msg)}</div>`;}
+async function doAuth(){
+  const email=$('aEmail').value.trim(),pw=$('aPw').value,name=($('aName').value||'').trim();
+  if(!email||!pw){authError('이메일과 비밀번호를 입력해 주세요.');return;}
+  if(authTab==='signup'&&!name){authError('이름을 입력해 주세요.');return;}
+  $('authBtn').disabled=true;$('authBtn').textContent='처리 중…';
+  try{
+    if(authTab==='signup')await window.FB.signup(email,pw,name);
+    else await window.FB.login(email,pw);
+  }catch(e){authError(window.FB.msg(e));}
+  $('authBtn').disabled=false;authMode(authTab);
+}
+/* ---- 아바타(사진 또는 이니셜) ---- */
+function avatarStyle(m){return m&&m.photo?`background-image:url('${m.photo}')`:`background:${(m&&m.c)||AVCOL[0]}`;}
+function avatarSpan(m){return `<span style="${avatarStyle(m)}">${m&&m.photo?'':esc(m?m.n:'?')}</span>`;}
+
+function openAccount(){
+  const v=ME.verified;
+  openSheet(`<div class="grab"></div><h3>내 계정</h3>
+  <div class="center" style="margin-bottom:6px">
+    <div class="prof" style="${avatarStyle({photo:ME.photo,c:AVCOL[0]})}">${ME.photo?'':esc(initial(ME.name))}</div>
+    <b style="font-size:17px">${esc(ME.name)}</b>
+    <div class="muted small" style="margin:2px 0 8px">${esc(ME.email)}</div>
+    <span class="vbadge" style="${v?'background:rgba(63,138,74,.14);color:#2f6b38':'background:rgba(201,135,23,.16);color:#8a5c0c'}">
+      ${v?svg('i-check')+' 이메일 인증 완료':svg('i-key')+' 이메일 미인증'}</span>
+  </div>
+  ${v?'':`<button class="btn ghost sm" style="margin:12px 0 0" onclick="sendVerify()">인증 메일 보내기</button>`}
+  <div style="height:14px"></div>
+  <button class="btn ghost" onclick="openProfile()">${svg('i-edit','ic')} 프로필 수정 (이름·사진)</button>
+  <div style="height:10px"></div>
+  <button class="btn ghost" onclick="changePw()">${svg('i-key','ic')} 비밀번호 변경 메일 받기</button>
+  <div style="height:10px"></div>
+  <button class="btn ghost" onclick="joinPrompt()">${svg('i-users','ic')} 초대코드로 여행 참여하기</button>
+  <div style="height:10px"></div>
+  <button class="btn" onclick="window.FB.logout()">${svg('i-out','ic')} 로그아웃</button>`);}
+
+/* ---- 프로필 수정 (이름 + 사진) ---- */
+function openProfile(){newPhoto=null;
+  openSheet(`<div class="grab"></div><h3>프로필 수정</h3>
+  <div class="center">
+    <label for="pfFile" style="cursor:pointer;display:inline-block">
+      <div class="prof" id="pfPrev" style="${avatarStyle({photo:ME.photo,c:AVCOL[0]})}">${ME.photo?'':esc(initial(ME.name))}
+        <span class="cam">${svg('i-camera','ic')}</span></div></label>
+    <input type="file" id="pfFile" accept="image/*" style="display:none" onchange="pickPhoto(event)">
+    <div class="muted small" style="margin-bottom:14px">사진을 눌러 변경 (자동으로 작게 저장돼요)</div>
+  </div>
+  <label class="fld">이름</label><input class="input" id="pfName" value="${esc(ME.name)}" placeholder="이름">
+  ${ME.photo?`<button class="btn ghost sm" onclick="removePhoto()">${svg('i-trash','ic')} 사진 삭제</button><div style="height:10px"></div>`:''}
+  <button class="btn brand" id="pfBtn" onclick="saveProfile()">${svg('i-check','ic')} 저장</button>`);}
+function pickPhoto(ev){const f=ev.target.files&&ev.target.files[0];if(!f)return;
+  if(f.size>8*1024*1024){toast('8MB 이하 사진을 선택해 주세요.');return;}
+  const r=new FileReader();
+  r.onload=e=>{const img=new Image();
+    img.onload=()=>{ // 정사각형으로 잘라 160px로 축소 (용량 절약)
+      const s=Math.min(img.width,img.height),c=document.createElement('canvas');c.width=c.height=160;
+      c.getContext('2d').drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,160,160);
+      newPhoto=c.toDataURL('image/jpeg',0.82);
+      const p=$('pfPrev');p.style.backgroundImage=`url('${newPhoto}')`;p.style.background=`url('${newPhoto}') center/cover`;
+      p.innerHTML=`<span class="cam">${svg('i-camera','ic')}</span>`;};
+    img.src=e.target.result;};
+  r.readAsDataURL(f);}
+function removePhoto(){newPhoto="";const p=$('pfPrev');if(p){p.style.background=AVCOL[0];p.style.backgroundImage='none';
+  p.innerHTML=esc(initial($('pfName').value||ME.name))+`<span class="cam">${svg('i-camera','ic')}</span>`;}toast('저장을 누르면 반영됩니다');}
+async function saveProfile(){
+  const name=($('pfName').value||'').trim();if(!name){toast('이름을 입력해 주세요.');return;}
+  $('pfBtn').disabled=true;
+  const photo=(newPhoto===null)?ME.photo:newPhoto;
+  try{
+    await window.FB.updateMyProfile(name,photo);
+    ME.name=name;ME.photo=photo;
+    // 내가 속한 여행들의 멤버 정보(이름/사진)도 함께 갱신
+    for(const t of TRIPS){let ch=false;
+      (t.members||[]).forEach(m=>{if(m.uid===ME.uid){m.n=initial(name);m.photo=photo||"";ch=true;}});
+      if(ch)await window.FB.saveTrip(t);}
+    closeOv();toast('프로필을 저장했어요');rerender();
+  }catch(e){toast('저장 실패: 잠시 후 다시 시도해 주세요.');$('pfBtn').disabled=false;}
+}
+async function sendVerify(){try{await window.FB.sendVerify();toast('인증 메일을 보냈어요. 메일함을 확인해 주세요.');closeOv();}
+  catch(e){toast('발송 실패: 잠시 후 다시 시도해 주세요.');}}
+async function changePw(){try{await window.FB.resetPw(ME.email);toast('비밀번호 변경 메일을 보냈어요.');closeOv();}
+  catch(e){toast('발송 실패: 잠시 후 다시 시도해 주세요.');}}
+async function doReset(){const email=$('aEmail').value.trim();
+  if(!email){authError('먼저 이메일을 입력한 뒤 눌러주세요.');return;}
+  try{await window.FB.resetPw(email);authError('');toast('비밀번호 재설정 메일을 보냈어요.');}
+  catch(e){authError(window.FB.msg(e));}}
+function joinPrompt(){openSheet(`<div class="grab"></div><h3>초대코드로 참여</h3>
+  <p class="muted small" style="margin:0 0 12px">함께 가는 사람이 알려준 <b>초대코드</b>를 입력하면 그 여행에 참여합니다.</p>
+  <input class="input" id="jCode" placeholder="예: a1b2c3d">
+  <button class="btn brand" onclick="doJoin()">${svg('i-check','ic')} 참여하기</button>`);}
+async function doJoin(){const code=($('jCode').value||'').trim();if(!code){toast('코드를 입력해 주세요.');return;}
+  try{await window.FB.joinTrip(code);closeOv();toast('여행에 참여했어요!');}
+  catch(e){toast('참여 실패: 코드를 확인해 주세요.');}}
+
+/* ---- 화면 전환 ---- */
+function show(id,{title,kicker,back=false,nav=true,push=true}={}){
+  if(push){const c=document.querySelector('.screen.active');if(c)stack.push(c.id);}
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');$(id).scrollTop=0;
+  const isLogin=id==='login';
+  $('topbar').classList.toggle('hidden',isLogin);
+  $('nav').classList.toggle('hidden',isLogin||!nav);
+  $('backBtn').style.display=back?'flex':'none';
+  $('moreBtn').style.display=(id==='detail')?'flex':'none';   // 여행 메뉴는 상세에서만
+  $('acctBtn').style.display=(id==='detail')?'none':'flex';
+  if(!isLogin){$('ptitle').textContent=title||'여행가보젠';$('kicker').textContent=kicker||'';}
+  const tabFor={today:'today',trips:'trips',history:'history',detail:'trips',paste:'trips',report:'trips'}[id];
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tabFor));
+}
+function goBack(){const p=stack.pop();if(p)routeTo(p,{push:false});else switchTab('today');}
+function switchTab(id){stack=[];routeTo(id,{push:false});}
+function routeTo(id,opt={}){
+  if(id==='today'){renderToday();show('today',{kicker:curTrip?'오늘의 여행':'',title:curTrip&&trip(curTrip)?trip(curTrip).title:'여행가보젠',...opt});}
+  else if(id==='trips'){renderTrips();show('trips',{title:'내 여행',...opt});}
+  else if(id==='history'){renderHistory();show('history',{title:'추억',...opt});}
+  else if(id==='detail'){if(!trip(curTrip)){switchTab('trips');return;}renderDetail();show('detail',{kicker:trip(curTrip).place+' · '+mdLabel(trip(curTrip).start)+'–'+mdLabel(trip(curTrip).end),title:trip(curTrip).title,back:true,...opt});}
+  else if(id==='paste'){renderPaste();show('paste',{title:'예약 붙여넣기',back:true,...opt});}
+  else if(id==='report'){renderReport();show('report',{title:'체험학습 보고서',back:true,...opt});}
+  else show(id,opt);
+}
+// 현재 화면 다시 그리기 (실시간 반영용)
+function rerender(){const cur=document.querySelector('.screen.active');if(!cur)return;const id=cur.id;
+  if(id==='today')renderToday();else if(id==='trips')renderTrips();else if(id==='detail'){if(trip(curTrip))renderDetail();else switchTab('trips');}
+  else if(id==='history')renderHistory();}
+// 화면을 그린 뒤에는 항상 지도를 실제 지도로 채웁니다
+function afterRender(){setTimeout(()=>{
+  if(typeof mountMaps==='function')mountMaps();
+  if(typeof mountLegs==='function')mountLegs();},0);}
+
+function catTile(cat,size=42){const c=CAT[cat];return `<div class="tile" style="width:${size}px;height:${size}px;background:${CAT_BG[cat]};color:${c.color}">${svg(c.icon)}</div>`;}
+
+/* ============ 카카오맵 ============
+   · SDK가 준비되면 실제 지도를 그립니다.
+   · 도메인 미등록이나 인터넷 문제로 못 불러오면, 예쁜 대체 그림 + '카카오맵에서 열기'로 동작합니다. */
+let kakaoReady=false;const geoCache={};let mapSeq=0;
+// 지도를 못 불러올 때 '가짜 지도' 대신 정직한 안내 카드를 보여줍니다.
+function mapPlaceholder(place){
+  return `<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:6px;background:var(--paper);color:var(--muted)">
+    <div class="tile" style="background:rgba(226,96,59,.12);color:var(--brand)">${svg('i-pin')}</div>
+    <b style="font-size:13.5px;color:var(--ink)">${esc(place)}</b>
+    <span style="font-size:12px">눌러서 카카오맵으로 보기</span></div>`;}
+// 왜 지도가 안 뜨는지 사람이 읽을 수 있게 설명
+function mapDiagText(){
+  const d=window.__kakaoDiag;
+  if(d==='file')return '지도는 파일을 직접 열면(file://) 작동하지 않아요. VS Code의 Live Server로 열어 주세요.';
+  if(d==='sdk'||window.__kakaoLoadFailed)return '카카오 개발자 콘솔에서 실행 주소(예: http://localhost:5500)를 도메인으로 등록했는지 확인해 주세요.';
+  if(d==='noservices')return '장소 검색 기능을 불러오지 못했습니다.';
+  return '지도를 불러오지 못했습니다.';}
+// 타임라인용 지도 썸네일 (렌더 후 mountMaps()가 실제 지도로 교체)
+function mapThumb(place){const id='km'+(++mapSeq);
+  return `<div class="map" id="${id}" data-place="${esc(place)}" onclick="event.stopPropagation();openMap('${esc(place)}')">
+    ${mapPlaceholder(place)}<div class="lbl">${svg('i-pin')} ${esc(place)}</div></div>`;}
+// 장소 이름 → 좌표 (키워드 검색 → 실패 시 주소 검색)
+function geocode(place){return new Promise(res=>{
+  if(!place)return res(null);
+  if(geoCache[place]!==undefined)return res(geoCache[place]);
+  if(!kakaoReady)return res(null);
+  const ps=new kakao.maps.services.Places();
+  ps.keywordSearch(place,(data,status)=>{
+    if(status===kakao.maps.services.Status.OK&&data&&data[0]){
+      const d=data[0];const p={lat:+d.y,lng:+d.x,name:d.place_name,addr:d.road_address_name||d.address_name};
+      geoCache[place]=p;return res(p);}
+    const gc=new kakao.maps.services.Geocoder();
+    gc.addressSearch(place,(d2,s2)=>{
+      if(s2===kakao.maps.services.Status.OK&&d2&&d2[0]){
+        const p={lat:+d2[0].y,lng:+d2[0].x,name:place,addr:d2[0].address_name};geoCache[place]=p;return res(p);}
+      geoCache[place]=null;res(null);});
+  });});}
+// 화면에 있는 지도 자리들을 실제 지도로 채우기
+async function mountMaps(){
+  if(!kakaoReady)return;
+  const els=document.querySelectorAll('.map[data-place]:not([data-done])');
+  for(const el of els){
+    el.setAttribute('data-done','1');
+    const place=el.getAttribute('data-place');
+    const p=await geocode(place);
+    if(!p)continue;                              // 못 찾으면 대체 그림 유지
+    const lbl=el.querySelector('.lbl');
+    el.innerHTML='';                             // SVG 제거
+    const box=document.createElement('div');box.style.cssText='position:absolute;inset:0';
+    el.appendChild(box);if(lbl)el.appendChild(lbl);
+    const map=new kakao.maps.Map(box,{center:new kakao.maps.LatLng(p.lat,p.lng),level:5,draggable:false,zoomable:false});
+    new kakao.maps.Marker({map,position:new kakao.maps.LatLng(p.lat,p.lng)});
+  }
+}
+window.onKakaoReady=function(){kakaoReady=true;mountMaps();};
+
+/* ---- 홈 ---- */
+function renderToday(){
+  const act=TRIPS.filter(t=>t.status!=='done');
+  if(!act.length){renderEmptyHome();return;}
+  if(!curTrip||!trip(curTrip)||trip(curTrip).status==='done')curTrip=act[0].id;
+  const t=trip(curTrip);const now=new Date();const nx=nextItem(t);
+  const fIdx=focusDayIdx(t);const day=(t.days||[])[fIdx];
+  const heroBody=nx?`<div class="cap">다음 일정 · ${relText(nx.dt,now)||'곧'}</div>
+      <h2>${esc(nx.item.title)}</h2>
+      <div class="meta">${svg('i-clock')} ${esc(nx.item.time)} · ${svg('i-pin')} ${esc(nx.item.place||'-')}</div>`
+    :`<div class="cap">예정된 다음 일정이 없어요</div><h2>일정을 추가해 볼까요?</h2>
+      <div class="meta">${svg('i-plus')} 아래에서 바로 추가할 수 있어요</div>`;
+  const dots=(t.days||[]).map((d,i)=>`<i class="${i<=fIdx?'on':''}"></i>`).join('');
+  const tks=((day&&day.items)||[]).filter(i=>i.cat==='ticket');
+  const tkBlock=tks.length?`<div class="eyebrow">${svg('i-ticket','ic')} 오늘 사용할 입장권</div>`+
+    tks.map(i=>`<div class="card"><div class="row" style="justify-content:space-between">
+      <div class="row"><div class="tile" style="background:${CAT_BG.ticket};color:var(--c-ticket)">${svg('i-ticket')}</div>
+      <div><b style="font-size:14.5px">${esc(i.title)}</b><div class="muted small" style="margin-top:2px">${esc(i.time)} 사용 예정</div></div></div>
+      <button class="pill" style="background:${CAT_BG.pack};color:#2f6b38;border:none;cursor:pointer" onclick="openQR('${esc(i.title)}')">${svg('i-check')} QR</button>
+    </div></div>`).join(''):'';
+  const dayItems=((day&&day.items)||[]).slice().sort((a,b)=>a.time.localeCompare(b.time));
+  const tl=dayItems.length?buildTimeline(dayItems,day.date,fIdx,nx?nx.item._id:null)
+    :`<p class="muted small center" style="padding:16px 0">이 날의 일정이 아직 없어요.</p>`;
+  $('today').innerHTML=`
+    <div class="hero"><div class="bg"></div><div class="in">
+      <div class="top"><span class="badge">${svg('i-suitcase')} ${esc(t.title)}</span>
+        <span class="now">${day?mdLabel(day.date)+'('+dowOf(day.date)+')':''}</span></div>
+      ${heroBody}<div class="track">${dots}</div>
+      <button class="cta" onclick="routeTo('detail')">${svg('i-suitcase','ic')} 여행 전체 보기 ${svg('i-right','ic')}</button>
+    </div></div>${tkBlock}
+    <div class="eyebrow">${svg('i-clock','ic')} ${day?mdLabel(day.date)+'('+dowOf(day.date)+')':''} 일정</div>
+    <div class="tl">${tl}</div>
+    <button class="btn ghost" onclick="openAddItem(${fIdx})">${svg('i-plus','ic')} 이 날 일정·예약 추가</button>`;
+  afterRender();
+}
+/* 일정의 상태: 지난 일정 / 다음 일정 / 예정 */
+function itemState(dateStr,item,nextId){
+  if(nextId&&item._id===nextId)return 'next';
+  return dObj(dateStr,item.time) < new Date() ? 'past' : '';
+}
+/* 두 지점 사이 거리(직선) — 지구 곡률 반영 */
+function haversine(a,b){const R=6371,rad=Math.PI/180;
+  const dLat=(b.lat-a.lat)*rad,dLng=(b.lng-a.lng)*rad;
+  const s=Math.sin(dLat/2)**2+Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));}
+/* 이동 수단·시간 추정 (직선거리 × 1.3 을 실제 도로거리로 가정) */
+function estimateTravel(km){
+  const road=km*1.3;
+  if(road<1.2)return {icon:'i-users',mode:'걸어서',min:Math.max(3,Math.round(road/4*60)),km:road};
+  return {icon:'i-car',mode:'차로',min:Math.round(road/40*60)+5,km:road};}
+/* 타임라인 만들기: 일정 + 사이의 이동 정보 */
+function buildTimeline(items,dateStr,dayIdx,nextId){
+  let out='';
+  items.forEach((i,idx)=>{
+    out+=timelineNode(i,dayIdx,dateStr,nextId);
+    const nx=items[idx+1];
+    if(nx&&i.place&&nx.place&&i.place!==nx.place){
+      const gap=Math.round((dObj(dateStr,nx.time)-dObj(dateStr,i.time))/60000);
+      out+=`<div class="leg hidden" data-from="${esc(i.place)}" data-to="${esc(nx.place)}" data-gap="${gap}"></div>`;
+    }
+  });
+  return out;}
+/* 렌더 후 실제 거리·시간 채우기 (카카오맵이 준비된 경우에만) */
+async function mountLegs(){
+  if(!kakaoReady)return;
+  const els=document.querySelectorAll('.leg[data-from]:not([data-done])');
+  for(const el of els){
+    el.setAttribute('data-done','1');
+    const A=await geocode(el.getAttribute('data-from'));
+    const B=await geocode(el.getAttribute('data-to'));
+    if(!A||!B)continue;
+    const t=estimateTravel(haversine(A,B));
+    const gap=parseInt(el.getAttribute('data-gap'))||0;
+    const tight=gap>0&&gap<t.min;
+    el.className='leg';
+    el.innerHTML=`${svg(t.icon)} 약 ${t.km<1?Math.round(t.km*1000)+'m':t.km.toFixed(1)+'km'} · ${t.mode} ${t.min}분`+
+      (tight?` <span class="warn">· 일정이 빠듯해요 (${gap}분)</span>`:'');
+  }}
+
+function timelineNode(i,dayIdx,dateStr,nextId){const c=CAT[i.cat];const cc=(i.comments&&i.comments.length)||0;
+  const st=dateStr?itemState(dateStr,i,nextId):'';
+  const tag= st==='next'?`<span class="nowtag">${svg('i-clock')} 다음</span>`
+           : st==='past'?`<span class="donetag">${svg('i-check')} 지남</span>`:'';
+  return `<div class="node ${st}"><div class="dot"><div class="r" style="color:${c.color}">${svg(c.icon)}</div></div>
+    <div class="time">${esc(i.time)} · <span class="muted">${c.name}</span>${tag}</div>
+    <div class="box"><b>${esc(i.title)}</b>
+      <div class="sub">${svg('i-pin')} ${esc(i.place||'-')}${i.sub?' · '+esc(i.sub):''}</div>
+      ${i.map?mapThumb(i.place):''}
+      ${i.qr?`<button class="btn ghost sm" style="margin-top:10px" onclick="openQR('${esc(i.title)}')">${svg('i-ticket','ic')} 입장권 QR 열기</button>`:''}
+      <div class="cbar">${i.by?`<span class="by">${svg('i-users')} ${esc(i.by)}</span>`:''}
+        <button class="cbtn" onclick="openComments('${i._id}')">${svg('i-chat')} 의견 ${cc}</button>
+        <button class="cbtn gray" style="margin-left:auto" onclick="openItemMenu('${i._id}')" aria-label="더보기">${svg('i-more')}</button></div>
+    </div></div>`;
+}
+/* 일정 항목 메뉴 — 수정·삭제·보고서를 한 곳에 모아 화면을 단순하게 */
+function openItemMenu(id){const f=itemById(id);if(!f)return;const it=f.it;const t=trip(curTrip);
+  const canReport=t.hasStudent&&(it.cat==='plan'||it.cat==='ticket');
+  openSheet(`<div class="grab"></div><h3>${esc(it.title)}</h3>
+    <div class="muted small" style="margin:-8px 0 14px">${esc(it.time)} · ${esc(it.place||'장소 없음')}</div>
+    ${it.place?`<button class="btn ghost" onclick="closeOv();openMap('${esc(it.place)}')">${svg('i-pin','ic')} 지도에서 보기</button><div style="height:10px"></div>`:''}
+    ${canReport?`<button class="btn" style="background:var(--teal)" onclick="openReportFor('${id}')">${svg('i-file','ic')} 이 장소로 체험학습 보고서</button><div style="height:10px"></div>`:''}
+    <button class="btn ghost" onclick="closeOv();openEditItem('${id}')">${svg('i-edit','ic')} 수정</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost" style="color:#B23B3B" onclick="closeOv();delItem('${id}')">${svg('i-trash','ic')} 삭제</button>`);}
+/* 여행 메뉴 (상단 ⋯) */
+function openTripMenu(){const t=trip(curTrip);if(!t)return;
+  openSheet(`<div class="grab"></div><h3>여행 관리</h3>
+    <button class="btn ghost" onclick="closeOv();openShare()">${svg('i-share','ic')} 멤버 초대</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost" onclick="closeOv();openAccount()">${svg('i-users','ic')} 내 계정</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost" style="color:#B23B3B" onclick="closeOv();askDeleteTrip()">${svg('i-trash','ic')} 이 여행 삭제</button>`);}
+function renderEmptyHome(){
+  $('today').innerHTML=`<div class="empty">
+      <div class="big">${svg('i-suitcase','ic')}</div>
+      <h2 style="margin:0 0 6px;font-size:20px">${esc(ME.name)}님, 환영합니다</h2>
+      <p class="muted small" style="margin:0 auto;max-width:280px">첫 여행을 만들면, 흩어진 예약과 일정을 한 곳에 모을 수 있어요.</p>
+      <div class="steps">
+        <div class="s"><div class="num">1</div><div><b>여행 만들기</b><div class="muted small">제목·기간만 입력하면 끝</div></div></div>
+        <div class="s"><div class="num">2</div><div><b>예약 붙여넣기</b><div class="muted small">문자·메일을 붙여넣으면 자동 정리</div></div></div>
+        <div class="s"><div class="num">3</div><div><b>멤버 초대해 함께 보기</b><div class="muted small">의견 남기고 투표로 결정</div></div></div>
+      </div><div style="height:18px"></div>
+      <button class="btn brand" onclick="openCreateTrip()">${svg('i-plus','ic')} 첫 여행 만들기</button>
+      <div style="height:10px"></div>
+      <button class="btn ghost" onclick="joinPrompt()">${svg('i-key','ic')} 초대코드로 참여하기</button>
+    </div>`;
+}
+
+/* ---- 내 여행 ---- */
+function renderTrips(){
+  const av=t=>`<div class="avatars">${(t.members||[]).slice(0,4).map(m=>avatarSpan(m)).join('')}</div>`;
+  const act=TRIPS.filter(t=>t.status!=='done');
+  const list=act.length?act.map(t=>`<div class="card trip" onclick="openTrip('${t.id}')">
+      <div class="cover" style="background:${t.cover}"><div class="grad"></div><div class="dday">${ddayOf(t)}</div>
+        <div class="cc"><h3>${esc(t.title)}</h3><div class="loc">${svg('i-pin')} ${esc(t.place)} · ${mdLabel(t.start)}–${mdLabel(t.end)}</div></div></div>
+      <div class="foot"><span class="pill" style="background:${CAT_BG.plan};color:var(--brand-ink)">${svg('i-users')} ${esc(t.groupType)}</span>${av(t)}</div>
+    </div>`).join(''):`<div class="card center" style="padding:26px"><p class="muted small" style="margin:0">진행 중·예정된 여행이 없어요.</p></div>`;
+  $('trips').innerHTML=`<button class="btn brand" onclick="openCreateTrip()">${svg('i-plus','ic')} 새 여행 만들기</button>
+    <div class="eyebrow">진행 중 · 예정된 여행</div>${list}
+    <button class="btn ghost" onclick="switchTab('history')">${svg('i-camera','ic')} 지난 여행(추억) 보기</button>`;
+}
+function openTrip(id){curTrip=id;curDay=focusDayIdx(trip(id));curFilter="all";routeTo('detail');}
+
+/* ---- 여행 상세 ---- */
+function renderDetail(){
+  const t=trip(curTrip);if(!t)return;
+  if(!t.days||!t.days.length){$('detail').innerHTML=`<div class="card center" style="padding:26px"><p class="muted small">이 여행엔 날짜가 없어요.</p></div>`;return;}
+  if(curDay>=t.days.length)curDay=0;
+  const dayTabs=t.days.map((d,i)=>`<div class="day ${i===curDay?'on':''}" onclick="selDay(${i})"><div class="n">DAY ${i+1}</div><div class="d">${mdLabel(d.date).split('/')[1]}</div></div>`).join('');
+  const chips=['all',...CAT_ORDER].map(k=>{const on=k===curFilter?'on':'';
+    if(k==='all')return `<div class="fchip ${on}" onclick="selFilter('all')">${svg('i-grid')} 전체</div>`;
+    return `<div class="fchip ${on}" onclick="selFilter('${k}')" style="${on?`color:${CAT[k].color};border-color:${CAT[k].color}55;background:${CAT_BG[k]}`:''}">${svg(CAT[k].icon)} ${CAT[k].name}</div>`;}).join('');
+  let items=(t.days[curDay].items||[]).slice().sort((a,b)=>a.time.localeCompare(b.time));
+  if(curFilter!=='all')items=items.filter(i=>i.cat===curFilter);
+  // 항목이 없을 때: 지금 어떤 필터를 보고 있는지 + 바로 추가 버튼
+  const allCnt=(t.days[curDay].items||[]).length;
+  const emptyMsg = curFilter==='all'
+    ? `<div class="card center" style="padding:22px"><div class="tile" style="margin:0 auto 10px;background:${CAT_BG.plan};color:var(--brand)">${svg('i-pin')}</div>
+        <b style="font-size:14.5px">DAY ${curDay+1}에 아직 일정이 없어요</b>
+        <p class="muted small" style="margin:6px 0 0">아래 <b style="color:var(--ink)">일정·예약 추가</b>로 채워보세요.</p></div>`
+    : `<div class="card center" style="padding:20px"><div class="tile" style="margin:0 auto 10px;background:${CAT_BG[curFilter]};color:${CAT[curFilter].color}">${svg(CAT[curFilter].icon)}</div>
+        <b style="font-size:14.5px">${CAT[curFilter].name} 항목이 없어요</b>
+        <p class="muted small" style="margin:6px 0 ${allCnt?'12px':'0'}">${allCnt?`이 날엔 다른 분류로 ${allCnt}건이 있어요.`:'이 날은 아직 비어 있어요.'}</p>
+        ${allCnt?`<button class="btn ghost sm" style="width:auto;margin:0 auto" onclick="selFilter('all')">${svg('i-grid','ic')} 전체 보기</button>`:''}</div>`;
+  const nxD=nextItem(t);
+  const tl=items.length?buildTimeline(items,t.days[curDay].date,curDay,nxD?nxD.item._id:null):emptyMsg;
+  let voteBlock='';
+  const props=t.proposals||[];
+  if(props.length){const mx=Math.max(0,...props.map(p=>(p.votes||[]).length));
+    voteBlock=`<div class="eyebrow">${svg('i-vote','ic')} 함께 정할 후보 <span style="text-transform:none;font-weight:700;color:var(--muted)">· 투표로 결정</span></div>`+
+      props.map((p,idx)=>{const mine=(p.votes||[]).includes(ME.name);const win=mx>0&&(p.votes||[]).length===mx;
+        return `<div class="vote ${win?'win':''}"><div><b style="font-size:14px">${esc(p.name)}</b>
+          <div class="muted small">${esc(p.place||'')}${p.place?' · ':''}${(p.votes||[]).length}표${win?' · 최다':''}</div></div>
+          <button class="vbtn ${mine?'on':''}" onclick="vote(${idx})">${svg('i-vote')} ${mine?'투표함':'투표'}</button></div>`;}).join('')+
+      `<div class="center"><button class="lnk" onclick="openPropose()">＋ 후보 장소 제안하기</button></div>`;
+  }else{voteBlock=`<div class="eyebrow">${svg('i-vote','ic')} 함께 정할 후보</div>
+    <div class="card center" style="padding:18px"><p class="muted small" style="margin:0 0 4px">가고 싶은 후보를 올려 멤버 투표로 정해보세요.</p>
+    <button class="lnk" onclick="openPropose()">＋ 후보 장소 제안하기</button></div>`;}
+  let packBlock='';
+  if((curFilter==='all'||curFilter==='pack')&&(t.pack||[]).length){
+    packBlock=`<div class="eyebrow">${svg('i-bag','ic')} 준비물 <span style="text-transform:none;font-weight:700;color:var(--muted)">· 날짜와 무관</span></div>
+      <div class="card">${t.pack.map((p,idx)=>`<div class="row" style="padding:8px 0;${idx<t.pack.length-1?'border-bottom:1px solid var(--line)':''};cursor:pointer" onclick="togglePack(${idx})">
+        <div class="tile" style="width:34px;height:34px;background:${p.done?CAT_BG.pack:'#F0ECE3'};color:${p.done?'var(--c-pack)':'#B7B0A2'}">${svg('i-check')}</div>
+        <div style="flex:1"><b style="font-size:14px;${p.done?'text-decoration:line-through;color:var(--muted)':''}">${esc(p.title)}</b>${p.sub?`<div class="muted small">${esc(p.sub)}</div>`:''}</div></div>`).join('')}
+      </div>`;
+  }
+  const memberBar=`<div class="card" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+    <div class="row"><div class="avatars">${(t.members||[]).slice(0,4).map(m=>avatarSpan(m)).join('')}</div>
+      <span class="muted small" style="font-weight:700">${esc(t.groupType)} · ${(t.members||[]).length}명</span></div>
+    <button class="btn ghost sm" style="width:auto" onclick="openShare()">${svg('i-share','ic')} 초대</button></div>`;
+  // 학생 동행 여행이면 안내만 (실행은 각 일정의 ⋯ 메뉴에서)
+  const reportHint=t.hasStudent?`<div class="card" style="background:var(--paper);border-style:dashed;padding:13px">
+      <div class="row"><div class="tile" style="width:34px;height:34px;background:rgba(14,124,123,.12);color:var(--teal)">${svg('i-file')}</div>
+      <div class="small muted">체험학습 보고서는 <b style="color:var(--ink)">일정의 ⋯ 메뉴</b>에서 그 장소로 만들 수 있어요.</div></div></div>`:'';
+  $('detail').innerHTML=`${memberBar}
+    <div class="dayswrap"><div class="days">${dayTabs}</div></div><div class="filters">${chips}</div>
+    <div class="eyebrow">${svg('i-clock','ic')} DAY ${curDay+1} · ${mdLabel(t.days[curDay].date)}(${dowOf(t.days[curDay].date)})</div>
+    <div class="tl">${tl}</div>
+    <button class="btn brand" onclick="openAddChoice(${curDay})">${svg('i-plus','ic')} 일정·예약 추가</button>
+    ${curFilter==='all'?voteBlock:''}${packBlock}${reportHint}`;
+  afterRender();
+}
+/* 추가 방법 선택 — 버튼 2개를 1개로 합쳐 화면을 단순하게 */
+function openAddChoice(dayIdx){
+  openSheet(`<div class="grab"></div><h3>무엇을 추가할까요?</h3>
+    <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();openAddItem(${dayIdx})">
+      <div class="tile" style="width:38px;height:38px;background:${CAT_BG.plan};color:var(--brand)">${svg('i-edit')}</div>
+      <div style="text-align:left"><b style="font-size:14.5px">직접 입력</b><div class="muted small">일정·장소·준비물 등을 직접 적기</div></div></button>
+    <div style="height:10px"></div>
+    <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();routeTo('paste')">
+      <div class="tile" style="width:38px;height:38px;background:${CAT_BG.transport};color:var(--c-transport)">${svg('i-clip')}</div>
+      <div style="text-align:left"><b style="font-size:14.5px">예약 문자 붙여넣기</b><div class="muted small">항공·숙박·렌트카 문자를 자동 정리</div></div></button>`);}
+function selDay(i){curDay=i;renderDetail();}
+function selFilter(k){curFilter=k;renderDetail();}
+
+/* ---- 데이터 변경 → Firestore 저장 ---- */
+function save(){const t=trip(curTrip);if(t)window.FB.saveTrip(t);}
+function togglePack(idx){const t=trip(curTrip);t.pack[idx].done=!t.pack[idx].done;renderDetail();save();}
+function itemById(id){const t=trip(curTrip);for(const d of (t.days||[])){const it=(d.items||[]).find(x=>x._id===id);if(it)return {it,d};}return null;}
+function vote(idx){const t=trip(curTrip);const p=t.proposals[idx];p.votes=p.votes||[];
+  const k=p.votes.indexOf(ME.name);if(k>=0)p.votes.splice(k,1);else p.votes.push(ME.name);renderDetail();save();}
+function openPropose(){openSheet(`<div class="grab"></div><h3>후보 장소 제안</h3>
+  <p class="muted small" style="margin:0 0 12px">고민되는 곳을 올리면 멤버들이 투표로 정할 수 있어요.</p>
+  <label class="fld">장소/메뉴 이름</label><input class="input" id="ppName" placeholder="예: 저녁 · 흑돼지 명가">
+  <label class="fld">지역(선택)</label><input class="input" id="ppPlace" placeholder="예: 제주시">
+  <button class="btn brand" onclick="savePropose()">${svg('i-check','ic')} 제안하기</button>`);}
+function savePropose(){const t=trip(curTrip);const n=$('ppName').value.trim();if(!n){toast('이름을 입력해 주세요.');return;}
+  t.proposals=t.proposals||[];t.proposals.push({name:n,place:$('ppPlace').value.trim(),votes:[ME.name]});
+  closeOv();toast('제안했어요');renderDetail();save();}
+function openComments(id){const f=itemById(id);if(!f)return;const it=f.it;it.comments=it.comments||[];
+  const list=it.comments.length?it.comments.map(c=>`<div class="cmt"><span class="cw" style="color:${AVCOL[(c.who||'').charCodeAt(0)%AVCOL.length]}">${esc(c.who)}</span>${esc(c.text)}</div>`).join(''):`<p class="muted small center" style="padding:14px 0">아직 의견이 없어요. 첫 의견을 남겨보세요.</p>`;
+  openSheet(`<div class="grab"></div><h3>${esc(it.title)}</h3>
+    <div class="cmts">${list}</div>
+    <div class="row" style="gap:8px;margin-top:12px"><input class="input" id="cIn" style="margin:0" placeholder="의견 남기기…">
+      <button class="btn brand" style="width:54px;flex-shrink:0" onclick="addComment('${id}')" aria-label="보내기">${svg('i-right','ic')}</button></div>`);}
+function addComment(id){const f=itemById(id);if(!f)return;const v=$('cIn').value.trim();if(!v)return;
+  f.it.comments=f.it.comments||[];f.it.comments.push({who:ME.name,text:v});closeOv();toast('의견을 남겼어요');rerender();save();}
+function openAddItem(dayIdx){const t=trip(curTrip);if(!t||!t.days.length){toast('여행 날짜가 필요해요.');return;}
+  const catOpts=CAT_ORDER.map(k=>`<option value="${k}">${CAT[k].name}</option>`).join('');
+  const dayOpts=t.days.map((d,i)=>`<option value="${i}" ${i===dayIdx?'selected':''}>DAY ${i+1} · ${mdLabel(d.date)}(${dowOf(d.date)})</option>`).join('');
+  openSheet(`<div class="grab"></div><h3>일정·예약 추가</h3>
+    <label class="fld">분류</label><select class="input" id="aCat">${catOpts}</select>
+    <label class="fld">날짜(Day)</label><select class="input" id="aDay">${dayOpts}</select>
+    <label class="fld">시간</label><input class="input" id="aTime" type="time" value="09:00">
+    <label class="fld">제목</label><input class="input" id="aTitle" placeholder="예: 성산일출봉 트레킹">
+    <label class="fld">장소</label><input class="input" id="aPlace" placeholder="예: 서귀포시 성산읍">
+    <label class="fld">메모(선택)</label><input class="input" id="aSub" placeholder="예약번호·인원 등">
+    <button class="btn brand" onclick="saveAddItem()">${svg('i-check','ic')} 추가하기</button>`);}
+function saveAddItem(){const t=trip(curTrip);const title=$('aTitle').value.trim();if(!title){toast('제목을 입력해 주세요.');return;}
+  const di=parseInt($('aDay').value)||0;const place=$('aPlace').value.trim();
+  t.days[di].items=t.days[di].items||[];
+  t.days[di].items.push({_id:uid(),cat:$('aCat').value,time:$('aTime').value||"09:00",title,place,sub:$('aSub').value.trim(),by:ME.name,comments:[],map:!!place});
+  t.days[di].items.sort((a,b)=>a.time.localeCompare(b.time));curDay=di;closeOv();toast('추가했습니다');rerender();save();}
+function openEditItem(id){const f=itemById(id);if(!f)return;const it=f.it;
+  const catOpts=CAT_ORDER.map(k=>`<option value="${k}" ${k===it.cat?'selected':''}>${CAT[k].name}</option>`).join('');
+  openSheet(`<div class="grab"></div><h3>일정 수정</h3>
+    <label class="fld">분류</label><select class="input" id="eCat">${catOpts}</select>
+    <label class="fld">시간</label><input class="input" id="eTime" type="time" value="${esc(it.time)}">
+    <label class="fld">제목</label><input class="input" id="eTitle" value="${esc(it.title)}">
+    <label class="fld">장소</label><input class="input" id="ePlace" value="${esc(it.place||'')}">
+    <label class="fld">메모</label><input class="input" id="eSub" value="${esc(it.sub||'')}">
+    <button class="btn brand" onclick="saveEditItem('${id}')">${svg('i-check','ic')} 저장</button>`);}
+function saveEditItem(id){const f=itemById(id);if(!f)return;const it=f.it;
+  it.cat=$('eCat').value;it.time=$('eTime').value||it.time;it.title=$('eTitle').value.trim()||it.title;
+  it.place=$('ePlace').value.trim();it.sub=$('eSub').value.trim();it.map=!!it.place;
+  f.d.items.sort((a,b)=>a.time.localeCompare(b.time));closeOv();toast('수정했습니다');rerender();save();}
+function delItem(id){openModal(`<b style="font-size:16px">이 일정을 삭제할까요?</b>
+  <p class="muted small" style="margin:8px 0 16px">삭제하면 되돌릴 수 없습니다.</p>
+  <div class="row" style="gap:10px"><button class="btn ghost" style="flex:1" onclick="closeOv()">취소</button>
+  <button class="btn" style="flex:1;background:#B23B3B" onclick="doDelItem('${id}')">삭제</button></div>`);}
+function doDelItem(id){const t=trip(curTrip);(t.days||[]).forEach(d=>{d.items=(d.items||[]).filter(x=>x._id!==id);});
+  closeOv();toast('삭제했습니다');rerender();save();}
+function askDeleteTrip(){openModal(`<b style="font-size:16px">여행을 삭제할까요?</b>
+  <p class="muted small" style="margin:8px 0 16px">모든 일정·의견이 함께 사라지며 되돌릴 수 없습니다.</p>
+  <div class="row" style="gap:10px"><button class="btn ghost" style="flex:1" onclick="closeOv()">취소</button>
+  <button class="btn" style="flex:1;background:#B23B3B" onclick="doDeleteTrip()">삭제</button></div>`);}
+async function doDeleteTrip(){const id=curTrip;closeOv();await window.FB.deleteTrip(id);curTrip=null;toast('여행을 삭제했습니다');switchTab('trips');}
+
+/* ---- 새 여행 ---- */
+function openCreateTrip(){const y=new Date().getFullYear();
+  openSheet(`<div class="grab"></div><h3>새 여행 만들기</h3>
+    <label class="fld">여행 제목</label><input class="input" id="cTitle" placeholder="예: 제주 여름 여행">
+    <label class="fld">여행지</label><input class="input" id="cPlace" placeholder="예: 제주도">
+    <label class="fld">함께 가는 그룹</label>
+    <select class="input" id="cGroup"><option>가족</option><option>친구</option><option>동료</option><option>기타</option></select>
+    <div class="row" style="gap:10px">
+      <div style="flex:1"><label class="fld">시작일</label><input class="input" id="cStart" type="date" value="${y}-08-05"></div>
+      <div style="flex:1"><label class="fld">종료일</label><input class="input" id="cEnd" type="date" value="${y}-08-08"></div></div>
+    <label class="fld" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="cStudent" style="width:18px;height:18px"> 학생(자녀)이 함께 가요 · 체험학습 보고서 기능 켜기</label>
+    <div style="height:6px"></div>
+    <button class="btn brand" id="cBtn" onclick="saveCreateTrip()">${svg('i-check','ic')} 여행 만들기</button>`);}
+async function saveCreateTrip(){
+  const title=$('cTitle').value.trim();if(!title){toast('여행 제목을 입력해 주세요.');return;}
+  const start=$('cStart').value,end=$('cEnd').value;
+  if(!start||!end||dObj(end)<dObj(start)){toast('여행 기간을 확인해 주세요.');return;}
+  $('cBtn').disabled=true;
+  const t={id:uid(),title,place:$('cPlace').value.trim()||"여행지",groupType:$('cGroup').value,
+    hasStudent:$('cStudent').checked,status:"active",start,end,cover:COVERS[TRIPS.length%COVERS.length],
+    members:[{n:initial(ME.name),c:AVCOL[0],uid:ME.uid}],memberUids:[ME.uid],
+    days:daysBetween(start,end).map(d=>({date:d,items:[]})),pack:[],proposals:[],owner:ME.uid};
+  try{await window.FB.saveTrip(t);curTrip=t.id;curDay=0;curFilter="all";closeOv();toast('여행을 만들었어요!');
+    setTimeout(()=>routeTo('detail'),200);}
+  catch(e){toast('저장 실패: 인터넷 연결을 확인해 주세요.');$('cBtn').disabled=false;}
+}
+
+/* ---- 붙여넣기 ---- */
+const SMS=`[대한항공] 예약이 완료되었습니다.
+김포(GMP) → 제주(CJU)
+2026년 8월 5일 08:20 출발
+편명 OZ8901 / 예약번호 OZ7788
+탑승자 4명`;
+let parsed=null;
+function renderPaste(){parsed=null;
+  $('paste').innerHTML=`<p class="muted small" style="margin:6px 2px 12px">항공·숙박·렌트카 <b style="color:var(--ink)">확인 문자·메일</b>을 그대로 붙여넣으면, 필요한 항목만 골라 자동 정리합니다.</p>
+    <textarea class="input" id="pbox" placeholder="여기에 예약 확인 문자를 붙여넣으세요…"></textarea>
+    <div class="row" style="gap:10px"><button class="btn ghost" style="flex:1" onclick="$('pbox').value=SMS">예시 넣기</button>
+      <button class="btn brand" style="flex:1" onclick="parsePaste()">${svg('i-spark','ic')} 자동 정리</button></div>
+    <div id="pres"></div>
+    <div class="card" style="background:var(--paper);border-style:dashed;margin-top:14px"><div class="row">
+      <div class="tile" style="width:34px;height:34px;background:#fff;color:var(--teal)">${svg('i-check')}</div>
+      <div class="small muted">개인정보 보호: 붙여넣은 <b style="color:var(--ink)">원문 전체는 저장하지 않고</b>, 꼭 필요한 항목만 추출해 저장합니다.</div></div></div>`;}
+function parsePaste(){const txt=$('pbox').value.trim();if(!txt){toast('먼저 문자를 붙여넣어 주세요.');return;}
+  const dm=txt.match(/(\d{4})[년.\-\/ ]+(\d{1,2})[월.\-\/ ]+(\d{1,2})/);
+  const iso=dm?`${dm[1]}-${String(dm[2]).padStart(2,"0")}-${String(dm[3]).padStart(2,"0")}`:null;
+  const time=(txt.match(/\d{1,2}:\d{2}/)||[''])[0];
+  const resv=(txt.match(/예약번호[^0-9A-Za-z]*([0-9A-Za-z\-]+)/)||['',''])[1];
+  const flight=(txt.match(/편명[^0-9A-Za-z]*([0-9A-Za-z]+)/)||['',''])[1];
+  const route=(txt.match(/([가-힣A-Za-z]+\([A-Z]{3}\)\s*→\s*[가-힣A-Za-z]+\([A-Z]{3}\))/)||['',''])[1];
+  let cat="transport";
+  if(/렌터카|렌트카|rentacar/i.test(txt))cat="rentcar";
+  else if(/호텔|리조트|체크인|숙박|hotel|스테이|펜션/i.test(txt))cat="stay";
+  parsed={cat,date:iso,time:time||"09:00",title:route||flight||"새 예약",place:"",
+    sub:[flight?("편명 "+flight):"",resv?("예약번호 "+resv):""].filter(Boolean).join(" · ")};
+  const t=trip(curTrip);
+  const dayOpts=(t.days||[]).map((d,i)=>`<option value="${i}" ${d.date===iso?'selected':''}>DAY ${i+1} · ${mdLabel(d.date)}(${dowOf(d.date)})</option>`).join('');
+  const catOpts=CAT_ORDER.map(k=>`<option value="${k}" ${k===cat?'selected':''}>${CAT[k].name}</option>`).join('');
+  $('pres').innerHTML=`<div class="eyebrow">${svg('i-check','ic')} 이렇게 정리했어요 (확인 후 저장)</div>
+    <div class="card"><div class="row" style="margin-bottom:12px"><div class="tile" style="background:${CAT_BG[cat]};color:${CAT[cat].color}">${svg(CAT[cat].icon)}</div>
+        <div style="flex:1"><b>${esc(parsed.title)}</b><div class="muted small" style="margin-top:3px">${iso||'날짜 인식 필요'} ${time}</div>
+        <div class="muted small">${esc(parsed.sub||'-')}</div></div></div>
+      <label class="fld">분류</label><select class="input" id="pcat">${catOpts}</select>
+      <label class="fld">저장할 날짜(Day)</label><select class="input" id="pday">${dayOpts}</select>
+      <button class="btn brand" onclick="savePaste()">${svg('i-check','ic')} 이 여행에 저장</button></div>`;}
+function savePaste(){const t=trip(curTrip);const di=parseInt($('pday').value)||0;parsed.cat=$('pcat').value;
+  t.days[di].items=t.days[di].items||[];
+  t.days[di].items.push({_id:uid(),cat:parsed.cat,time:parsed.time,title:parsed.title,place:parsed.place,sub:parsed.sub,by:ME.name,comments:[]});
+  t.days[di].items.sort((a,b)=>a.time.localeCompare(b.time));curDay=di;toast('저장했습니다');save();routeTo('detail');}
+
+/* ---- 추억 ---- */
+function renderHistory(){
+  const done=TRIPS.filter(t=>ddayOf(t)==='종료').sort((a,b)=>(b.start||'').localeCompare(a.start||''));
+  const upcoming=TRIPS.filter(t=>ddayOf(t)!=='종료');
+  // 통계: 다녀온 여행 수 / 방문 장소 수
+  let spots=0;done.forEach(t=>(t.days||[]).forEach(d=>(d.items||[]).forEach(i=>{if(i.cat==='plan'||i.cat==='ticket')spots++;})));
+
+  if(!done.length){
+    // 아직 끝난 여행이 없을 때 — 전체 폭을 쓰는 안내 화면
+    $('history').innerHTML=`
+      <div class="empty">
+        <div class="big">${svg('i-camera','ic')}</div>
+        <h2 style="margin:0 0 6px;font-size:19px">아직 완성된 추억이 없어요</h2>
+        <p class="muted small" style="margin:0 auto;max-width:290px">
+          여행이 끝나면 이곳에 자동으로 모입니다.<br>그때의 일정·의견·사진을 다시 꺼내 볼 수 있어요.</p>
+        ${upcoming.length?`
+          <div class="card" style="margin-top:20px;text-align:left">
+            <div class="eyebrow" style="margin-top:0">${svg('i-suitcase','ic')} 다가오는 여행</div>
+            ${upcoming.slice(0,2).map(t=>`<div class="row" style="padding:8px 0;cursor:pointer" onclick="openTrip('${t.id}')">
+              <div class="tile" style="background:${CAT_BG.plan};color:var(--brand)">${svg('i-pin')}</div>
+              <div style="flex:1"><b style="font-size:14px">${esc(t.title)}</b>
+                <div class="muted small">${esc(t.place)} · ${mdLabel(t.start)}–${mdLabel(t.end)} · ${ddayOf(t)}</div></div>
+              ${svg('i-right','ic')}</div>`).join('')}
+            <p class="muted small" style="margin:10px 0 0">여행이 끝나면 여기에서 추억으로 볼 수 있어요.</p>
+          </div>`:`
+          <div style="height:18px"></div>
+          <button class="btn brand" onclick="openCreateTrip()">${svg('i-plus','ic')} 첫 여행 만들기</button>`}
+      </div>`;
+    return;
+  }
+
+  const cards=done.map(t=>`<div class="album" style="background:${t.cover}" onclick="openTrip('${t.id}')">
+      <div class="grad"></div><div class="yr">${t.start.slice(0,4)}</div>
+      <div class="cap"><b>${esc(t.title)}</b>
+        <div class="small" style="opacity:.92;margin-top:1px">${esc(t.place)} · ${esc(t.groupType)}</div></div></div>`).join('');
+  $('history').innerHTML=`
+    <div class="card" style="display:flex;justify-content:space-around;text-align:center;padding:14px">
+      <div><div style="font-size:22px;font-weight:800">${done.length}</div><div class="muted small">다녀온 여행</div></div>
+      <div style="width:1px;background:var(--line)"></div>
+      <div><div style="font-size:22px;font-weight:800">${spots}</div><div class="muted small">방문한 곳</div></div>
+    </div>
+    <p class="muted small" style="margin:2px 2px 12px">눌러서 그때의 일정과 나눈 의견을 다시 볼 수 있어요.</p>
+    <div class="grid">${cards}</div>`;}
+
+/* ---- 체험학습 보고서 ---- */
+let reportItemId=null;   // 어떤 일정(장소)로 보고서를 쓰는지
+function openReportFor(id){reportItemId=id;closeOv();routeTo('report');}
+function renderReport(){const t=trip(curTrip);
+  const f=reportItemId?itemById(reportItemId):null;
+  const it=f?f.it:null;
+  const dayDate=f?f.d.date:null;
+  if(!it){ // 특정 일정 없이 들어온 경우 — 장소를 먼저 고르게
+    const list=[];(t.days||[]).forEach(d=>(d.items||[]).forEach(i=>{if(i.cat==='plan'||i.cat==='ticket')list.push({i,d});}));
+    $('report').innerHTML=`<div class="card" style="background:var(--paper);border-style:dashed"><div class="row">
+        <div class="tile" style="background:rgba(14,124,123,.12);color:var(--teal)">${svg('i-file')}</div>
+        <div><b>어느 장소로 쓸까요?</b><p class="muted small" style="margin:4px 0 0">보고서를 만들 방문 장소를 선택하세요.</p></div></div></div>
+      ${list.length?list.map(x=>`<div class="card" style="cursor:pointer;padding:13px" onclick="reportItemId='${x.i._id}';renderReport()">
+        <div class="row"><div class="tile" style="background:${CAT_BG[x.i.cat]};color:${CAT[x.i.cat].color}">${svg(CAT[x.i.cat].icon)}</div>
+        <div style="flex:1"><b style="font-size:14.5px">${esc(x.i.title)}</b>
+          <div class="muted small">${mdLabel(x.d.date)}(${dowOf(x.d.date)}) ${esc(x.i.time)} · ${esc(x.i.place||'')}</div></div>
+        ${svg('i-right','ic')}</div></div>`).join('')
+      :`<div class="card center" style="padding:24px"><p class="muted small" style="margin:0">일정/장소 또는 입장권 항목을 먼저 추가해 주세요.</p></div>`}`;
+    return;}
+  $('report').innerHTML=`
+    <div class="card" style="background:var(--paper);border-style:dashed"><div class="row">
+      <div class="tile" style="background:rgba(14,124,123,.12);color:var(--teal)">${svg('i-file')}</div>
+      <div><b>교외체험학습 결과 보고서 도우미</b><p class="muted small" style="margin:4px 0 0">AI가 <b style="color:var(--ink)">초안</b>을 제안해요. 학생이 직접 느낀 점을 넣어 완성합니다.</p></div></div></div>
+    <div class="eyebrow">${svg('i-pin','ic')} 선택한 장소</div>
+    <div class="card" style="padding:13px"><div class="row">
+      <div class="tile" style="background:${CAT_BG[it.cat]};color:${CAT[it.cat].color}">${svg(CAT[it.cat].icon)}</div>
+      <div style="flex:1"><b style="font-size:14.5px">${esc(it.title)}</b>
+        <div class="muted small">${dayDate?mdLabel(dayDate)+'('+dowOf(dayDate)+') ':''}${esc(it.time)}${it.place?' · '+esc(it.place):''}</div></div>
+      <button class="lnk" onclick="reportItemId=null;renderReport()">변경</button></div></div>
+    <div class="eyebrow">학생 정보</div>
+    <div class="card"><label class="fld">학생 이름</label><input class="input" id="sName" placeholder="학생 이름">
+      <label class="fld">한 줄 소감 (학생이 직접)</label><input class="input" id="sFeel" placeholder="예: 화산 지형이 신기했다">
+      <button class="btn" style="background:var(--teal)" onclick="genReport()">${svg('i-spark','ic')} 보고서 초안 만들기</button></div>
+    <div id="rout"></div>`;}
+function genReport(){const f=reportItemId?itemById(reportItemId):null;if(!f)return;
+  const n=$('sName').value||'학생',p=f.it.title,f2=($('sFeel').value||'').trim();
+  const place=f.it.place||'';
+  const d=f.d?f.d.date.replace(/-/g,'.'):new Date().toLocaleDateString('ko-KR');
+  const draft=`■ 교외체험학습 결과 보고서 (초안)
+
+· 학생: ${n}
+· 장소: ${p}${place?' ('+place+')':''}
+· 일자: ${d}
+
+1. 무엇을 했나요
+  ${p}에 방문하여 현장을 직접 둘러보고 관찰하였습니다.
+
+2. 새롭게 알게 된 점
+  ${p}의 특징과 주변 환경을 살펴보며, 교과서에서 배운 내용을
+  실제로 확인할 수 있었습니다.
+
+3. 느낀 점
+  ${f2||'(여기에 직접 느낀 점을 적어 주세요)'}
+
+──────────────
+※ 위 내용은 AI가 제안한 초안입니다. 학생이 직접 읽고,
+   자신이 보고 느낀 내용으로 자유롭게 고쳐서 완성하세요.`;
+  $('rout').innerHTML=`<div class="eyebrow">${svg('i-file','ic')} 초안 (자유롭게 수정)</div>
+    <textarea class="input" style="min-height:230px;font-size:13px;line-height:1.65">${esc(draft)}</textarea>
+    <p class="muted small">⚠️ 학교 제출용은 반드시 학생 본인이 확인·수정한 내용으로 제출하세요.</p>`;}
+
+/* ---- 모달 ---- */
+function openSheet(html){
+  const x=`<button class="sheetX" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button>`;
+  $('ovc').outerHTML='<div id="ovc" class="sheet">'+x+html+'</div>';$('ov').className='ov bottom on';}
+function openModal(html){$('ovc').outerHTML='<div id="ovc" class="modal">'+html+'</div>';$('ov').className='ov center on';}
+function closeOv(){$('ov').className='ov';}
+document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')closeOv();});
+function openQR(title){openModal(`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b style="font-size:16px">${esc(title)}</b>
+  <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>${qrSvg()}
+  <p class="muted small" style="margin:8px 0 0">입장 시 이 QR을 보여주세요. (데모 이미지)</p>`);}
+/* 지도 크게 보기 — 실제 카카오맵 + 길찾기 */
+async function openMap(place){
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <b style="font-size:16px;text-align:left">${svg('i-pin','ic')} ${esc(place)}</b>
+      <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
+    <div id="bigMap" style="height:230px;border-radius:14px;overflow:hidden;border:1px solid var(--line);position:relative;background:var(--paper)">
+      ${mapPlaceholder(place)}</div>
+    <div id="mapAddr" class="muted small" style="margin:10px 2px 0;text-align:left"></div>
+    <div class="row" style="gap:8px;margin-top:12px">
+      <button class="btn ghost sm" style="flex:1" onclick="kakaoSearch('${esc(place)}')">${svg('i-right','ic')} 카카오맵</button>
+      <button class="btn brand sm" style="flex:1" onclick="kakaoRoute('${esc(place)}')">${svg('i-car','ic')} 길찾기</button></div>`);
+  if(!kakaoReady){$('mapAddr').textContent=mapDiagText();return;}
+  const p=await geocode(place);
+  const box=$('bigMap');if(!box)return;
+  if(!p){$('mapAddr').textContent='정확한 위치를 찾지 못했어요. 아래 버튼으로 검색해 보세요.';return;}
+  box.innerHTML='';
+  const map=new kakao.maps.Map(box,{center:new kakao.maps.LatLng(p.lat,p.lng),level:4});
+  new kakao.maps.Marker({map,position:new kakao.maps.LatLng(p.lat,p.lng)});
+  const a=$('mapAddr');if(a)a.textContent=(p.name&&p.name!==place?p.name+' · ':'')+(p.addr||'');
+}
+function kakaoSearch(place){window.open('https://map.kakao.com/?q='+encodeURIComponent(place),'_blank');}
+function kakaoRoute(place){const p=geoCache[place];
+  if(p)window.open(`https://map.kakao.com/link/to/${encodeURIComponent(p.name||place)},${p.lat},${p.lng}`,'_blank');
+  else window.open('https://map.kakao.com/?q='+encodeURIComponent(place),'_blank');}
+function openShare(){const t=trip(curTrip);openSheet(`<div class="grab"></div><h3>${svg('i-share','ic')} 멤버 초대</h3>
+  <p class="muted small" style="margin:0 0 14px">아래 <b>초대코드</b>를 함께 가는 사람에게 알려주세요.<br>그 사람이 앱에서 [내 계정 → 초대코드로 참여하기]에 입력하면 같은 여행을 함께 보게 됩니다.</p>
+  <div class="center" style="margin-bottom:14px"><span class="code">${esc(t.id)}</span></div>
+  <button class="btn brand" onclick="copyCode('${esc(t.id)}')">${svg('i-copy','ic')} 초대코드 복사</button>`);}
+function copyCode(c){navigator.clipboard&&navigator.clipboard.writeText(c);toast('초대코드를 복사했어요');closeOv();}
+function qrSvg(){let cells='';const seed=[1,0,1,1,0,1,0,1,1,0,0,1,0,1,1,0,1,0,1,1,0,1,1,0,1,1,0,1,0,1,0,1,1,0,1,1];
+  for(let y=0;y<6;y++)for(let x=0;x<6;x++){if(seed[(y*6+x)%36])cells+=`<rect x="${x*23+4}" y="${y*23+4}" width="21" height="21" rx="3" fill="#12212E"/>`;}
+  return `<svg class="qr" viewBox="0 0 146 146">${cells}
+    <rect x="2" y="2" width="40" height="40" rx="8" fill="#fff" stroke="#12212E" stroke-width="6"/>
+    <rect x="104" y="2" width="40" height="40" rx="8" fill="#fff" stroke="#12212E" stroke-width="6"/>
+    <rect x="2" y="104" width="40" height="40" rx="8" fill="#fff" stroke="#12212E" stroke-width="6"/>
+    <rect x="12" y="12" width="20" height="20" rx="3" fill="#12212E"/><rect x="114" y="12" width="20" height="20" rx="3" fill="#12212E"/><rect x="12" y="114" width="20" height="20" rx="3" fill="#12212E"/></svg>`;}
+let tt;function toast(m){const e=$('toast');e.textContent=m;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),1900);}
+
+/* ---- Firebase가 호출하는 콜백들 ---- */
+window.onAuthed=function(user,profile){
+  profile=profile||{};
+  ME={uid:user.uid,name:profile.name||user.displayName||(user.email||'').split('@')[0],
+      email:user.email||'',photo:profile.photo||'',verified:!!user.emailVerified};
+  $('splash').style.display='none';stack=[];switchTab('today');};
+window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;
+  $('splash').style.display='none';stack=[];show('login',{push:false});authMode('login');
+  $('aEmail').value='';$('aPw').value='';};
+window.onTrips=function(list){TRIPS=list;
+  if(curTrip&&!trip(curTrip))curTrip=null;
+  if(!curTrip){const act=TRIPS.filter(t=>t.status!=='done');if(act.length)curTrip=act[0].id;}
+  rerender();};
+window.onFbError=function(msg){$('splashMsg').textContent=msg;};
+</script>
+
+<!-- ============================================================================
+     카카오맵 연결부
+     · 아래 KEY 자리에 카카오 developers > 앱 > 플랫폼용 키 > JavaScript 키를 넣습니다.
+     · 반드시 [플랫폼 > Web]과 [JavaScript SDK 도메인]에 실행 주소를 등록해야 작동합니다.
+       (예: http://localhost:5500)
+     · 지도가 안 뜨면 앱은 대체 그림 + '카카오맵에서 열기'로 계속 동작합니다.
+     ============================================================================ -->
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=25d28b7432d8bf8b94818c92e2083800&libraries=services&autoload=false"
+        onerror="window.__kakaoLoadFailed=true"></script>
+<script>
+  // 가이드 권장 방식: autoload=false 로 불러온 뒤 kakao.maps.load()로 초기화
+  (function(){
+    if(window.kakao && window.kakao.maps && window.kakao.maps.load){
+      kakao.maps.load(function(){
+        window.__kakaoDiag = (kakao.maps.services? 'ok' : 'noservices');
+        if(window.onKakaoReady) window.onKakaoReady();
+      });
+    }else{
+      // 왜 실패했는지 구분해서 저장 (앱에서 안내 문구로 사용)
+      window.__kakaoDiag = (location.protocol==='file:') ? 'file' : 'sdk';
+      console.warn('[여행가보젠] 카카오맵 SDK 로드 실패:', window.__kakaoDiag);
+    }
+  })();
+</script>
+
+<!-- ============================================================================
+     Firebase 연결부 (여기만 교체하면 다른 프로젝트에도 붙습니다)
+     ============================================================================ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+         signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail,
+         sendEmailVerification }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, updateDoc,
+         query, where, onSnapshot, arrayUnion }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ▼▼▼ 내 Firebase 프로젝트 설정 (김광석님 프로젝트) ▼▼▼
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDvV3dkWDbn0xQ8raeJX0XccCcMoGZOLZ8",
+  authDomain: "happytravel-11758.firebaseapp.com",
+  projectId: "happytravel-11758",
+  storageBucket: "happytravel-11758.firebasestorage.app",
+  messagingSenderId: "578326919483",
+  appId: "1:578326919483:web:fc5f6b4060074089a19f1e"
+};
+// ▲▲▲ 여기까지 ▲▲▲
+
+const app = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db = getFirestore(app);
+let unsub = null;
+
+// 오류 메시지를 한국어로 바꿔주는 함수
+function msg(e){
+  const c=(e&&e.code)||'';
+  if(c.includes('email-already-in-use'))return'이미 가입된 이메일입니다. 로그인 탭을 이용해 주세요.';
+  if(c.includes('invalid-email'))return'이메일 형식이 올바르지 않습니다.';
+  if(c.includes('weak-password'))return'비밀번호는 6자 이상이어야 합니다.';
+  if(c.includes('invalid-credential')||c.includes('wrong-password')||c.includes('user-not-found'))
+    return'이메일 또는 비밀번호가 올바르지 않습니다.';
+  if(c.includes('too-many-requests'))return'시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+  if(c.includes('network'))return'인터넷 연결을 확인해 주세요.';
+  if(c.includes('operation-not-allowed'))return'Firebase 콘솔에서 [이메일/비밀번호] 로그인을 켜주세요.';
+  return'문제가 발생했습니다: '+(e&&e.message?e.message:c);
+}
+
+// 내 여행 실시간 구독
+function watchTrips(uid){
+  if(unsub)unsub();
+  const q=query(collection(db,'trips'),where('memberUids','array-contains',uid));
+  unsub=onSnapshot(q,snap=>{
+    const list=[];snap.forEach(d=>list.push(d.data()));
+    list.sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+    window.onTrips(list);
+  },err=>{console.error(err);window.onFbError('데이터를 불러오지 못했습니다: '+err.message);});
+}
+
+window.FB={
+  msg,
+  async signup(email,pw,name){
+    const cred=await createUserWithEmailAndPassword(auth,email,pw);
+    await updateProfile(cred.user,{displayName:name});
+    await setDoc(doc(db,'users',cred.user.uid),{name,email,createdAt:Date.now()});
+  },
+  async login(email,pw){ await signInWithEmailAndPassword(auth,email,pw); },
+  async logout(){ if(unsub){unsub();unsub=null;} await signOut(auth); },
+  async resetPw(email){ await sendPasswordResetEmail(auth,email); },
+  async sendVerify(){ await sendEmailVerification(auth.currentUser); },
+  async updateMyProfile(name,photo){
+    await updateProfile(auth.currentUser,{displayName:name});
+    await setDoc(doc(db,'users',auth.currentUser.uid),
+      {name,photo:photo||"",email:auth.currentUser.email,updatedAt:Date.now()},{merge:true});
+  },
+  async saveTrip(t){
+    const clean=JSON.parse(JSON.stringify(t));      // undefined 제거
+    await setDoc(doc(db,'trips',t.id),clean);
+  },
+  async deleteTrip(id){ await deleteDoc(doc(db,'trips',id)); },
+  async joinTrip(code){
+    const ref=doc(db,'trips',code);
+    const snap=await getDoc(ref);
+    if(!snap.exists())throw new Error('없는 코드');
+    const t=snap.data();
+    const u=auth.currentUser;
+    if((t.memberUids||[]).includes(u.uid))return;
+    const nm=(u.displayName||u.email||'?').trim().charAt(0);
+    const colors=["#E2603B","#0E7C7B","#7A5AF0","#D99A2B","#2F7DB5","#3F8A4A"];
+    await updateDoc(ref,{
+      memberUids:arrayUnion(u.uid),
+      members:arrayUnion({n:nm,c:colors[(t.memberUids||[]).length%colors.length],uid:u.uid})
+    });
+  }
+};
+
+onAuthStateChanged(auth,async user=>{
+  if(user){
+    let profile={name:user.displayName,photo:""};
+    try{const s=await getDoc(doc(db,'users',user.uid));
+      if(s.exists()){const d=s.data();profile.name=profile.name||d.name;profile.photo=d.photo||"";}}catch(e){}
+    watchTrips(user.uid);
+    window.onAuthed(user,profile);
+  }else{
+    if(unsub){unsub();unsub=null;}
+    window.onSignedOut();
+  }
+});
+
+// 5초 안에 응답 없으면 안내
+setTimeout(()=>{const s=document.getElementById('splash');
+  if(s&&s.style.display!=='none')window.onFbError('연결이 느립니다. 인터넷 상태를 확인해 주세요.');},5000);
+</script>
+</body>
+</html>
