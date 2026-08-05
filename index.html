@@ -801,8 +801,8 @@ function openAddChoice(dayIdx){
       <div class="tile" style="width:38px;height:38px;background:${CAT_BG.transport};color:var(--c-transport)">${svg('i-clip')}</div>
       <div style="text-align:left"><b style="font-size:14.5px">예약 문자 붙여넣기</b><div class="muted small">항공·숙박·렌트카 문자를 자동 정리</div></div></button>
     <div style="height:10px"></div>
-    <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();openPhotoAdd(\${dayIdx})">
-      <div class="tile" style="width:38px;height:38px;background:\${CAT_BG.ticket};color:var(--c-ticket)">\${svg('i-camera')}</div>
+    <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();openPhotoAdd(${dayIdx})">
+      <div class="tile" style="width:38px;height:38px;background:${CAT_BG.ticket};color:var(--c-ticket)">${svg('i-camera')}</div>
       <div style="text-align:left"><b style="font-size:14.5px">사진으로 추가 <span style="color:var(--brand)">NEW</span></b><div class="muted small">항공권·예약 화면 캡처를 올리면 자동 인식</div></div></button>`);}
 function selDay(i){curDay=i;renderDetail();}
 function selFilter(k){curFilter=k;renderDetail();}
