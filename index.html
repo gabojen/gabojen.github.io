@@ -73,12 +73,12 @@
     --shadow:var(--e2); --shadow-lg:var(--e3);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;}
+  html,body{margin:0;max-width:100%;overflow-x:hidden;overscroll-behavior:none;}
   body{font-family:"Pretendard","Apple SD Gothic Neo","맑은 고딕",sans-serif;color:var(--ink);
     background:radial-gradient(120% 80% at 50% -10%,#F3EEE4,#E1DACC 60%,#D6CFC0);min-height:100vh;
     display:flex;align-items:center;justify-content:center;padding:22px;-webkit-font-smoothing:antialiased;letter-spacing:-.01em;
     word-break:keep-all;overflow-wrap:break-word;} /* 한글은 어절 단위로 줄바꿈해야 읽기 쉬움 */
-  .phone{width:392px;max-width:100%;height:824px;max-height:94vh;background:var(--paper);border-radius:40px;
+  .phone{touch-action:manipulation;width:392px;max-width:100%;height:824px;max-height:94vh;background:var(--paper);border-radius:40px;
     box-shadow:var(--shadow-lg);overflow:hidden;position:relative;display:flex;flex-direction:column;border:1px solid rgba(18,33,46,.06);}
   .notch{height:30px;display:flex;justify-content:center;}
   .notch::after{content:"";width:120px;height:24px;background:#12212E;border-radius:0 0 16px 16px;position:absolute;top:0;}
@@ -90,7 +90,8 @@
   .ibtn{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--card);
     display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);flex-shrink:0;}
   .ibtn:active{transform:scale(.93);}
-  .screen{flex:1;overflow-y:auto;padding:4px 18px 24px;display:none;}
+  .screen{flex:1;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;padding:4px 18px 24px;display:none;}
   .screen.active{display:block;animation:rise .28s cubic-bezier(.2,.7,.3,1);}
   #login.active{display:flex;flex-direction:column;justify-content:center;padding:30px 26px;text-align:center;}
   @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
@@ -198,7 +199,7 @@
   .lnk{background:none;border:none;color:var(--teal);font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline;padding:6px;}
   .vbadge{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:800;padding:3px 9px;border-radius:999px;}
   /* DAY 선택: 한 줄 세그먼트 바 (날짜만 — DAY 번호는 아래 제목줄에 있음) */
-  .dayseg{display:flex;gap:4px;overflow-x:auto;padding:4px;margin:2px 0 10px;
+  .dayseg{display:flex;gap:4px;overflow-x:auto;overscroll-behavior-x:contain;padding:4px;margin:2px 0 10px;
     background:rgba(18,33,46,.055);border-radius:999px;scrollbar-width:none;}
   .dayseg::-webkit-scrollbar{display:none;}
   .dseg{flex-shrink:0;display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;
@@ -210,7 +211,7 @@
   .dseg.all{position:relative;margin-right:5px;}
   .dseg.all::after{content:"";position:absolute;right:-5px;top:7px;bottom:7px;width:1px;background:var(--line-2);}
   /* 분류 필터: 한 줄 가로 스크롤 + 중요 4개만, 나머지는 ＋버튼 */
-  .filterbar{display:flex;gap:7px;padding-bottom:12px;overflow-x:auto;scrollbar-width:none;}
+  .filterbar{display:flex;gap:7px;padding-bottom:12px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;}
   .filterbar::-webkit-scrollbar{display:none;}
   .filterbar .fchip{flex-shrink:0;white-space:nowrap;}
   .fchip em{font-style:normal;font-weight:800;font-size:11.5px;opacity:.62;font-variant-numeric:tabular-nums;}
@@ -260,22 +261,29 @@
 
   /* ===== 실제 모바일: 프레임 없이 전체화면 ===== */
   @media (max-width:640px){
+    /* 문서는 스크롤하지 않고 화면(.screen) 안에서만 스크롤 — 좌우 쏠림 원천 차단 */
+    html,body{height:100%;overflow:hidden;}
     body{padding:0;background:var(--paper);display:block;}
     .phone{width:100%;max-width:none;height:100dvh;max-height:none;border-radius:0;
       box-shadow:none;border:none;}
     .notch{display:none;}
-    .topbar{padding:calc(env(safe-area-inset-top) + 12px) 20px 14px;}
-    .nav{padding:10px 12px calc(10px + env(safe-area-inset-bottom));}
-    /* 여백을 넉넉히 — 꽉 찬 느낌 해소 */
-    .screen{padding:8px 20px 28px;}
-    .card{padding:18px;margin-bottom:16px;}
-    .hero .in{padding:22px 20px 24px;}
-    .eyebrow{margin:26px 2px 12px;}
-    .tl .box{padding:14px 16px;}
-    .tl .node{margin-bottom:16px;}
-    .btn{padding:16px;font-size:15.5px;}
-    .dseg{padding:9px 15px;font-size:13.5px;}
-    .filters,.filterbar{gap:8px;padding-bottom:16px;}
+    .topbar{padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;}
+    .nav{padding:8px 10px calc(8px + env(safe-area-inset-bottom));}
+    /* 밀도 조정 — 한 화면에 일정이 더 많이 들어오도록 */
+    .screen{padding:6px 16px 24px;}
+    .card{padding:15px;margin-bottom:12px;}
+    .hero{margin-bottom:14px;} .hero .in{padding:18px 17px 20px;}
+    .hero .cta{margin-top:13px;padding:11px;}
+    .eyebrow{margin:19px 2px 9px;}
+    .tl .node{grid-template-columns:36px minmax(0,1fr);column-gap:12px;margin-bottom:13px;}
+    .tl .dot .r{width:36px;height:36px;} .tl .time{min-height:36px;}
+    .tl .box{padding:13px 14px;}
+    .map{height:96px;margin-top:9px;}
+    .btn{padding:14px;font-size:15px;}
+    .dseg{padding:8px 13px;font-size:12.5px;}
+    .filters,.filterbar{gap:7px;padding-bottom:12px;}
+    .tcard{padding:13px 14px;margin-bottom:9px;}
+    .crow{padding:11px 13px;}
   }
   /* 화면 전환·터치 반응을 부드럽게 */
   .screen.active{animation:rise .34s cubic-bezier(.22,.8,.28,1);}
