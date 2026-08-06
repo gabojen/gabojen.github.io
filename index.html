@@ -27,27 +27,38 @@
 <title>여행가보젠</title>
 <style>
   :root{
+    /* 색 */
     --ink:#12212E; --ink-2:#2F3D46; --muted:#5A5449;
-    --paper:#F7F4EE; --card:#FFFFFF; --line:#E7E0D4;
-    --brand:#E2603B; --brand-ink:#B0421B; --teal:#0E7C7B;
-    --c-transport:#2F7DB5; --c-stay:#7A5AF0; --c-rentcar:#0E9E8E;
-    --c-ticket:#C98717; --c-plan:#E2603B; --c-pack:#3F8A4A;
-    --r:18px; --shadow:0 6px 20px rgba(18,33,46,.07),0 1px 3px rgba(18,33,46,.06);
-    --shadow-lg:0 24px 50px rgba(18,33,46,.22);
+    --paper:#F7F4EE; --card:#FFFFFF; --line:#E7E0D4; --line-2:#D9D0C0;
+    --brand:#D9552F; --brand-ink:#A63B18; --brand-bg:rgba(217,85,47,.10);
+    --teal:#0E6E6D;
+    --c-transport:#2A6E9E; --c-stay:#6B4FD8; --c-rentcar:#0C8A7C;
+    --c-ticket:#B37613; --c-plan:#D9552F; --c-pack:#357A40;
+    /* 타입 스케일 (1.20 비율) */
+    --t-cap:12.5px; --t-sm:13.5px; --t-body:15px; --t-lg:17px; --t-title:20px; --t-hero:24px;
+    /* 간격 스케일 */
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+    /* 모서리 */
+    --r-sm:10px; --r:14px; --r-lg:18px; --r-xl:24px;
+    /* 엘리베이션 (3단계만) */
+    --e1:0 1px 2px rgba(18,33,46,.06);
+    --e2:0 2px 8px rgba(18,33,46,.07),0 1px 2px rgba(18,33,46,.05);
+    --e3:0 12px 32px rgba(18,33,46,.14);
+    --shadow:var(--e2); --shadow-lg:var(--e3);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;}
   body{font-family:"Pretendard","Apple SD Gothic Neo","맑은 고딕",sans-serif;color:var(--ink);
     background:radial-gradient(120% 80% at 50% -10%,#F3EEE4,#E1DACC 60%,#D6CFC0);min-height:100vh;
     display:flex;align-items:center;justify-content:center;padding:22px;-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
-  .phone{width:392px;max-width:100%;height:824px;max-height:94vh;background:var(--paper);border-radius:44px;
+  .phone{width:392px;max-width:100%;height:824px;max-height:94vh;background:var(--paper);border-radius:40px;
     box-shadow:var(--shadow-lg);overflow:hidden;position:relative;display:flex;flex-direction:column;border:1px solid rgba(18,33,46,.06);}
   .notch{height:30px;display:flex;justify-content:center;}
   .notch::after{content:"";width:120px;height:24px;background:#12212E;border-radius:0 0 16px 16px;position:absolute;top:0;}
   .topbar{display:flex;align-items:center;gap:10px;padding:6px 18px 12px;min-height:44px;}
   .topbar.hidden{display:none;}
   .topbar .kicker{font-size:11px;color:var(--muted);font-weight:700;}
-  .topbar h1{font-size:20px;margin:1px 0 0;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .topbar h1{font-size:var(--t-title);margin:1px 0 0;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .topbar .flex{flex:1;min-width:0;}
   .ibtn{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--card);
     display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);flex-shrink:0;}
@@ -64,21 +75,21 @@
   .nav button svg{width:23px;height:23px;stroke-width:1.9;}
   .nav button.on{color:var(--brand);} .nav button.on svg{stroke-width:2.3;}
   svg.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;}
-  .btn{border:none;border-radius:14px;padding:15px 16px;font-size:15px;font-weight:800;width:100%;cursor:pointer;
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--e1);padding:var(--s4);margin-bottom:var(--s3);}
+  .btn{border:none;border-radius:var(--r);padding:15px 16px;font-size:var(--t-body);font-weight:800;width:100%;cursor:pointer;
     font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ink);color:#fff;}
   .btn svg{width:19px;height:19px;} .btn:active{transform:translateY(1px);}
   .btn:disabled{opacity:.55;cursor:default;}
   .btn.brand{background:var(--brand);} .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow);}
   .btn.sm{padding:11px 12px;font-size:13.5px;border-radius:12px;}
-  .input,select.input{width:100%;padding:14px;border:1px solid var(--line);border-radius:14px;font-size:14.5px;margin-bottom:10px;
+  .input,select.input{width:100%;padding:14px;border:1px solid var(--line);border-radius:var(--r);font-size:var(--t-body);margin-bottom:10px;
     font-family:inherit;background:#fff;color:var(--ink);}
   .input:focus{outline:2px solid rgba(226,96,59,.35);border-color:var(--brand);}
   textarea.input{resize:vertical;min-height:120px;line-height:1.6;}
   label.fld{display:block;font-size:12.5px;font-weight:800;color:var(--ink-2);margin:2px 2px 6px;}
-  .eyebrow{font-size:12.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+  .eyebrow{font-size:var(--t-cap);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
     margin:18px 2px 10px;display:flex;align-items:center;gap:7px;} .eyebrow:first-child{margin-top:4px;}
-  .muted{color:var(--muted);} .small{font-size:13.5px;} .center{text-align:center;}
+  .muted{color:var(--muted);} .small{font-size:var(--t-sm);} .center{text-align:center;}
   .row{display:flex;align-items:center;gap:12px;}
   .pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;}
   .pill svg{width:13px;height:13px;stroke-width:2.2;}
@@ -92,14 +103,15 @@
   .tabs2 button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow);}
   .err{background:rgba(178,59,59,.1);color:#8E2F2F;border-radius:12px;padding:11px 13px;font-size:13px;font-weight:700;margin-bottom:10px;text-align:left;}
   .hero{position:relative;border-radius:24px;overflow:hidden;color:#fff;margin-bottom:16px;box-shadow:var(--shadow);}
-  .hero .bg{position:absolute;inset:0;background:linear-gradient(145deg,#16404E,#0E7C7B 130%);}
-  .hero .bg::after{content:"";position:absolute;inset:0;opacity:.5;background:radial-gradient(80% 60% at 85% 0%,rgba(226,96,59,.55),transparent 60%);}
+  .hero .bg{position:absolute;inset:0;background:#12414A;}
+  .hero .bg::after{content:"";position:absolute;inset:0;opacity:.9;
+    background:radial-gradient(120% 90% at 100% 0%,rgba(217,85,47,.42),transparent 62%);}
   .hero .in{position:relative;padding:18px 18px 20px;}
   .hero .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
   .hero .badge{background:rgba(255,255,255,.16);padding:5px 11px;border-radius:999px;font-size:12px;font-weight:800;display:inline-flex;gap:6px;align-items:center;max-width:62%;overflow:hidden;}
   .hero .now{font-size:12.5px;color:#DCEEEC;font-weight:700;}
   .hero .cap{font-size:12.5px;color:#BFE0DD;font-weight:800;}
-  .hero h2{font-size:22px;margin:2px 0 4px;font-weight:800;letter-spacing:-.02em;}
+  .hero h2{font-size:var(--t-hero);margin:2px 0 4px;font-weight:800;letter-spacing:-.02em;}
   .hero .meta{color:#E4F1EF;font-size:13.5px;display:flex;align-items:center;gap:6px;}
   .hero .cta{margin-top:16px;background:#fff;color:var(--ink);border:none;border-radius:13px;padding:12px;width:100%;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;}
   .track{display:flex;gap:5px;margin-top:14px;} .track i{height:4px;border-radius:2px;flex:1;background:rgba(255,255,255,.28);} .track i.on{background:#fff;}
@@ -110,7 +122,7 @@
   .tl .dot .r{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);}
   .tl .dot .r svg{width:16px;height:16px;stroke-width:2;}
   .tl .time{font-size:12.5px;font-weight:800;color:var(--ink-2);}
-  .tl .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-top:3px;box-shadow:var(--shadow);}
+  .tl .box{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-top:3px;box-shadow:var(--e1);}
   .tl .box b{font-size:14.5px;font-weight:700;} .tl .box .sub{font-size:13.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:5px;}
   .tl .box .cbar{display:flex;align-items:center;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid var(--line);flex-wrap:wrap;}
   .tl .box .cbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--teal);font-weight:800;font-size:12.5px;font-family:inherit;padding:0;}
@@ -133,7 +145,7 @@
   .leg svg{width:13px;height:13px;stroke-width:2;}
   .leg .warn{color:var(--brand-ink);font-weight:800;}
   .leg.hidden{display:none;}
-  .vote{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border:1px solid var(--line);border-radius:13px;margin-bottom:8px;background:#fff;box-shadow:var(--shadow);gap:10px;}
+  .vote{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:8px;background:#fff;box-shadow:var(--e1);gap:10px;}
   .vote.win{border-color:rgba(226,96,59,.5);background:rgba(226,96,59,.06);}
   .vote .vbtn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-weight:800;font-size:12.5px;cursor:pointer;color:var(--ink);font-family:inherit;flex-shrink:0;}
   .vote .vbtn.on{background:var(--brand);color:#fff;border-color:var(--brand);}
@@ -159,7 +171,7 @@
   .dayswrap::after{content:"";position:absolute;right:0;top:0;bottom:10px;width:26px;pointer-events:none;
     background:linear-gradient(90deg,rgba(247,244,238,0),var(--paper));}
   .days{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scroll-behavior:smooth;} .days::-webkit-scrollbar{height:0;}
-  .day{flex-shrink:0;min-width:56px;padding:9px 8px;border-radius:14px;border:1px solid var(--line);background:#fff;cursor:pointer;text-align:center;box-shadow:var(--shadow);}
+  .day{flex-shrink:0;min-width:58px;padding:10px 8px;border-radius:var(--r);border:1px solid var(--line);background:#fff;cursor:pointer;text-align:center;box-shadow:var(--e1);}
   .day .n{font-size:11px;color:var(--muted);font-weight:800;} .day .d{font-size:17px;font-weight:800;margin-top:1px;}
   .day.on{background:var(--ink);border-color:var(--ink);color:#fff;} .day.on .n{color:#C7CDD2;}
   /* 필터: 줄바꿈으로 모두 보이게 (가로 스크롤 불필요) */
@@ -170,7 +182,7 @@
   .map{height:120px;border-radius:14px;overflow:hidden;border:1px solid var(--line);position:relative;margin-top:10px;background:#E9EEE9;cursor:pointer;}
   .map .lbl{position:absolute;left:10px;bottom:9px;background:rgba(255,255,255,.94);padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;display:flex;align-items:center;gap:5px;color:var(--teal);}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  .album{border-radius:18px;overflow:hidden;position:relative;height:150px;cursor:pointer;box-shadow:var(--shadow);}
+  .album{border-radius:var(--r-lg);overflow:hidden;position:relative;height:150px;cursor:pointer;box-shadow:var(--e1);}
   .album .grad{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.62));}
   .album .cap{position:absolute;left:12px;right:12px;bottom:11px;color:#fff;} .album .cap b{font-size:14px;font-weight:800;}
   .album .yr{position:absolute;top:10px;left:12px;color:#fff;font-size:11px;font-weight:800;opacity:.9;}
@@ -197,6 +209,23 @@
   .splash{position:absolute;inset:0;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:90;}
   .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:sp .8s linear infinite;}
   @keyframes sp{to{transform:rotate(360deg);}}
+
+  /* ===== 실제 모바일: 프레임 없이 전체화면 ===== */
+  @media (max-width:640px){
+    body{padding:0;background:var(--paper);display:block;}
+    .phone{width:100%;max-width:none;height:100dvh;max-height:none;border-radius:0;
+      box-shadow:none;border:none;}
+    .notch{display:none;}
+    .topbar{padding-top:calc(env(safe-area-inset-top) + 10px);}
+    .nav{padding-bottom:calc(8px + env(safe-area-inset-bottom));}
+    .screen{padding-left:16px;padding-right:16px;}
+  }
+  /* ===== 접근성: 키보드 포커스 표시 · 터치 타깃 ===== */
+  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,label:focus-visible{
+    outline:3px solid rgba(217,85,47,.45); outline-offset:2px;}
+  .ibtn,.nav button,.btn{min-height:44px;}
+  .cbtn{min-height:34px;padding:4px 2px;}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 </style>
 </head>
 <body>
@@ -938,7 +967,35 @@ function prepImage(file){return new Promise(function(res,rej){
   img.onerror=function(){URL.revokeObjectURL(url);rej(new Error('이미지를 열 수 없습니다'));};
   img.src=url;});}
 
+function aiToSegs(j){
+  var kind=(j&&j.kind)||'flight', items=(j&&j.items)||[], out=[];
+  for(var i=0;i<items.length;i++){var g=items[i]||{};
+    out.push({date:g.date||'',time:g.time||'',arr:(kind==='flight'?(g.endTime||''):''),
+      from:g.from||'',to:g.to||'',flight:g.code||'',resv:g.resv||'',
+      outDate:(kind==='flight'?'':(g.endDate||'')),outTime:(kind==='flight'?'':(g.endTime||''))});}
+  return {kind:kind,segs:out};}
+
 function runOCR(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;
+  var st=document.getElementById('ocrStat');
+  st.innerHTML='<div class="card" style="margin-top:12px"><b>AI가 사진을 읽는 중…</b><div class="muted small" id="ocrPct" style="margin-top:4px">보통 3~10초 걸립니다</div></div>';
+  /* 1순위: AI 비전 분석 */
+  if(window.FB&&window.FB.readImage){
+    window.FB.readImage(f).then(function(j){
+      var r=aiToSegs(j); ocrKind=r.kind; ocrGuess=r.segs; ocrPlaces=[]; ocrRaw='';
+      if(!r.segs.length)throw new Error('내용을 찾지 못했습니다');
+      document.getElementById('ocrStat').innerHTML='<div class="card" style="margin-top:12px;background:rgba(63,138,74,.10);border-color:rgba(63,138,74,.3)"><b style="color:#2f6b38">AI가 읽었어요</b><div class="muted small">아래 내용을 확인하고 저장하세요.</div></div>';
+      buildForm(ocrGuess);
+    }).catch(function(e){
+      var m=String((e&&e.message)||'');
+      var appck=/app.?check|permission|denied|403|unregistered/i.test(m);
+      document.getElementById('ocrStat').innerHTML='<div class="card" style="margin-top:12px"><b>AI 분석을 쓸 수 없어 글자 인식으로 진행합니다</b><div class="muted small" style="margin-top:4px">'+(appck?'Firebase 앱 체크 등록이 필요합니다.':esc(m))+'</div></div>';
+      setTimeout(function(){runTesseract(f);},400);
+    });
+    return;
+  }
+  runTesseract(f);}
+
+function runTesseract(f){
   var st=document.getElementById('ocrStat');
   st.innerHTML='<div class="card" style="margin-top:12px"><b>사진에서 글자를 읽는 중…</b><div class="muted small" id="ocrPct" style="margin-top:4px">준비 중 (처음 한 번은 30초쯤 걸립니다)</div></div>';
   if(!window.Tesseract){st.innerHTML='<div class="err">글자 인식 기능을 불러오지 못했습니다.</div>';return;}
@@ -1480,14 +1537,18 @@ window.onFbError=function(msg){$('splashMsg').textContent=msg;};
      Firebase 연결부 (여기만 교체하면 다른 프로젝트에도 붙습니다)
      ============================================================================ -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
          signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail,
          sendEmailVerification }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, updateDoc,
          query, where, onSnapshot, arrayUnion }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+import { initializeAppCheck, ReCaptchaV3Provider }
+  from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app-check.js";
+import { getAI, getGenerativeModel, GoogleAIBackend }
+  from "https://www.gstatic.com/firebasejs/12.4.0/firebase-ai.js";
 
 // ▼▼▼ 내 Firebase 프로젝트 설정 (김광석님 프로젝트) ▼▼▼
 const FIREBASE_CONFIG = {
@@ -1501,6 +1562,16 @@ const FIREBASE_CONFIG = {
 // ▲▲▲ 여기까지 ▲▲▲
 
 const app = initializeApp(FIREBASE_CONFIG);
+
+/* ── App Check: "진짜 우리 앱에서 온 요청"임을 증명 ──
+   아래 사이트 키는 공개돼도 되는 값입니다. (비밀 키는 Firebase 콘솔에만 보관) */
+const RECAPTCHA_SITE_KEY = "6LeaAngtAAAAAAv5A5YkjUijOHl-QWRwLLMcdAC_";
+try{
+  initializeAppCheck(app,{
+    provider:new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled:true
+  });
+}catch(e){ console.warn('[여행가보젠] App Check 초기화 실패:',e); }
 const auth = getAuth(app);
 const db = getFirestore(app);
 let unsub = null;
@@ -1530,8 +1601,55 @@ function watchTrips(uid){
   },err=>{console.error(err);window.onFbError('데이터를 불러오지 못했습니다: '+err.message);});
 }
 
+/* ── Gemini 비전: 예약 캡처를 구조화 데이터로 직접 변환 ──
+   키는 Firebase가 서버에서 관리하므로 앱 코드에 노출되지 않습니다. */
+let _ai=null;
+function ai(){ if(!_ai) _ai=getAI(app,{backend:new GoogleAIBackend()}); return _ai; }
+const AI_MODELS=["gemini-3.6-flash","gemini-2.5-flash","gemini-2.0-flash"];
+const AI_PROMPT=`이 이미지는 여행 예약 확인 화면(항공권/숙박/렌터카)입니다.
+내용을 읽고 아래 JSON만 출력하세요. 설명·마크다운·코드블록 없이 JSON만.
+
+{"kind":"flight|stay|rentcar","items":[{
+ "date":"YYYY-MM-DD (출발/체크인/대여 날짜)",
+ "time":"HH:MM (24시간)",
+ "endDate":"YYYY-MM-DD (도착일/체크아웃/반납일, 없으면 \"\")",
+ "endTime":"HH:MM (도착/체크아웃/반납 시각, 없으면 \"\")",
+ "from":"출발지 또는 숙소명 또는 대여지점 (한글)",
+ "to":"도착지 또는 반납지점 (한글, 없으면 \"\")",
+ "code":"편명 또는 차종 (없으면 \"\")",
+ "resv":"예약번호 (없으면 \"\")"}]}
+
+규칙:
+- 왕복 항공권이면 items에 2개(가는편·오는편)를 순서대로 넣으세요.
+- 공항코드(CJU 등)는 한글 지명(제주)으로 바꾸세요.
+- 화면에 없는 값은 빈 문자열로 두고 절대 지어내지 마세요.`;
+
+async function fileToPart(file){
+  const b64=await new Promise((res,rej)=>{const r=new FileReader();
+    r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=rej; r.readAsDataURL(file);});
+  return {inlineData:{mimeType:file.type||'image/png',data:b64}};
+}
+
 window.FB={
   msg,
+  aiReady(){ return true; },
+  async readImage(file){
+    const part=await fileToPart(file);
+    let lastErr=null;
+    for(const name of AI_MODELS){
+      try{
+        const model=getGenerativeModel(ai(),{model:name});
+        const r=await model.generateContent([AI_PROMPT,part]);
+        const txt=(r.response.text()||'').replace(/```json|```/g,'').trim();
+        const m=txt.match(/\{[\s\S]*\}/);
+        if(!m) throw new Error('형식 오류');
+        return JSON.parse(m[0]);
+      }catch(e){ lastErr=e;
+        if(/app.?check|permission|denied|403/i.test(String(e&&e.message))) break;
+      }
+    }
+    throw lastErr||new Error('분석 실패');
+  },
   async signup(email,pw,name){
     const cred=await createUserWithEmailAndPassword(auth,email,pw);
     await updateProfile(cred.user,{displayName:name});
