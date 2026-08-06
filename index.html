@@ -1545,7 +1545,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
 import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, updateDoc,
          query, where, onSnapshot, arrayUnion }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-import { initializeAppCheck, ReCaptchaV3Provider }
+import { initializeAppCheck, ReCaptchaEnterpriseProvider }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app-check.js";
 import { getAI, getGenerativeModel, GoogleAIBackend }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-ai.js";
@@ -1568,7 +1568,7 @@ const app = initializeApp(FIREBASE_CONFIG);
 const RECAPTCHA_SITE_KEY = "6LeaAngtAAAAAAv5A5YkjUijOHl-QWRwLLMcdAC_";
 try{
   initializeAppCheck(app,{
-    provider:new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+    provider:new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
     isTokenAutoRefreshEnabled:true
   });
 }catch(e){ console.warn('[여행가보젠] App Check 초기화 실패:',e); }
