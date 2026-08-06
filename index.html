@@ -983,12 +983,19 @@ function runOCR(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;
     window.FB.readImage(f).then(function(j){
       var r=aiToSegs(j); ocrKind=r.kind; ocrGuess=r.segs; ocrPlaces=[]; ocrRaw='';
       if(!r.segs.length)throw new Error('내용을 찾지 못했습니다');
-      document.getElementById('ocrStat').innerHTML='<div class="card" style="margin-top:12px;background:rgba(63,138,74,.10);border-color:rgba(63,138,74,.3)"><b style="color:#2f6b38">AI가 읽었어요</b><div class="muted small">아래 내용을 확인하고 저장하세요.</div></div>';
+      var dbg=window.__aiDebug||{};
+      document.getElementById('ocrStat').innerHTML='<div class="card" style="margin-top:12px;background:rgba(63,138,74,.10);border-color:rgba(63,138,74,.3)">'
+        +'<b style="color:#2f6b38">AI가 읽었어요</b><div class="muted small">모델: '+esc(dbg.model||'-')+' · 아래 내용을 확인하고 저장하세요.</div>'
+        +'<button class="lnk" onclick="showAiDebug()">AI 응답 원문 보기</button></div>';
       buildForm(ocrGuess);
     }).catch(function(e){
       var m=String((e&&e.message)||'');
       var appck=/app.?check|permission|denied|403|unregistered/i.test(m);
-      document.getElementById('ocrStat').innerHTML='<div class="card" style="margin-top:12px"><b>AI 분석을 쓸 수 없어 글자 인식으로 진행합니다</b><div class="muted small" style="margin-top:4px">'+(appck?'Firebase 앱 체크 등록이 필요합니다.':esc(m))+'</div></div>';
+      document.getElementById('ocrStat').innerHTML='<div class="card" style="margin-top:12px;background:rgba(178,59,59,.08);border-color:rgba(178,59,59,.3)">'
+        +'<b style="color:#8E2F2F">AI 분석 실패 → 글자 인식으로 전환</b>'
+        +'<div class="muted small" style="margin-top:4px">'+(appck?'앱 체크/권한 문제로 보입니다.':'')+'</div>'
+        +'<textarea class="input" readonly style="min-height:90px;font-size:12px;margin-top:8px">'+esc(m)+'</textarea>'
+        +'<div class="muted small">위 내용을 복사해 알려주시면 정확히 고칠 수 있습니다.</div></div>';
       setTimeout(function(){runTesseract(f);},400);
     });
     return;
@@ -1013,6 +1020,11 @@ function runTesseract(f){
     buildForm(ocrGuess);
   }).catch(function(e){st.innerHTML='<div class="err">글자를 읽지 못했어요: '+esc(e.message||'')+'</div>';});}
 
+function showAiDebug(){var d=window.__aiDebug||{};
+  openModal('<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>AI 진단</b>'
+   +'<button class="ibtn" onclick="closeOv()" aria-label="닫기">'+svg('i-x','ic')+'</button></div>'
+   +'<div class="muted small" style="text-align:left;margin-bottom:6px">모델: '+esc(d.model||'-')+'</div>'
+   +'<textarea class="input" readonly style="min-height:200px;font-size:12px">'+esc((d.tried||[]).join('\n')+'\n\n--- 응답 원문 ---\n'+(d.raw||''))+'</textarea>');}
 function kindLabel(k){return k==='stay'?'숙박':k==='rentcar'?'렌트카':'항공';}
 function segCard(i,g){
   var isStay=ocrKind==='stay', isCar=ocrKind==='rentcar';
@@ -1635,20 +1647,24 @@ window.FB={
   aiReady(){ return true; },
   async readImage(file){
     const part=await fileToPart(file);
-    let lastErr=null;
+    const log=[]; let lastErr=null;
+    window.__aiDebug={tried:log,raw:'',ok:false};
     for(const name of AI_MODELS){
       try{
         const model=getGenerativeModel(ai(),{model:name});
         const r=await model.generateContent([AI_PROMPT,part]);
         const txt=(r.response.text()||'').replace(/```json|```/g,'').trim();
+        window.__aiDebug.raw=txt;
+        log.push(name+': 응답 '+txt.length+'자');
         const m=txt.match(/\{[\s\S]*\}/);
-        if(!m) throw new Error('형식 오류');
-        return JSON.parse(m[0]);
-      }catch(e){ lastErr=e;
-        if(/app.?check|permission|denied|403/i.test(String(e&&e.message))) break;
-      }
+        if(!m){ log.push(name+': JSON 형식 아님'); throw new Error('AI 응답이 JSON이 아닙니다'); }
+        const j=JSON.parse(m[0]);
+        window.__aiDebug.ok=true; window.__aiDebug.model=name;
+        return j;
+      }catch(e){ lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,160)); }
     }
-    throw lastErr||new Error('분석 실패');
+    const err=new Error(log.join(' / '));
+    err.detail=log; throw err;
   },
   async signup(email,pw,name){
     const cred=await createUserWithEmailAndPassword(auth,email,pw);
