@@ -34,7 +34,7 @@
     var m=document.querySelector('meta[name=theme-color]');
     if(m)m.setAttribute('content',dark?'#161A1D':'#D9552F');
   };
-  (function(){var t='auto';try{t=localStorage.getItem('theme')||'auto';}catch(e){}
+  (function(){var t='light';try{t=localStorage.getItem('theme')||'light';}catch(e){}
     window.__theme=t; window.applyTheme(t);
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){
       var cur='auto';try{cur=localStorage.getItem('theme')||'auto';}catch(e){}
@@ -302,11 +302,16 @@
   html.dark .map{background:#232A2E;}
   html.dark .empty .big{background:rgba(242,115,74,.18);}
   /* ===== 타이포 위계: 핵심 정보를 크게 ===== */
-  .hero h2{font-size:clamp(19px,5vw,23px);letter-spacing:-.025em;line-height:1.32;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .hero .hnow{display:flex;align-items:baseline;gap:9px;margin:6px 0 2px;}
+  .hero .ht{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums;}
+  .hero .hc{font-size:13px;font-weight:800;opacity:.85;}
+  .hero h2{font-size:16.5px;font-weight:700;letter-spacing:-.015em;line-height:1.35;margin:0 0 7px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95;}
+  .hero .meta{font-size:13px;}
   .hero .cap{font-size:13px;letter-spacing:.01em;}
   .tl .time{font-size:13px;letter-spacing:-.01em;}
-  .tl .box b{font-size:15.5px;line-height:1.35;}
+  .tl .box b{font-size:15.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;
+    -webkit-box-orient:vertical;overflow:hidden;}
   .trip .cover h3{font-size:19px;}
   .topbar h1{letter-spacing:-.025em;}
 
@@ -475,9 +480,10 @@ async function doAuth(){
 function avatarStyle(m){return m&&m.photo?`background-image:url('${m.photo}')`:`background:${(m&&m.c)||AVCOL[0]}`;}
 function avatarSpan(m){return `<span style="${avatarStyle(m)}">${m&&m.photo?'':esc(m?m.n:'?')}</span>`;}
 
-function setTheme(t){window.applyTheme(t);window.__theme=t;markTheme();toast(t==='auto'?'휴대폰 설정을 따릅니다':(t==='light'?'밝은 화면':'어두운 화면'));}
+function setTheme(t){window.applyTheme(t);window.__theme=t;markTheme();toast(t==='light'?'밝은 화면으로 바꿨어요':(t==='dark'?'어두운 화면으로 바꿨어요':'휴대폰 설정을 따릅니다'));}
 function markTheme(){var w=document.getElementById('themeTabs');if(!w)return;
-  var b=w.querySelectorAll('button'),k=['auto','light','dark'];
+  if(!window.__theme)window.__theme='light';
+  var b=w.querySelectorAll('button'),k=['light','dark','auto'];
   for(var i=0;i<b.length;i++)b[i].classList.toggle('on',k[i]===(window.__theme||'auto'));}
 function openAccount(){
   const v=ME.verified;
@@ -493,9 +499,9 @@ function openAccount(){
   <div style="height:14px"></div>
   <div class="eyebrow" style="margin-top:4px">화면 테마</div>
   <div class="tabs2" id="themeTabs">
-    <button onclick="setTheme('auto')">자동</button>
     <button onclick="setTheme('light')">밝게</button>
     <button onclick="setTheme('dark')">어둡게</button>
+    <button onclick="setTheme('auto')">자동</button>
   </div>
   <button class="btn ghost" onclick="openProfile()">${svg('i-edit','ic')} 프로필 수정 (이름·사진)</button>
   <div style="height:10px"></div>
@@ -665,8 +671,9 @@ function renderToday(){
   const t=trip(curTrip);const now=new Date();const nx=nextItem(t);
   const fIdx=focusDayIdx(t);const day=(t.days||[])[fIdx];
   const heroBody=nx?`<div class="cap">다음 일정 · ${relText(nx.dt,now)||'곧'}</div>
-      <h2>${esc(tidyTitle(nx.item.title,34))}</h2>
-      <div class="meta">${svg('i-clock')} ${esc(nx.item.time)} · ${svg('i-pin')} ${esc(nx.item.place||'-')}</div>`
+      <div class="hnow"><span class="ht">${esc(nx.item.time)}</span><span class="hc">${CAT[nx.item.cat].name}</span></div>
+      <h2>${esc(tidyTitle(nx.item.title,30))}</h2>
+      ${nx.item.place?`<div class="meta">${svg('i-pin')} ${esc(nx.item.place)}</div>`:''}`
     :`<div class="cap">예정된 다음 일정이 없어요</div><h2>일정을 추가해 볼까요?</h2>
       <div class="meta">${svg('i-plus')} 아래에서 바로 추가할 수 있어요</div>`;
   const dots=(t.days||[]).map((d,i)=>`<i class="${i<=fIdx?'on':''}"></i>`).join('');
