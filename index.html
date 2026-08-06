@@ -25,10 +25,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>여행가보젠</title>
+<script>
+  /* 화면 테마: 자동(휴대폰 설정) / 밝게 / 어둡게 — 사용자가 고릅니다 */
+  window.applyTheme=function(t){
+    try{localStorage.setItem('theme',t);}catch(e){}
+    var dark = t==='dark' || (t!=='light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark',dark);
+    var m=document.querySelector('meta[name=theme-color]');
+    if(m)m.setAttribute('content',dark?'#161A1D':'#D9552F');
+  };
+  (function(){var t='auto';try{t=localStorage.getItem('theme')||'auto';}catch(e){}
+    window.__theme=t; window.applyTheme(t);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){
+      var cur='auto';try{cur=localStorage.getItem('theme')||'auto';}catch(e){}
+      if(cur==='auto')window.applyTheme('auto');});})();
+</script>
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExNCIgZmlsbD0iI0Q5NTUyRiIvPjxyZWN0IHg9IjE0NiIgeT0iMTk2IiB3aWR0aD0iMjIwIiBoZWlnaHQ9IjE4MiIgcng9IjM0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMjQiLz48cGF0aCBkPSJNMjEwIDE5NnYtMzJhMjggMjggMCAwIDEgMjgtMjhoMzZhMjggMjggMCAwIDEgMjggMjh2MzIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGNpcmNsZSBjeD0iMjU2IiBjeT0iMjg4IiByPSI0MiIgZmlsbD0iI2ZmZiIvPjxjaXJjbGUgY3g9IjI1NiIgY3k9IjI4OCIgcj0iMTYiIGZpbGw9IiNEOTU1MkYiLz48L3N2Zz4=">
 <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExNCIgZmlsbD0iI0Q5NTUyRiIvPjxyZWN0IHg9IjE0NiIgeT0iMTk2IiB3aWR0aD0iMjIwIiBoZWlnaHQ9IjE4MiIgcng9IjM0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMjQiLz48cGF0aCBkPSJNMjEwIDE5NnYtMzJhMjggMjggMCAwIDEgMjgtMjhoMzZhMjggMjggMCAwIDEgMjggMjh2MzIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGNpcmNsZSBjeD0iMjU2IiBjeT0iMjg4IiByPSI0MiIgZmlsbD0iI2ZmZiIvPjxjaXJjbGUgY3g9IjI1NiIgY3k9IjI4OCIgcj0iMTYiIGZpbGw9IiNEOTU1MkYiLz48L3N2Zz4=">
-<meta name="theme-color" content="#D9552F" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#161A1D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#D9552F">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="여행가보젠">
 <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoi7Jes7ZaJ6rCA67O07KCgIiwic2hvcnRfbmFtZSI6IuyXrO2WieqwgOuztOygoCIsInN0YXJ0X3VybCI6Ii4vIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI0Y3RjRFRSIsInRoZW1lX2NvbG9yIjoiI0Q5NTUyRiIsImRlc2NyaXB0aW9uIjoi7ZWo6ruYIOuWoOuCmOuKlCDsmrDrpqzrk6TsnZgg7Jes7ZaJIOuFuO2KuCIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSFpwWlhkQ2IzZzlJakFnTUNBMU1USWdOVEV5SWo0OGNtVmpkQ0IzYVdSMGFEMGlOVEV5SWlCb1pXbG5hSFE5SWpVeE1pSWdjbmc5SWpFeE5DSWdabWxzYkQwaUkwUTVOVFV5UmlJdlBqeHlaV04wSUhnOUlqRTBOaUlnZVQwaU1UazJJaUIzYVdSMGFEMGlNakl3SWlCb1pXbG5hSFE5SWpFNE1pSWdjbmc5SWpNMElpQm1hV3hzUFNKdWIyNWxJaUJ6ZEhKdmEyVTlJaU5tWm1ZaUlITjBjbTlyWlMxM2FXUjBhRDBpTWpRaUx6NDhjR0YwYUNCa1BTSk5NakV3SURFNU5uWXRNekpoTWpnZ01qZ2dNQ0F3SURFZ01qZ3RNamhvTXpaaE1qZ2dNamdnTUNBd0lERWdNamdnTWpoMk16SWlJR1pwYkd3OUltNXZibVVpSUhOMGNtOXJaVDBpSTJabVppSWdjM1J5YjJ0bExYZHBaSFJvUFNJeU5DSWdjM1J5YjJ0bExXeHBibVZqWVhBOUluSnZkVzVrSWk4K1BHTnBjbU5zWlNCamVEMGlNalUySWlCamVUMGlNamc0SWlCeVBTSTBNaUlnWm1sc2JEMGlJMlptWmlJdlBqeGphWEpqYkdVZ1kzZzlJakkxTmlJZ1kzazlJakk0T0NJZ2NqMGlNVFlpSUdacGJHdzlJaU5FT1RVMU1rWWlMejQ4TDNOMlp6ND0iLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCIsInB1cnBvc2UiOiJhbnkifSx7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMlp5QjRiV3h1Y3owaWFIUjBjRG92TDNkM2R5NTNNeTV2Y21jdk1qQXdNQzl6ZG1jaUlIWnBaWGRDYjNnOUlqQWdNQ0ExTVRJZ05URXlJajQ4Y21WamRDQjNhV1IwYUQwaU5URXlJaUJvWldsbmFIUTlJalV4TWlJZ1ptbHNiRDBpSTBRNU5UVXlSaUl2UGp4eVpXTjBJSGc5SWpFMk5pSWdlVDBpTWpFeUlpQjNhV1IwYUQwaU1UZ3dJaUJvWldsbmFIUTlJakUxTUNJZ2NuZzlJakk0SWlCbWFXeHNQU0p1YjI1bElpQnpkSEp2YTJVOUlpTm1abVlpSUhOMGNtOXJaUzEzYVdSMGFEMGlNakFpTHo0OGNHRjBhQ0JrUFNKTk1qSXlJREl4TW5ZdE1qWmhNalFnTWpRZ01DQXdJREVnTWpRdE1qUm9NakJoTWpRZ01qUWdNQ0F3SURFZ01qUWdNalIyTWpZaUlHWnBiR3c5SW01dmJtVWlJSE4wY205clpUMGlJMlptWmlJZ2MzUnliMnRsTFhkcFpIUm9QU0l5TUNJZ2MzUnliMnRsTFd4cGJtVmpZWEE5SW5KdmRXNWtJaTgrUEdOcGNtTnNaU0JqZUQwaU1qVTJJaUJqZVQwaU1qZzRJaUJ5UFNJek5DSWdabWxzYkQwaUkyWm1aaUl2UGp4amFYSmpiR1VnWTNnOUlqSTFOaUlnWTNrOUlqSTRPQ0lnY2owaU1UTWlJR1pwYkd3OUlpTkVPVFUxTWtZaUx6NDhMM04yWno0PSIsInNpemVzIjoiNTEyeDUxMiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIiwicHVycG9zZSI6Im1hc2thYmxlIn1dfQ==">
@@ -119,8 +133,8 @@
   .hero .badge{background:rgba(255,255,255,.16);padding:5px 11px;border-radius:999px;font-size:12px;font-weight:800;display:inline-flex;gap:6px;align-items:center;max-width:62%;overflow:hidden;}
   .hero .now{font-size:12.5px;color:#DCEEEC;font-weight:700;}
   .hero .cap{font-size:12.5px;color:#BFE0DD;font-weight:800;}
-  .hero h2{font-size:var(--t-hero);margin:2px 0 4px;font-weight:800;letter-spacing:-.02em;}
-  .hero .meta{color:#E4F1EF;font-size:13.5px;display:flex;align-items:center;gap:6px;}
+  .hero h2{margin:4px 0 6px;font-weight:800;}
+  .hero .meta{color:#DCEAE8;font-size:13.5px;display:flex;align-items:center;gap:6px;}
   .hero .cta{margin-top:16px;background:#fff;color:var(--ink);border:none;border-radius:13px;padding:12px;width:100%;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;}
   .track{display:flex;gap:5px;margin-top:14px;} .track i{height:4px;border-radius:2px;flex:1;background:rgba(255,255,255,.28);} .track i.on{background:#fff;}
   .tl{position:relative;padding-left:0;}
@@ -258,8 +272,8 @@
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 
   /* ===== 다크모드: 두 모드 모두 대비 4.5:1 이상 ===== */
-  @media (prefers-color-scheme: dark){
-    :root{
+  /* 다크 테마 (자동/수동 선택) */
+  html.dark{
       --ink:#F2EEE7; --ink-2:#CFC8BE; --muted:#A79E92;
       --paper:#161A1D; --card:#1F2429; --line:#2E353B; --line-2:#3A424A;
       --brand:#F2734A; --brand-ink:#FFA382; --brand-bg:rgba(242,115,74,.16);
@@ -270,25 +284,26 @@
       --e2:0 2px 10px rgba(0,0,0,.45);
       --e3:0 14px 36px rgba(0,0,0,.6);
     }
-    body{background:radial-gradient(120% 80% at 50% -10%,#22282D,#14181B 60%,#0F1214);}
-    .hero .bg{background:#123138;}
-    .day.on{background:var(--brand);border-color:var(--brand);color:#20130E;}
-    .day.on .n{color:rgba(32,19,14,.75);}
-    .btn{background:#EDE7DE;color:#181C20;}
-    .btn.brand{background:var(--brand);color:#20130E;}
-    .btn.ghost{background:var(--card);color:var(--ink);border-color:var(--line-2);}
-    .nav{background:rgba(31,36,41,.92);}
-    .sheet,.modal{background:var(--card);}
-    .input,select.input,textarea.input{background:#242A30;color:var(--ink);border-color:var(--line-2);}
-    .tl .box,.vote,.day,.fchip,.card{background:var(--card);}
-    .tl .dot .r{background:var(--card);}
-    .ibtn{background:var(--card);border-color:var(--line-2);}
-    .tabs2{background:#242A30;} .tabs2 button.on{background:var(--card);}
-    .map{background:#232A2E;}
-    .empty .big{background:rgba(242,115,74,.18);}
-  }
+  html.dark body{background:radial-gradient(120% 80% at 50% -10%,#22282D,#14181B 60%,#0F1214);}
+  html.dark .hero .bg{background:#16323A;}
+  html.dark .day.on{background:var(--brand);border-color:var(--brand);color:#20130E;}
+  html.dark .day.on .n{color:rgba(32,19,14,.75);}
+  html.dark .btn{background:#EDE7DE;color:#181C20;}
+  html.dark .btn.brand{background:var(--brand);color:#20130E;}
+  html.dark .btn.ghost{background:var(--card);color:var(--ink);border-color:var(--line-2);}
+  html.dark .nav{background:rgba(31,36,41,.92);}
+  html.dark .sheet, html.dark .modal{background:var(--card);}
+  html.dark .input, html.dark select.input, html.dark textarea.input{background:#242A30;color:var(--ink);border-color:var(--line-2);}
+  html.dark .tl .box, html.dark .vote, html.dark .day, html.dark .fchip, html.dark .card{background:var(--card);}
+  html.dark .tl .dot .r{background:var(--card);}
+  html.dark .ibtn{background:var(--card);border-color:var(--line-2);}
+  html.dark .tabs2{background:#242A30;}
+  html.dark .tabs2 button.on{background:var(--card);}
+  html.dark .map{background:#232A2E;}
+  html.dark .empty .big{background:rgba(242,115,74,.18);}
   /* ===== 타이포 위계: 핵심 정보를 크게 ===== */
-  .hero h2{font-size:26px;letter-spacing:-.03em;line-height:1.25;}
+  .hero h2{font-size:clamp(19px,5vw,23px);letter-spacing:-.025em;line-height:1.32;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .hero .cap{font-size:13px;letter-spacing:.01em;}
   .tl .time{font-size:13px;letter-spacing:-.01em;}
   .tl .box b{font-size:15.5px;line-height:1.35;}
@@ -460,6 +475,10 @@ async function doAuth(){
 function avatarStyle(m){return m&&m.photo?`background-image:url('${m.photo}')`:`background:${(m&&m.c)||AVCOL[0]}`;}
 function avatarSpan(m){return `<span style="${avatarStyle(m)}">${m&&m.photo?'':esc(m?m.n:'?')}</span>`;}
 
+function setTheme(t){window.applyTheme(t);window.__theme=t;markTheme();toast(t==='auto'?'휴대폰 설정을 따릅니다':(t==='light'?'밝은 화면':'어두운 화면'));}
+function markTheme(){var w=document.getElementById('themeTabs');if(!w)return;
+  var b=w.querySelectorAll('button'),k=['auto','light','dark'];
+  for(var i=0;i<b.length;i++)b[i].classList.toggle('on',k[i]===(window.__theme||'auto'));}
 function openAccount(){
   const v=ME.verified;
   openSheet(`<div class="grab"></div><h3>내 계정</h3>
@@ -472,13 +491,20 @@ function openAccount(){
   </div>
   ${v?'':`<button class="btn ghost sm" style="margin:12px 0 0" onclick="sendVerify()">인증 메일 보내기</button>`}
   <div style="height:14px"></div>
+  <div class="eyebrow" style="margin-top:4px">화면 테마</div>
+  <div class="tabs2" id="themeTabs">
+    <button onclick="setTheme('auto')">자동</button>
+    <button onclick="setTheme('light')">밝게</button>
+    <button onclick="setTheme('dark')">어둡게</button>
+  </div>
   <button class="btn ghost" onclick="openProfile()">${svg('i-edit','ic')} 프로필 수정 (이름·사진)</button>
   <div style="height:10px"></div>
   <button class="btn ghost" onclick="changePw()">${svg('i-key','ic')} 비밀번호 변경 메일 받기</button>
   <div style="height:10px"></div>
   <button class="btn ghost" onclick="joinPrompt()">${svg('i-users','ic')} 초대코드로 여행 참여하기</button>
   <div style="height:10px"></div>
-  <button class="btn" onclick="window.FB.logout()">${svg('i-out','ic')} 로그아웃</button>`);}
+  <button class="btn" onclick="window.FB.logout()">${svg('i-out','ic')} 로그아웃</button>`);
+  setTimeout(markTheme,0);}
 
 /* ---- 프로필 수정 (이름 + 사진) ---- */
 function openProfile(){newPhoto=null;
@@ -639,7 +665,7 @@ function renderToday(){
   const t=trip(curTrip);const now=new Date();const nx=nextItem(t);
   const fIdx=focusDayIdx(t);const day=(t.days||[])[fIdx];
   const heroBody=nx?`<div class="cap">다음 일정 · ${relText(nx.dt,now)||'곧'}</div>
-      <h2>${esc(nx.item.title)}</h2>
+      <h2>${esc(tidyTitle(nx.item.title,34))}</h2>
       <div class="meta">${svg('i-clock')} ${esc(nx.item.time)} · ${svg('i-pin')} ${esc(nx.item.place||'-')}</div>`
     :`<div class="cap">예정된 다음 일정이 없어요</div><h2>일정을 추가해 볼까요?</h2>
       <div class="meta">${svg('i-plus')} 아래에서 바로 추가할 수 있어요</div>`;
@@ -1222,6 +1248,15 @@ function delSeg(i){var cur=readForm();cur.splice(i,1);buildForm(cur);}
 function ocrToPaste(){closeOv();routeTo('paste');
   setTimeout(function(){var b=document.getElementById('pbox');if(b)b.value=ocrRaw;},250);}
 
+/* 제목 다듬기: 괄호 안 부가정보·중복 공백 제거 (원문은 메모에 보존) */
+function tidyTitle(x,max){
+  var t=String(x||'').replace(/\s+/g,' ').trim();
+  t=t.replace(/\((?:[^()]{0,12})\)/g,function(m){
+    return /[A-Z]{2}\s?\d{3,4}/.test(m)?m:'';});   // 편명 괄호만 남김
+  t=t.replace(/\s{2,}/g,' ').replace(/\s+\)/g,')').trim();
+  max=max||28;
+  if(t.length>max)t=t.slice(0,max-1).trim()+'…';
+  return t;}
 function dayIndexFor(t,date){var k;for(k=0;k<(t.days||[]).length;k++){if(t.days[k].date===date)return k;}
   return ocrDay<(t.days||[]).length?ocrDay:0;}
 /* ── 중복 등록 방지 ──
@@ -1291,14 +1326,14 @@ function saveOcr(){var t=trip(curTrip);if(!t)return;var segs=readForm(),plan=[],
     if(!g.from&&!g.to&&!g.flight)continue;
     var di=dayIndexFor(t,g.date);
     if(ocrKind==='stay'){
-      plan.push({di:di,resv:g.resv,obj:{_id:uid(),cat:'stay',time:g.time||'15:00',title:(g.from||'숙소')+' 체크인',
+      plan.push({di:di,resv:g.resv,obj:{_id:uid(),cat:'stay',time:g.time||'15:00',title:tidyTitle(g.from||'숙소',20)+' 체크인',
         place:g.from||'',sub:[g.resv?('예약번호 '+g.resv):'',g.outDate?('체크아웃 '+g.outDate.slice(5).replace('-','/')+' '+(g.outTime||'')):''].filter(Boolean).join(' · '),
         by:ME.name,comments:[],map:!!g.from}});
       if(g.outDate)plan.push({di:dayIndexFor(t,g.outDate),resv:g.resv,obj:{_id:uid(),cat:'stay',time:g.outTime||'11:00',
-        title:(g.from||'숙소')+' 체크아웃',place:g.from||'',sub:g.resv?('예약번호 '+g.resv):'',by:ME.name,comments:[],map:false}});
+        title:tidyTitle(g.from||'숙소',20)+' 체크아웃',place:g.from||'',sub:g.resv?('예약번호 '+g.resv):'',by:ME.name,comments:[],map:false}});
     }else if(ocrKind==='rentcar'){
       plan.push({di:di,resv:g.resv,obj:{_id:uid(),cat:'rentcar',time:g.time||'10:00',
-        title:(g.flight?g.flight+' ':'')+'렌터카 대여',place:g.from||'',
+        title:(g.flight?tidyTitle(g.flight,16)+' ':'')+'렌터카 대여',place:g.from||'',
         sub:[g.resv?('예약번호 '+g.resv):'',g.outDate?('반납 '+g.outDate.slice(5).replace('-','/')+' '+(g.outTime||'')):''].filter(Boolean).join(' · '),
         by:ME.name,comments:[],map:!!g.from}});
       if(g.outDate)plan.push({di:dayIndexFor(t,g.outDate),resv:g.resv,obj:{_id:uid(),cat:'rentcar',time:g.outTime||'10:00',
