@@ -123,14 +123,18 @@
   .hero .meta{color:#E4F1EF;font-size:13.5px;display:flex;align-items:center;gap:6px;}
   .hero .cta{margin-top:16px;background:#fff;color:var(--ink);border:none;border-radius:13px;padding:12px;width:100%;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;}
   .track{display:flex;gap:5px;margin-top:14px;} .track i{height:4px;border-radius:2px;flex:1;background:rgba(255,255,255,.28);} .track i.on{background:#fff;}
-  .tl{position:relative;padding-left:30px;}
-  .tl::before{content:"";position:absolute;left:14px;top:6px;bottom:10px;width:2px;background:var(--line);}
-  .tl .node{position:relative;margin-bottom:12px;}
-  .tl .dot{position:absolute;left:-30px;top:2px;width:30px;display:flex;justify-content:center;}
-  .tl .dot .r{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);}
+  .tl{position:relative;padding-left:0;}
+  .tl::before{content:"";position:absolute;left:18px;top:10px;bottom:12px;width:2px;background:var(--line);z-index:0;}
+  /* 아이콘 열과 내용 열을 그리드로 분리 — 겹칠 수 없는 구조 */
+  .tl .node{position:relative;display:grid;grid-template-columns:38px minmax(0,1fr);column-gap:14px;
+    align-items:start;margin-bottom:14px;z-index:1;}
+  .tl .dot{grid-column:1;grid-row:1 / span 2;display:flex;justify-content:center;padding-top:2px;}
+  .tl .dot .r{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--line);box-shadow:var(--e1);}
+  .tl .dot .r svg{width:18px;height:18px;}
   .tl .dot .r svg{width:16px;height:16px;stroke-width:2;}
-  .tl .time{font-size:13px;font-weight:800;color:var(--ink-2);}
-  .tl .box{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-top:3px;box-shadow:var(--e1);}
+  .tl .time{grid-column:2;display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:38px;
+    font-size:13px;font-weight:800;color:var(--ink-2);}
+  .tl .box{grid-column:2;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-top:2px;box-shadow:var(--e1);}
   .tl .box b{font-size:14.5px;font-weight:700;} .tl .box .sub{font-size:13.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:5px;}
   .tl .box .cbar{display:flex;align-items:center;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid var(--line);flex-wrap:wrap;}
   .tl .box .cbtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--teal);font-weight:800;font-size:12.5px;font-family:inherit;padding:0;}
@@ -144,12 +148,12 @@
   .tl .node.past .dot .r{background:#F1EDE4;color:#B7B0A2 !important;}
   .tl .node.next .box{border-color:var(--brand);box-shadow:0 0 0 3px rgba(226,96,59,.13),var(--shadow);}
   .tl .node.next .dot .r{border-color:var(--brand);}
-  .nowtag{display:inline-flex;align-items:center;gap:4px;background:var(--brand);color:#fff;font-size:12.5px;
-    font-weight:800;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;}
-  .donetag{display:inline-flex;align-items:center;gap:3px;background:#EFEAE0;color:var(--muted);font-size:12.5px;
-    font-weight:800;padding:2px 8px;border-radius:999px;margin-left:6px;}
+  .nowtag{display:inline-flex;align-items:center;gap:4px;background:var(--brand);color:#fff;font-size:12px;
+    font-weight:800;padding:3px 9px;border-radius:999px;flex-shrink:0;}
+  .donetag{display:inline-flex;align-items:center;gap:3px;background:var(--line);color:var(--muted);font-size:12px;
+    font-weight:800;padding:3px 9px;border-radius:999px;flex-shrink:0;}
   /* 일정 사이 이동거리·시간 */
-  .leg{display:flex;align-items:center;gap:6px;margin:-5px 0 11px;font-size:12.5px;color:var(--muted);font-weight:700;}
+  .leg{display:flex;align-items:center;gap:6px;margin:-4px 0 12px;padding-left:52px;font-size:12.5px;color:var(--muted);font-weight:700;}
   .leg svg{width:13px;height:13px;stroke-width:2;}
   .leg .warn{color:var(--brand-ink);font-weight:800;}
   .leg.hidden{display:none;}
@@ -290,6 +294,10 @@
   .tl .box b{font-size:15.5px;line-height:1.35;}
   .trip .cover h3{font-size:19px;}
   .topbar h1{letter-spacing:-.025em;}
+
+  /* 외부로 나가는 링크임을 알리는 아이콘은 글자 뒤, 작고 흐리게 */
+  .btn svg use[href="#i-ext"],.cbtn svg use[href="#i-ext"]{opacity:.75;}
+  .btn > svg:last-child{width:16px;height:16px;opacity:.7;margin-left:-2px;}
 </style>
 </head>
 <body>
@@ -322,6 +330,7 @@
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4 4z"/></symbol>
   <symbol id="i-vote" viewBox="0 0 24 24"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM7 11l4.5-8a2 2 0 0 1 2 2v3h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.5 20H7"/></symbol>
   <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8.5 8.5M18 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></symbol>
   <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="5"/><path d="m11.5 11.5 8-8M17 6l2.5 2.5M14.5 8.5 17 11"/></symbol>
   <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></symbol>
 </defs></svg>
@@ -650,7 +659,7 @@ function renderToday(){
       <div class="top"><span class="badge">${svg('i-suitcase')} ${esc(t.title)}</span>
         <span class="now">${day?mdLabel(day.date)+'('+dowOf(day.date)+')':''}</span></div>
       ${heroBody}<div class="track">${dots}</div>
-      <button class="cta" onclick="routeTo('detail')">${svg('i-suitcase','ic')} 여행 전체 보기 ${svg('i-right','ic')}</button>
+      <button class="cta" onclick="routeTo('detail')">${svg('i-suitcase','ic')} 여행 전체 보기</button>
     </div></div>${tkBlock}
     <div class="eyebrow">${svg('i-clock','ic')} ${day?mdLabel(day.date)+'('+dowOf(day.date)+')':''} 일정</div>
     <div class="tl">${tl}</div>
@@ -712,7 +721,7 @@ function timelineNode(i,dayIdx,dateStr,nextId){const c=CAT[i.cat];const cc=(i.co
       ${i.map?mapThumb(i.place):''}
       ${i.qr?`<button class="btn ghost sm" style="margin-top:10px" onclick="openQR('${esc(i.title)}')">${svg('i-ticket','ic')} 입장권 QR 열기</button>`:''}
       <div class="cbar">${i.by?`<span class="by">${svg('i-users')} ${esc(i.by)}</span>`:''}
-        ${(i.cat==='transport'||i.cat==='stay'||i.cat==='rentcar')?`<button class="cbtn" style="color:var(--brand-ink)" onclick="goProvider('${i._id}')">${svg('i-right')} 예약처 열기</button>`:''}
+        ${(i.cat==='transport'||i.cat==='stay'||i.cat==='rentcar')?`<button class="cbtn" style="color:var(--brand-ink)" onclick="goProvider('${i._id}')">${svg('i-ext')} 예약처 열기</button>`:''}
         <button class="cbtn" onclick="openComments('${i._id}')">${svg('i-chat')} 의견 ${cc}</button>
         <button class="cbtn gray" style="margin-left:auto" onclick="openItemMenu('${i._id}')" aria-label="더보기">${svg('i-more')}</button></div>
     </div></div>`;
@@ -757,11 +766,11 @@ function providerFor(it){
 function openExt(u){window.open(u,'_blank','noopener');}
 function goProvider(id){var f=itemById(id);if(!f)return;var it=f.it;
   var p=providerFor(it), links='';
-  if(p)links+='<button class="btn brand" onclick="openExt(\''+p.u+'\')">'+svg('i-right','ic')+' '+esc(p.n)+' 열기</button><div style="height:10px"></div>';
+  if(p)links+='<button class="btn brand" onclick="openExt(\''+p.u+'\')">'+esc(p.n)+' 열기'+svg('i-ext','ic')+'</button><div style="height:10px"></div>';
   if(it.cat==='transport'){
-    links+='<button class="btn ghost" onclick="openExt(\'https://www.airportal.go.kr/knowledge/statusM/RealStatus.jsp\')">'+svg('i-clock','ic')+' 실시간 운항정보</button><div style="height:10px"></div>';}
+    links+='<button class="btn ghost" onclick="openExt(\'https://www.airportal.go.kr/knowledge/statusM/RealStatus.jsp\')">'+svg('i-clock','ic')+' 실시간 운항정보'+svg('i-ext','ic')+'</button><div style="height:10px"></div>';}
   if(it.place)links+='<button class="btn ghost" onclick="closeOv();openMap(\''+esc(it.place)+'\')">'+svg('i-pin','ic')+' 지도·길찾기</button><div style="height:10px"></div>';
-  links+='<button class="btn ghost" onclick="openExt(\'https://search.naver.com/search.naver?query='+encodeURIComponent((it.title||'')+' 예약확인')+'\')">'+svg('i-spark','ic')+' 검색으로 찾기</button>';
+  links+='<button class="btn ghost" onclick="openExt(\'https://search.naver.com/search.naver?query='+encodeURIComponent((it.title||'')+' 예약확인')+'\')">'+svg('i-spark','ic')+' 검색으로 찾기'+svg('i-ext','ic')+'</button>';
   openSheet('<div class="grab"></div><h3>'+esc(it.title)+'</h3>'
     +'<p class="muted small" style="margin:-8px 0 14px">'+(p?('<b style="color:var(--ink)">'+esc(p.n)+'</b>에서 체크인·예약확인을 진행하세요. 앱이 설치돼 있으면 앱으로 열립니다.'):'예약처를 자동으로 알아내지 못했어요. 아래에서 선택하세요.')+'</p>'
     +(it.sub?'<div class="card" style="padding:12px;box-shadow:none;background:var(--paper)"><div class="small muted">'+esc(it.sub)+'</div></div>':'')
@@ -771,7 +780,7 @@ function openItemMenu(id){const f=itemById(id);if(!f)return;const it=f.it;const 
   const canReport=t.hasStudent&&(it.cat==='plan'||it.cat==='ticket');
   openSheet(`<div class="grab"></div><h3>${esc(it.title)}</h3>
     <div class="muted small" style="margin:-8px 0 14px">${esc(it.time)} · ${esc(it.place||'장소 없음')}</div>
-    ${(it.cat==='transport'||it.cat==='stay'||it.cat==='rentcar')?`<button class="btn ghost" onclick="closeOv();goProvider('${id}')">${svg('i-right','ic')} 예약처에서 확인·체크인</button><div style="height:10px"></div>`:''}
+    ${(it.cat==='transport'||it.cat==='stay'||it.cat==='rentcar')?`<button class="btn ghost" onclick="closeOv();goProvider('${id}')">${svg('i-ext','ic')} 예약처에서 확인·체크인</button><div style="height:10px"></div>`:''}
     ${it.place?`<button class="btn ghost" onclick="closeOv();openMap('${esc(it.place)}')">${svg('i-pin','ic')} 지도에서 보기</button><div style="height:10px"></div>`:''}
     ${canReport?`<button class="btn" style="background:var(--teal)" onclick="openReportFor('${id}')">${svg('i-file','ic')} 이 장소로 체험학습 보고서</button><div style="height:10px"></div>`:''}
     <button class="btn ghost" onclick="closeOv();openEditItem('${id}')">${svg('i-edit','ic')} 수정</button>
@@ -1218,33 +1227,40 @@ function dayIndexFor(t,date){var k;for(k=0;k<(t.days||[]).length;k++){if(t.days[
 /* ── 중복 등록 방지 ──
    같은 분류·같은 날·같은 시각에 제목이 같으면 중복으로 봅니다.
    예약번호가 같고 제목도 같으면 시각이 달라도 중복으로 봅니다. */
-function normT(x){return String(x||'').replace(/[\s\u00A0]/g,'').replace(/[()\[\]·.,\-–—>→]/g,'').toLowerCase();}
-function findDup(t,cat,date,time,title,resv){
+/* ── 중복 등록 방지 (엄격 판정) ──
+   "완전히 똑같은 일정"만 중복으로 봅니다.
+   분류·날짜·시각·제목·장소·메모가 전부 같아야 중복입니다.
+   왕복 항공권처럼 날짜나 편명이 다르면 절대 중복이 아닙니다. */
+function normT(x){return String(x||'').replace(/\s+/g,' ').trim().toLowerCase();}
+function sameItem(a,b){
+  return a.cat===b.cat
+    && (a.time||'')===(b.time||'')
+    && normT(a.title)===normT(b.title)
+    && normT(a.place)===normT(b.place)
+    && normT(a.sub)===normT(b.sub);}
+function findDup(t,cat,date,time,title,resv,obj){
+  var probe=obj||{cat:cat,time:time,title:title,place:'',sub:''};
   for(var k=0;k<(t.days||[]).length;k++){
     if(t.days[k].date!==date)continue;
     var its=t.days[k].items||[];
-    for(var i=0;i<its.length;i++){var it=its[i];
-      if(it.cat!==cat)continue;
-      var sameTitle=normT(it.title)===normT(title);
-      if(sameTitle&&(it.time||'')===(time||''))return {it:it,date:t.days[k].date};
-      if(sameTitle&&resv&&normT(it.sub||'').indexOf(normT(resv))>=0)return {it:it,date:t.days[k].date};
-    }
+    for(var i=0;i<its.length;i++){
+      if(sameItem(its[i],probe))return {it:its[i],date:t.days[k].date};}
   }
   return null;}
-/* 저장 예정 목록에서 중복을 걸러내고, 있으면 사용자에게 물어봅니다 */
+/* 저장 예정 목록에서 완전 중복만 걸러냅니다 */
 function screenDups(t,plan){
-  var fresh=[],dups=[],seen={};
-  for(var i=0;i<plan.length;i++){var q=plan[i],d=t.days[q.di].date;
-    var key=q.obj.cat+'|'+d+'|'+(q.obj.time||'')+'|'+normT(q.obj.title);
-    if(seen[key]){dups.push({q:q,why:'이번에 올린 내용 안에서 중복'});continue;}
-    seen[key]=1;
-    var f=findDup(t,q.obj.cat,d,q.obj.time,q.obj.title,q.resv);
-    if(f)dups.push({q:q,why:'이미 등록됨 ('+f.date.slice(5).replace('-','/')+' '+(f.it.time||'')+')'});
+  var fresh=[],dups=[],seen=[];
+  for(var i=0;i<plan.length;i++){var q=plan[i],d=t.days[q.di].date,j,hit=false;
+    for(j=0;j<seen.length;j++){if(seen[j].d===d&&sameItem(seen[j].o,q.obj)){hit=true;break;}}
+    if(hit){dups.push({q:q,why:'이번에 올린 내용 안에 똑같은 항목이 있음'});continue;}
+    seen.push({d:d,o:q.obj});
+    var f=findDup(t,q.obj.cat,d,q.obj.time,q.obj.title,q.resv,q.obj);
+    if(f)dups.push({q:q,why:'이미 똑같이 등록됨 ('+f.date.slice(5).replace('-','/')+' '+(f.it.time||'')+')'});
     else fresh.push(q);}
   return {fresh:fresh,dups:dups};}
 function commitPlan(t,list,label){
   for(var i=0;i<list.length;i++)pushItem(t,list[i].di,list[i].obj);
-  closeOv();toast(list.length?(list.length+'건을 저장했어요'+(label||'')):'추가된 항목이 없어요');
+  closeOv();toast(list.length?(list.length+'건을 저장했어요'+(label||'')):'새로 저장할 항목이 없어요');
   rerender();save();}
 function askDup(t,res){
   var rows='';
@@ -1253,11 +1269,14 @@ function askDup(t,res){
       +'<div class="tile" style="width:34px;height:34px;background:'+CAT_BG[d.q.obj.cat]+';color:'+CAT[d.q.obj.cat].color+'">'+svg(CAT[d.q.obj.cat].icon)+'</div>'
       +'<div style="flex:1"><b style="font-size:14px">'+esc(d.q.obj.title)+'</b>'
       +'<div class="muted small">'+esc(d.q.obj.time||'')+' · '+esc(d.why)+'</div></div></div>';}
+  var fresh='';
+  for(var k=0;k<res.fresh.length;k++)fresh+='<div class="muted small" style="padding:3px 0">· '+esc(res.fresh[k].obj.title)+'</div>';
   window.__dupPlan={t:t,res:res};
-  openSheet('<div class="grab"></div><h3>이미 있는 일정이 있어요</h3>'
-    +'<p class="muted small" style="margin:-8px 0 12px">아래 '+res.dups.length+'건은 이미 등록돼 있습니다. 어떻게 할까요?</p>'
+  openSheet('<div class="grab"></div><h3>똑같은 일정이 이미 있어요</h3>'
+    +'<p class="muted small" style="margin:-8px 0 12px">아래 '+res.dups.length+'건은 <b style="color:var(--ink)">내용이 완전히 같습니다</b>. 기존 일정은 <b style="color:var(--ink)">지워지지 않습니다.</b></p>'
     +'<div class="card" style="padding:6px 14px">'+rows+'</div>'
-    +'<button class="btn brand" onclick="dupSkip()">'+svg('i-check','ic')+' 중복 빼고 '+res.fresh.length+'건만 저장</button>'
+    +(res.fresh.length?'<div class="eyebrow" style="margin-top:4px">새로 저장될 '+res.fresh.length+'건</div><div class="card" style="padding:10px 14px">'+fresh+'</div>':'')
+    +'<button class="btn brand" onclick="dupSkip()">'+svg('i-check','ic')+' 중복 빼고 '+res.fresh.length+'건 저장</button>'
     +'<div style="height:10px"></div>'
     +'<button class="btn ghost" onclick="dupAll()">그래도 전부 저장 ('+(res.fresh.length+res.dups.length)+'건)</button>');}
 function dupSkip(){var d=window.__dupPlan;if(!d)return;commitPlan(d.t,d.res.fresh,'');}
@@ -1349,7 +1368,7 @@ function openAddItem(dayIdx){const t=trip(curTrip);if(!t||!t.days.length){toast(
 function saveAddItem(){const t=trip(curTrip);const title=$('aTitle').value.trim();if(!title){toast('제목을 입력해 주세요.');return;}
   const di=parseInt($('aDay').value)||0;const place=$('aPlace').value.trim();
   const obj={_id:uid(),cat:$('aCat').value,time:$('aTime').value||"09:00",title,place,sub:$('aSub').value.trim(),by:ME.name,comments:[],map:!!place};
-  const f=findDup(t,obj.cat,t.days[di].date,obj.time,obj.title,'');
+  const f=findDup(t,obj.cat,t.days[di].date,obj.time,obj.title,'',obj);
   if(f){confirmDupOne(t,di,obj,f);return;}
   pushItem(t,di,obj);closeOv();toast('추가했습니다');rerender();save();}
 /* 한 건 중복 확인 */
@@ -1455,7 +1474,7 @@ function parsePaste(){const txt=$('pbox').value.trim();if(!txt){toast('먼저 �
       <button class="btn brand" onclick="savePaste()">${svg('i-check','ic')} 이 여행에 저장</button></div>`;}
 function savePaste(){const t=trip(curTrip);const di=parseInt($('pday').value)||0;parsed.cat=$('pcat').value;
   const obj={_id:uid(),cat:parsed.cat,time:parsed.time,title:parsed.title,place:parsed.place,sub:parsed.sub,by:ME.name,comments:[]};
-  const f=findDup(t,obj.cat,t.days[di].date,obj.time,obj.title,'');
+  const f=findDup(t,obj.cat,t.days[di].date,obj.time,obj.title,'',obj);
   if(f){confirmDupOne(t,di,obj,f);return;}
   pushItem(t,di,obj);curDay=di;toast('저장했습니다');save();routeTo('detail');}
 
@@ -1649,7 +1668,7 @@ async function openMap(place){
       ${mapPlaceholder(place)}</div>
     <div id="mapAddr" class="muted small" style="margin:10px 2px 0;text-align:left"></div>
     <div class="row" style="gap:8px;margin-top:12px">
-      <button class="btn ghost sm" style="flex:1" onclick="kakaoSearch('${esc(place)}')">${svg('i-right','ic')} 카카오맵</button>
+      <button class="btn ghost sm" style="flex:1" onclick="kakaoSearch('${esc(place)}')">카카오맵 열기${svg('i-ext','ic')}</button>
       <button class="btn brand sm" style="flex:1" onclick="kakaoRoute('${esc(place)}')">${svg('i-car','ic')} 길찾기</button></div>`);
   if(!kakaoReady){$('mapAddr').textContent=mapDiagText();return;}
   const p=await geocode(place);
