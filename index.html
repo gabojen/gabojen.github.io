@@ -455,6 +455,7 @@
   <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 9.5a2 2 0 0 0 0 5V17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5a2 2 0 0 1 0-5V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"/><path d="M13 5v14" stroke-dasharray="2 2.5"/></symbol>
   <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M9 9V7a3 3 0 0 1 6 0v2M6 14h12"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
   <symbol id="i-clip" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 9h6M9 13h6M9 17h4"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></symbol>
@@ -1639,7 +1640,7 @@ function savePaste(){const t=trip(curTrip);const di=parseInt($('pday').value)||0
 
 /* ---- 추억 ---- */
 function renderHistory(){
-  const done=TRIPS.filter(t=>ddayOf(t)==='종료').sort((a,b)=>(b.start||'').localeCompare(a.start||''));
+  const done=doneTrips();
   const upcoming=TRIPS.filter(t=>ddayOf(t)!=='종료');
   // 통계: 다녀온 여행 수 / 방문 장소 수
   let spots=0;done.forEach(t=>(t.days||[]).forEach(d=>(d.items||[]).forEach(i=>{if(i.cat==='plan'||i.cat==='ticket')spots++;})));
@@ -1681,48 +1682,97 @@ function renderHistory(){
     <p class="muted small" style="margin:2px 2px 12px">눌러서 그때의 일정과 나눈 의견을 다시 볼 수 있어요.</p>
     <div class="grid">${cards}</div>
     <div class="eyebrow" style="margin-top:18px">${svg('i-camera','ic')} 여행 사진</div>
-    ${photoBlock(done)}
+    ${photoBlock()}
     <button class="btn ghost" style="margin-top:8px" onclick="openClone()">${svg('i-copy','ic')} 지난 여행 복제해서 새로 만들기</button>`;}
 
-/* 추억 사진 (작게 압축해 보관) */
-function photoBlock(done){
-  const t=done[0]?trip(done[0].id):null;
+/* ---- 추억 사진 (작게 압축해 보관) ----
+   [중요] '어느 지난 여행의 사진인가'는 반드시 memTrip() 한 곳에서만 정합니다.
+   예전에는 화면(정렬함)과 저장(정렬 안 함)이 서로 다른 여행을 가리켜,
+   지난 여행이 2개 이상이면 엉뚱한 여행에 사진이 저장·삭제되는 문제가 있었습니다. */
+const PHOTO_MAX=6;                      // 여행당 최대 장수
+const DOC_SAFE=800*1024;                // 여행 1건의 안전 저장 한도 (Firestore 문서 1MB의 80%)
+let memTripId=null;                     // 지금 사진을 보고 있는 지난 여행
+function doneTrips(){return TRIPS.filter(t=>ddayOf(t)==='종료')
+  .sort((a,b)=>(b.start||'').localeCompare(a.start||''));}
+function memTrip(){const done=doneTrips();if(!done.length)return null;
+  if(!memTripId||!done.some(x=>x.id===memTripId))memTripId=done[0].id;
+  return trip(memTripId);}
+function selMemTrip(id){memTripId=id;renderHistory();}
+/* 이 여행을 저장하면 몇 바이트인지 (한도 초과 여부 판단용) */
+function docSize(t){const s=JSON.stringify(t);
+  try{return new Blob([s]).size;}catch(e){return s.length;}}
+/* 사진 1장을 700px로 줄여 문자열로 변환 */
+function shrinkPhoto(file){return new Promise(function(res,rej){
+  const r=new FileReader();
+  r.onload=function(e){const im=new Image();
+    im.onload=function(){const sc=Math.min(1,700/Math.max(im.width,im.height));
+      const c=document.createElement('canvas');
+      c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      res(c.toDataURL('image/jpeg',0.72));};
+    im.onerror=function(){rej(new Error('이미지를 열 수 없습니다'));};
+    im.src=e.target.result;};
+  r.onerror=function(){rej(new Error('파일을 읽지 못했습니다'));};
+  r.readAsDataURL(file);});}
+
+function photoBlock(){
+  const t=memTrip();
+  const done=doneTrips();
   const ph=(t&&t.photos)||[];
+  /* 지난 여행이 2개 이상이면 어느 여행의 사진인지 직접 고르게 (엉뚱한 저장 방지) */
+  const picker=done.length>1
+    ? `<label class="fld">사진을 볼·올릴 여행</label>
+       <select class="input" style="margin-bottom:12px" onchange="selMemTrip(this.value)">
+         ${done.map(x=>`<option value="${x.id}" ${t&&x.id===t.id?'selected':''}>${esc(x.title)} (${esc(x.start)})</option>`).join('')}
+       </select>` : '';
   let g='';
   for(let i=0;i<ph.length;i++)
-    g+=`<div class="album" style="height:110px;background:url('${ph[i]}') center/cover" onclick="openPhotoView('${i}')"></div>`;
-  return `<div class="grid">${g}</div>${ph.length?'<div style="height:10px"></div>':''}
+    g+=`<div class="album" style="height:110px;background:url('${ph[i]}') center/cover" onclick="openPhotoView(${i})"></div>`;
+  const usage=t?Math.min(100,Math.round(docSize(t)/DOC_SAFE*100)):0;
+  return `${picker}<div class="grid">${g}</div>${ph.length?'<div style="height:10px"></div>':''}
     <label class="btn ghost sm" style="cursor:pointer" for="memFile">${svg('i-plus','ic')} 사진 올리기${t?' · '+esc(t.title):''}</label>
     <input type="file" id="memFile" accept="image/*" multiple style="display:none" onchange="addMemPhotos(event)">
-    <p class="muted small" style="margin:8px 2px 0">사진은 작게 줄여 저장돼요. 여행당 6장까지.</p>`;}
-function openPhotoView(i){const done=TRIPS.filter(t=>ddayOf(t)==='종료');const t=done[0]?trip(done[0].id):null;
-  if(!t||!t.photos)return;
-  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>여행 사진</b>
+    <p class="muted small" style="margin:8px 2px 0">사진은 작게 줄여 저장돼요. 여행당 ${PHOTO_MAX}장까지
+      ${ph.length?`(현재 ${ph.length}장 · 저장공간 ${usage}% 사용)`:''}</p>`;}
+function openPhotoView(i){const t=memTrip();
+  if(!t||!t.photos||!t.photos[i])return;
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(t.title)}</b>
     <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
     <img src="${t.photos[i]}" style="width:100%;border-radius:14px">
     <button class="btn ghost sm" style="margin-top:10px;color:#B23B3B" onclick="delMemPhoto(${i})">${svg('i-trash','ic')} 이 사진 삭제</button>`);}
-function delMemPhoto(i){const done=TRIPS.filter(t=>ddayOf(t)==='종료');const t=done[0]?trip(done[0].id):null;
+function delMemPhoto(i){const t=memTrip();
   if(!t||!t.photos)return; t.photos.splice(i,1); closeOv(); toast('삭제했어요'); rerender(); window.FB.saveTrip(t);}
-function addMemPhotos(ev){
-  const done=TRIPS.filter(t=>ddayOf(t)==='종료');const t=done[0]?trip(done[0].id):null;
+async function addMemPhotos(ev){
+  const t=memTrip();
+  const files=[...(ev.target.files||[])];
+  ev.target.value='';                                     // 같은 사진을 다시 고를 수 있게 초기화
   if(!t){toast('끝난 여행이 없어요.');return;}
   t.photos=t.photos||[];
-  const files=[...(ev.target.files||[])].slice(0,6-t.photos.length);
-  if(!files.length){toast('여행당 6장까지 올릴 수 있어요.');return;}
-  let left=files.length;
-  files.forEach(f=>{const r=new FileReader();
-    r.onload=e=>{const im=new Image();
-      im.onload=()=>{const sc=Math.min(1,700/Math.max(im.width,im.height));
-        const c=document.createElement('canvas');c.width=im.width*sc;c.height=im.height*sc;
-        c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-        t.photos.push(c.toDataURL('image/jpeg',0.72));
-        if(--left===0){toast('사진을 올렸어요');rerender();window.FB.saveTrip(t);}};
-      im.src=e.target.result;};
-    r.readAsDataURL(f);});}
+  const room=PHOTO_MAX-t.photos.length;
+  if(room<=0){toast(`여행당 ${PHOTO_MAX}장까지 올릴 수 있어요.`);return;}
+  let added=0, full=false;
+  for(const f of files.slice(0,room)){
+    let url;
+    try{ url=await shrinkPhoto(f); }
+    catch(e){ toast('열 수 없는 사진이 있어 건너뛰었어요.'); continue; }
+    t.photos.push(url);
+    /* 저장 한도를 넘으면 방금 넣은 사진을 되돌립니다 (넘긴 채 저장하면 그 여행 전체가 저장 불가) */
+    if(docSize(t)>DOC_SAFE){ t.photos.pop(); full=true; break; }
+    added++;
+  }
+  if(added){
+    try{ await window.FB.saveTrip(t); }
+    catch(e){ t.photos.splice(t.photos.length-added,added); rerender();
+      toast('저장 실패: 인터넷 연결을 확인해 주세요.'); return; }
+    rerender();
+  }
+  toast(full
+    ? (added?`${added}장 저장했어요. 저장공간이 꽉 차 나머지는 못 올렸어요.`:'저장공간이 꽉 찼어요. 기존 사진을 지우고 올려 주세요.')
+    : (added?`사진 ${added}장을 올렸어요`:'올린 사진이 없어요'));}
 
 /* 지난 여행 복제 */
 function openClone(){
-  const done=TRIPS.filter(t=>ddayOf(t)==='종료');
+  const done=doneTrips();                       // 최신 여행이 먼저 오도록 (추억 화면과 같은 순서)
   if(!done.length){toast('복제할 지난 여행이 없어요.');return;}
   openSheet(`<div class="grab"></div><h3>지난 여행 복제</h3>
     <p class="muted small" style="margin:-8px 0 12px">일정·준비물은 그대로 가져오고, 의견·투표는 새로 시작합니다.</p>
