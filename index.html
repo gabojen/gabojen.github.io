@@ -2735,7 +2735,7 @@ function renderReport(){const t=trip(curTrip);
       <div id="idea_${k}" class="ideas"></div>
     </div>`;
   $('report').innerHTML=`
-    ${hintBox('i-file','<span class="t">교외체험학습 결과 보고서</span>사진을 올리고 <b>학생이 직접</b> 적어 완성하는 보고서예요. AI는 대신 써 주지 않고, 무엇을 쓸지 <b>질문만</b> 드려요.')}
+    ${hintBox('i-file','<span class="t">교외체험학습 결과 보고서</span>사진을 올리고 <b>학생이 직접</b> 적으면, AI가 그 내용을 <b>제출용 문장으로 다듬어</b> 드려요. <b>없는 내용을 지어내지는 않습니다.</b>')}
     <div class="eyebrow">${svg('i-pin','ic')} 다녀온 곳</div>
     <div class="card" style="padding:13px"><div class="row">
       <div class="tile" style="background:${CAT_BG[it.cat]};color:${CAT[it.cat].color}">${svg(CAT[it.cat].icon)}</div>
@@ -2762,7 +2762,9 @@ function renderReport(){const t=trip(curTrip);
       ${box('did','1. 무엇을 보고 무엇을 했나요','본 것, 한 일을 순서대로 적어 보세요.')}
       ${box('learned','2. 새롭게 알게 된 점','전에는 몰랐다가 새로 알게 된 것을 적어 보세요.')}
       ${box('felt','3. 느낀 점','내 마음이 어땠는지 솔직하게 적어 보세요.')}
-      <button class="btn" style="background:var(--teal)" onclick="finishReport()">${svg('i-check','ic')} 보고서 완성하기</button>
+      <p class="muted small" style="margin:-4px 2px 10px;line-height:1.6">
+        짧게 쓰면 다듬을 거리가 없어요. 각 칸에 <b>한두 문장 이상</b> 적어 주세요.</p>
+      <button class="btn" id="finBtn" style="background:var(--teal)" onclick="finishReport()">${svg('i-spark','ic')} 보고서 완성하기</button>
     </div>
     <div id="rout"></div>`;}
 /* 학생이 쓴 내용을 화면이 다시 그려져도 잃지 않도록 담아 둡니다 */
@@ -2804,17 +2806,79 @@ async function reportIdea(k){
   }
 }
 /* 학생이 쓴 내용 + 사진으로 보고서를 완성합니다 (AI가 문장을 만들지 않습니다) */
-function finishReport(){
+/* 학생이 쓴 글이 너무 짧으면 AI가 다듬을 거리가 없습니다.
+   ("좋았어요." 같은 한 마디를 늘리면 AI가 없는 내용을 지어내게 됩니다) */
+const MIN_LEN=15;
+const SEC_LABEL={did:'1번(무엇을 보고 했나)',learned:'2번(새롭게 알게 된 점)',felt:'3번(느낀 점)'};
+function reportGaps(){
+  const g=[];
+  if(!reportDraft.name.trim())g.push({k:'name',why:'학생 이름을 적어 주세요.'});
+  ['did','learned','felt'].forEach(k=>{
+    const v=(reportDraft[k]||'').trim();
+    if(!v)g.push({k,why:SEC_LABEL[k]+'을 적어 주세요.'});
+    else if(v.replace(/\s/g,'').length<MIN_LEN)
+      g.push({k,why:SEC_LABEL[k]+'이 너무 짧아요. 본 것·한 일을 한두 문장 더 적어 주세요.'});
+  });
+  return g;
+}
+/* 학생이 쓴 내용을 '제출할 수 있는 문장'으로 다듬습니다.
+   ⚠ 학생이 쓰지 않은 사실·감정은 절대 새로 만들지 않습니다. */
+async function finishReport(){
   keepReport();
   const f=reportItemId?itemById(reportItemId):null; if(!f)return;
-  const miss=[];
-  if(!reportDraft.name.trim())miss.push('학생 이름');
-  if(!reportDraft.did.trim())miss.push('1번');
-  if(!reportDraft.learned.trim())miss.push('2번');
-  if(!reportDraft.felt.trim())miss.push('3번');
-  if(miss.length){toast(miss.join(', ')+'을(를) 직접 적어 주세요.');
-    const first=$('w_'+(!reportDraft.name.trim()?'name':(!reportDraft.did.trim()?'did':(!reportDraft.learned.trim()?'learned':'felt'))));
-    if(first)first.focus(); return;}
+  const gaps=reportGaps();
+  if(gaps.length){
+    toast(gaps[0].why);
+    const el=$('w_'+gaps[0].k); if(el){el.focus();el.scrollIntoView({block:'center'});}
+    return;
+  }
+  const btn=$('finBtn'); if(btn)btn.disabled=true;
+  const out=$('rout'); out.innerHTML=aiBusy('쓰신 내용을 보고서 문장으로 다듬는 중…');
+  const it0=f.it;
+  const prompt=`너는 초·중학생이 쓴 교외체험학습 보고서 내용을 '학교에 제출할 수 있는 문장'으로 다듬어 주는 선생님이다.
+
+[학생이 다녀온 곳]
+${it0.title}${it0.place?' ('+it0.place+')':''}
+
+[학생이 직접 쓴 내용 — 이것이 유일한 근거다]
+1. 무엇을 보고 무엇을 했나: ${reportDraft.did}
+2. 새롭게 알게 된 점: ${reportDraft.learned}
+3. 느낀 점: ${reportDraft.felt}
+
+[반드시 지킬 것 — 어기면 안 된다]
+- 학생이 쓰지 않은 사실·숫자·역사·지식·감정을 **절대 새로 만들지 마라**.
+- 학생이 쓴 내용을 문장으로 정리하고, 맞춤법과 어순만 바로잡아라.
+- 그 장소에 대한 일반 상식이나 설명을 덧붙이지 마라.
+- 초·중학생이 쓴 말투를 유지하되, '~했다/~였다' 체로 정리하라.
+- 각 항목은 학생이 쓴 분량을 크게 넘기지 마라(많아야 2~3문장).
+- 내용이 빈약하면 억지로 늘리지 말고, 있는 만큼만 정리하라.
+
+아래 JSON만 출력하라. 설명·마크다운 없이 JSON만.
+{"did":"1번 정리","learned":"2번 정리","felt":"3번 정리"}`;
+  let body=null, tidied=false;
+  try{
+    const j=await window.FB.askJson(prompt);
+    if(j&&(j.did||j.learned||j.felt)){
+      body={did:String(j.did||reportDraft.did).trim(),
+            learned:String(j.learned||reportDraft.learned).trim(),
+            felt:String(j.felt||reportDraft.felt).trim()};
+      tidied=true;
+    }
+  }catch(e){
+    if(btn)btn.disabled=false;
+    out.innerHTML=aiErrCard(e,'문장을 다듬지 못했어요','finishReport()')
+      +`<p class="muted small" style="margin:10px 0 0">지금 쓰신 그대로 보고서를 만들 수도 있어요.</p>
+        <button class="btn ghost sm" style="margin-top:8px" onclick="renderReportPaper(false)">${svg('i-file','ic')} 내가 쓴 그대로 만들기</button>`;
+    return;
+  }
+  if(btn)btn.disabled=false;
+  if(body){ reportDraft.did=body.did; reportDraft.learned=body.learned; reportDraft.felt=body.felt;
+    ['did','learned','felt'].forEach(k=>{const e=$('w_'+k); if(e)e.value=reportDraft[k];}); }
+  renderReportPaper(tidied);
+}
+/* 보고서 종이 그리기 (다듬었는지 여부만 다름) */
+function renderReportPaper(tidied){
+  const f=reportItemId?itemById(reportItemId):null; if(!f)return;
   const it=f.it, ph=it.photos||[];
   const dLabel=f.d?f.d.date.replace(/-/g,'.'):'';
   const nl=s=>esc(s).replace(/\n/g,'<br>');
@@ -2828,8 +2892,11 @@ function finishReport(){
       <div class="rsec"><b>1. 무엇을 보고 무엇을 했나요</b><p>${nl(reportDraft.did)}</p></div>
       <div class="rsec"><b>2. 새롭게 알게 된 점</b><p>${nl(reportDraft.learned)}</p></div>
       <div class="rsec"><b>3. 느낀 점</b><p>${nl(reportDraft.felt)}</p></div>
-      <p class="rfoot">※ 위 내용은 학생이 직접 작성했습니다.</p>
+      <p class="rfoot">※ ${tidied?'학생이 쓴 내용을 바탕으로 문장을 다듬었습니다.':'학생이 직접 작성했습니다.'}</p>
     </div>
+    ${tidied?`<div class="hint" style="margin-top:10px"><div class="ht">${svg('i-edit')}</div>
+      <div class="hb">문장만 다듬었고 <b>내용은 학생이 쓴 그대로</b>예요.
+        위 <b>학생이 직접 쓰기</b> 칸에 다듬어진 글이 들어가 있으니, 마음에 안 드는 표현은 <b>직접 고친 뒤</b> 다시 [보고서 완성하기]를 눌러 주세요.</div></div>`:''}
     <div class="row" style="gap:8px;margin-top:4px">
       <button class="btn ghost sm" style="flex:1" onclick="printReport()">${svg('i-file','ic')} 인쇄·PDF 저장</button>
       <button class="btn ghost sm" style="flex:1" onclick="copyReportText()">${svg('i-copy','ic')} 글만 복사</button>
@@ -2995,7 +3062,7 @@ const FIREBASE_CONFIG = {
         ② API 제한 → Generative Language API 만 허용
       (설정법은 배포_따라하기.md 의 'AI 키 잠그기' 항목 참고)
    ══════════════════════════════════════════════════════════════════════════ */
-const GEMINI_API_KEY = "AIzaSyAgdQzUq0cDclJOa_uLsy4doMR2JSSBQ_M";          // 예: "AIzaSy...로 시작하는 키"
+const GEMINI_API_KEY = "";          // 예: "AIzaSy...로 시작하는 키"
 const GEMINI_MODELS  = ["gemini-2.5-flash","gemini-2.0-flash"];
 
 const app = initializeApp(FIREBASE_CONFIG);
