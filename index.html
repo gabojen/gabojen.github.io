@@ -1708,11 +1708,29 @@ function aiToSegs(j){
 
 function aiFailReason(msg,fallbackTitle){
   var m=String(msg||'');
+  /* ── 별도 Gemini 키로 부른 경우: 실패 원인이 Firebase 방식과 다릅니다 ── */
+  if(/\[별도키\]/.test(m)){
+    if(/api.?key.?not.?valid|API_KEY_INVALID|\[400\]/i.test(m))
+      return {t:'AI 키가 올바르지 않아요',
+              d:'index.html 의 GEMINI_API_KEY 값을 다시 확인해 주세요. 앞뒤 공백이나 따옴표가 섞이지 않았는지도 봐 주세요.'};
+    if(/referer|referrer|BLOCKED|\[403\]/i.test(m))
+      return {t:'이 주소에서는 AI 키를 쓸 수 없게 막혀 있어요',
+              d:'Google Cloud 콘솔에서 이 키의 [HTTP 리퍼러] 목록에 https://gabojen.github.io/* 를 추가해 주세요.'};
+    if(/quota|429|exhaust|RESOURCE_EXHAUSTED/i.test(m))
+      return {t:'오늘 무료 사용량을 다 썼어요', d:'잠시 뒤 또는 내일 다시 시도해 주세요.'};
+    if(/\[404\]|not found|model/i.test(m))
+      return {t:'AI 모델을 찾지 못했어요', d:'키는 정상이지만 모델 이름이 맞지 않습니다. 이 화면을 알려주세요.'};
+    if(/JSON|형식/i.test(m))
+      return {t:'AI가 내용을 정리하지 못했어요', d:'잠시 후 다시 시도해 주세요.'};
+    if(/failed to fetch|network|offline/i.test(m))
+      return {t:'인터넷 연결이 불안정해요', d:'연결을 확인한 뒤 다시 시도해 주세요.'};
+    return {t:fallbackTitle||'AI를 부르지 못했어요', d:m.slice(0,200)};
+  }
   if(fallbackTitle&&/JSON|형식/i.test(m))
     return {t:'AI가 내용을 정리하지 못했어요', d:'잠시 후 다시 시도해 주세요.'};
-  if(/app.?check|unregistered|attestation/i.test(m))
-    return {t:'앱 인증(App Check)이 아직 준비되지 않았어요',
-            d:'잠시 후 다시 시도해 주세요. 계속되면 Firebase 콘솔의 App Check 등록 상태를 확인해야 합니다.'};
+  if(/app.?check|unregistered|attestation|401/i.test(m))
+    return {t:'앱 인증(App Check)에 막혔어요',
+            d:'AI를 쓰려면 "진짜 이 앱에서 온 요청"임을 증명해야 하는데, 그 증명이 통과되지 않았습니다. 아래 [점검하기]를 눌러 어디가 막혔는지 확인해 주세요.'};
   if(/permission|denied|403|unauthor/i.test(m))
     return {t:'AI 사용 권한이 거부됐어요',
             d:'Firebase 콘솔의 AI Logic 설정과 도메인 등록을 확인해 주세요.'};
@@ -1761,12 +1779,40 @@ async function verifyPlaces(list){
 function aiBusy(msg){return `<div class="card" style="margin-top:12px"><b>${esc(msg)}</b>
   <div class="muted small" style="margin-top:4px">보통 5~15초 걸립니다</div></div>`;}
 function aiErrCard(e,fallbackTitle,retryFn){
-  const r=aiFailReason((e&&e.message)||e,fallbackTitle);
+  const raw=String((e&&e.message)||e||'');
+  const r=aiFailReason(raw,fallbackTitle);
+  /* 앱 인증(App Check) 때문에 막힌 경우에는 자가 점검 버튼을 함께 줍니다 */
+  /* 별도 키로 부른 경우는 앱 인증과 무관하므로 점검 버튼을 띄우지 않습니다 */
+  const isAppCheck=!/\[별도키\]/.test(raw)&&/app.?check|401|unauthor/i.test(raw);
   return `<div class="card" style="margin-top:12px"><b>${esc(r.t)}</b>
     <div class="muted small" style="margin:4px 0 10px">${esc(r.d)}</div>
+    ${isAppCheck?`<button class="btn ghost sm" style="margin-bottom:8px" onclick="runAiDiag()">${svg('i-info','ic')} 어디가 막혔는지 점검하기</button>
+      <div id="aiDiag"></div>`:''}
     <div class="row" style="gap:8px">
       ${retryFn?`<button class="btn ghost sm" style="flex:1" onclick="${retryFn}">${svg('i-spark','ic')} 다시 시도</button>`:''}
       <button class="lnk" onclick="showAiDebug()">자세한 내용 보기</button></div></div>`;
+}
+/* 앱 인증이 어디서 막혔는지 확인해 비개발자도 알아볼 수 있게 알려 줍니다 */
+async function runAiDiag(){
+  const box=$('aiDiag'); if(!box)return;
+  box.innerHTML=`<div class="muted small" style="padding:6px 2px">점검 중…</div>`;
+  if(!(window.FB&&window.FB.checkAppCheck)){
+    box.innerHTML=`<div class="sm-warn">${svg('i-info')} 점검 기능을 불러오지 못했어요.</div>`;return;}
+  const r=await window.FB.checkAppCheck();
+  const guide = r.ok
+    ? `앱 인증은 정상입니다. 그렇다면 <b>Firebase 콘솔 → App Check → API</b> 에서
+       <b>Firebase AI Logic(Vertex AI)</b> 항목이 <b>'적용(Enforced)'</b> 인지 확인해 주세요.`
+    : (r.step==='init'
+      ? `앱 인증을 <b>시작조차 못 했습니다</b>. 대개 <b>reCAPTCHA 키에 이 주소가 등록되지 않아서</b>입니다.
+         <b>gabojen.github.io</b> 를 reCAPTCHA 도메인 목록에 추가해 주세요.`
+      : `앱 인증 <b>토큰을 받지 못했습니다</b>. reCAPTCHA 키의 <b>허용 도메인</b>에
+         <b>gabojen.github.io</b> 가 있는지, Firebase 콘솔의 <b>App Check</b> 에 이 웹앱이
+         <b>reCAPTCHA Enterprise</b> 로 등록돼 있는지 확인해 주세요.`);
+  box.innerHTML=`<div class="card" style="padding:12px 13px;margin:0 0 8px;box-shadow:none;background:var(--paper)">
+      <b style="font-size:13.5px">${r.ok?'✅ 앱 인증 통과':'❌ 앱 인증에서 막힘'}</b>
+      <div class="muted small" style="margin-top:5px;line-height:1.6">${guide}</div>
+      <div class="muted small" style="margin-top:7px;word-break:break-all;opacity:.8">기술 메시지: ${esc(r.msg)}</div>
+    </div>`;
 }
 /* AI가 돌려준 시각을 HH:MM 으로 다듬습니다(형식이 흔들려도 앱이 깨지지 않게) */
 function fixTime(v,fallback){
@@ -2920,7 +2966,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
 import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, updateDoc,
          query, where, onSnapshot, arrayUnion }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-import { initializeAppCheck, ReCaptchaEnterpriseProvider }
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppCheckToken }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app-check.js";
 import { getAI, getGenerativeModel, GoogleAIBackend }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-ai.js";
@@ -2936,17 +2982,36 @@ const FIREBASE_CONFIG = {
 };
 // ▲▲▲ 여기까지 ▲▲▲
 
+/* ══════════════════════════════════════════════════════════════════════════
+   [만들기 AI] 별도 Gemini API 키  ← 여기 한 줄만 바꾸면 됩니다
+   ──────────────────────────────────────────────────────────────────────────
+   · 쓰는 곳 : 일정 2안 만들기 · 빈 시간 추천 · 보고서 힌트  (글을 '만드는' 기능)
+   · 안 쓰는 곳 : 사진/문자에서 예약 읽기 — 이건 기존 Firebase 방식 그대로 둡니다
+   · 비워 두면(""), 예전처럼 Firebase 방식으로 동작합니다
+
+   ⚠️ 이 파일은 GitHub Pages로 공개되므로 아래 키는 누구나 볼 수 있습니다.
+      반드시 Google Cloud 콘솔에서 이 키에 아래 두 가지를 걸어 주세요.
+        ① 애플리케이션 제한 → HTTP 리퍼러 → https://gabojen.github.io/*
+        ② API 제한 → Generative Language API 만 허용
+      (설정법은 배포_따라하기.md 의 'AI 키 잠그기' 항목 참고)
+   ══════════════════════════════════════════════════════════════════════════ */
+const GEMINI_API_KEY = "";          // 예: "AIzaSy...로 시작하는 키"
+const GEMINI_MODELS  = ["gemini-2.5-flash","gemini-2.0-flash"];
+
 const app = initializeApp(FIREBASE_CONFIG);
 
 /* ── App Check: "진짜 우리 앱에서 온 요청"임을 증명 ──
    아래 사이트 키는 공개돼도 되는 값입니다. (비밀 키는 Firebase 콘솔에만 보관) */
 const RECAPTCHA_SITE_KEY = "6LeaAngtAAAAAAv5A5YkjUijOHl-QWRwLLMcdAC_";
+/* 초기화 결과를 담아 둡니다 — 실패해도 앱은 계속 돌지만,
+   AI 호출만 401로 막히므로 원인을 알 수 있어야 합니다. */
+let appCheckInst=null, appCheckErr=null;
 try{
-  initializeAppCheck(app,{
+  appCheckInst=initializeAppCheck(app,{
     provider:new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
     isTokenAutoRefreshEnabled:true
   });
-}catch(e){ console.warn('[여행가보젠] App Check 초기화 실패:',e); }
+}catch(e){ appCheckErr=e; console.warn('[여행가보젠] App Check 초기화 실패:',e); }
 const auth = getAuth(app);
 const db = getFirestore(app);
 let unsub = null;
@@ -3025,7 +3090,7 @@ window.FB={
         const m=txt.match(/\{[\s\S]*\}/);
         if(!m)throw new Error('AI 응답이 JSON이 아닙니다');
         const j=JSON.parse(m[0]); window.__aiDebug.ok=true; window.__aiDebug.model=name; return j;
-      }catch(e){ lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,160)); }
+      }catch(e){ lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
     }
     const err=new Error(log.join(' / ')); err.detail=log; throw err;
   },
@@ -3045,7 +3110,7 @@ window.FB={
         const j=JSON.parse(m[0]);
         window.__aiDebug.ok=true; window.__aiDebug.model=name;
         return j;
-      }catch(e){ lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,160)); }
+      }catch(e){ lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
     }
     const err=new Error(log.join(' / '));
     err.detail=log; throw err;
@@ -3055,8 +3120,50 @@ window.FB={
      ⚠ 여기에도 AI 키를 적지 않습니다. 위 readText/readImage와 똑같이
         Firebase AI Logic이 구글 서버에서 키를 들고 대신 호출합니다.
         (index.html 은 누구나 소스를 볼 수 있으므로 키를 적으면 그대로 공개됩니다) */
+  /* AI가 401로 막힐 때, 어느 단계에서 막혔는지 스스로 점검합니다.
+     (앱 인증 토큰을 받아오는 것까지만 시험 — AI를 부르지는 않습니다) */
+  async checkAppCheck(){
+    if(!appCheckInst)
+      return {ok:false, step:'init', msg:String((appCheckErr&&appCheckErr.message)||'App Check를 시작하지 못했습니다')};
+    try{
+      const t=await getAppCheckToken(appCheckInst,true);
+      return (t&&t.token)?{ok:true, step:'ok', msg:'앱 인증 토큰을 정상적으로 받았습니다'}
+                         :{ok:false, step:'token', msg:'토큰이 비어 있습니다'};
+    }catch(e){ return {ok:false, step:'token', msg:String((e&&e.message)||e)}; }
+  },
+  /* 지금 '만들기 AI'가 어느 길로 가는지 (화면 안내·진단에서 사용) */
+  aiRoute(){ return GEMINI_API_KEY ? 'direct' : 'firebase'; },
   async askJson(prompt){
-    const log=[]; window.__aiDebug={tried:log,raw:'',ok:false};
+    const log=[]; window.__aiDebug={tried:log,raw:'',ok:false,route:this.aiRoute()};
+
+    /* ── 길 A: 별도 Gemini 키로 직접 호출 (일정·추천·보고서 힌트) ──
+       앱 인증(App Check)을 거치지 않으므로, 사진 읽기가 막혀 있어도 이쪽은 동작합니다. */
+    if(GEMINI_API_KEY){
+      for(const name of GEMINI_MODELS){
+        try{
+          const res=await fetch(
+            'https://generativelanguage.googleapis.com/v1beta/models/'+name+':generateContent?key='+encodeURIComponent(GEMINI_API_KEY),
+            {method:'POST',headers:{'Content-Type':'application/json'},
+             body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+          if(!res.ok){
+            let detail='';
+            try{ const j=await res.json(); detail=(j&&j.error&&j.error.message)||''; }catch(_){}
+            throw new Error('['+res.status+'] '+(detail||res.statusText));
+          }
+          const j=await res.json();
+          const txt=((((j.candidates||[])[0]||{}).content||{}).parts||[])
+                      .map(p=>p.text||'').join('').replace(/```json|```/g,'').trim();
+          window.__aiDebug.raw=txt; log.push('[별도키] '+name+': 응답 '+txt.length+'자');
+          const m=txt.match(/\{[\s\S]*\}/);
+          if(!m)throw new Error('AI 응답이 JSON이 아닙니다');
+          const parsed=JSON.parse(m[0]);
+          window.__aiDebug.ok=true; window.__aiDebug.model=name; return parsed;
+        }catch(e){ log.push('[별도키] '+name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
+      }
+      const err=new Error(log.join(' / ')); err.detail=log; throw err;
+    }
+
+    /* ── 길 B: 키를 안 넣었을 때 — 예전처럼 Firebase 방식 ── */
     for(const name of AI_MODELS){
       try{
         const model=getGenerativeModel(ai(),{model:name});
@@ -3067,7 +3174,7 @@ window.FB={
         if(!m)throw new Error('AI 응답이 JSON이 아닙니다');
         const j=JSON.parse(m[0]);
         window.__aiDebug.ok=true; window.__aiDebug.model=name; return j;
-      }catch(e){ log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,160)); }
+      }catch(e){ log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
     }
     const err=new Error(log.join(' / ')); err.detail=log; throw err;
   },
