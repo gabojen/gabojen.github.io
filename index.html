@@ -1549,7 +1549,8 @@ function renderTrips(){
     <div class="eyebrow">진행 중 · 예정된 여행</div>${list}
     <button class="btn ghost" onclick="switchTab('history')">${svg('i-camera','ic')} 지난 여행(추억) 보기</button>`;
 }
-function openTrip(id){curTrip=id;curDay=focusDayIdx(trip(id));curFilter="all";viewAll=false;openRows={};openDays={};routeTo('detail');}
+/* 여행을 열면 기본은 [전체] 일정. (특정 날짜로 바로 갈 때는 openTripDay 를 씁니다) */
+function openTrip(id){curTrip=id;curDay=focusDayIdx(trip(id));curFilter="all";viewAll=true;openRows={};openDays={};routeTo('detail');}
 function openTripDay(id,di){curTrip=id;curDay=di;curFilter="all";viewAll=false;openRows={};openDays={};routeTo('detail');}
 
 /* ---- 여행 상세 ---- */
@@ -1783,14 +1784,52 @@ function aiErrCard(e,fallbackTitle,retryFn){
   const r=aiFailReason(raw,fallbackTitle);
   /* 앱 인증(App Check) 때문에 막힌 경우에는 자가 점검 버튼을 함께 줍니다 */
   /* 별도 키로 부른 경우는 앱 인증과 무관하므로 점검 버튼을 띄우지 않습니다 */
-  const isAppCheck=!/\[별도키\]/.test(raw)&&/app.?check|401|unauthor/i.test(raw);
+  const isDirect=/\[별도키\]/.test(raw);
+  const isAppCheck=!isDirect&&/app.?check|401|unauthor/i.test(raw);
   return `<div class="card" style="margin-top:12px"><b>${esc(r.t)}</b>
     <div class="muted small" style="margin:4px 0 10px">${esc(r.d)}</div>
     ${isAppCheck?`<button class="btn ghost sm" style="margin-bottom:8px" onclick="runAiDiag()">${svg('i-info','ic')} 어디가 막혔는지 점검하기</button>
       <div id="aiDiag"></div>`:''}
+    ${isDirect?`<button class="btn ghost sm" style="margin-bottom:8px" onclick="runKeyDiag()">${svg('i-info','ic')} AI 키 점검하기</button>
+      <div id="keyDiag"></div>`:''}
     <div class="row" style="gap:8px">
       ${retryFn?`<button class="btn ghost sm" style="flex:1" onclick="${retryFn}">${svg('i-spark','ic')} 다시 시도</button>`:''}
       <button class="lnk" onclick="showAiDebug()">자세한 내용 보기</button></div></div>`;
+}
+/* 별도 AI 키가 살아 있는지 + 그 키로 쓸 수 있는 모델이 무엇인지 알려 줍니다 */
+async function runKeyDiag(){
+  const box=$('keyDiag'); if(!box)return;
+  box.innerHTML=`<div class="muted small" style="padding:6px 2px">키를 확인하는 중…</div>`;
+  if(!(window.FB&&window.FB.checkGeminiKey)){
+    box.innerHTML=`<div class="sm-warn">${svg('i-info')} 점검 기능을 불러오지 못했어요. 새 index.html 을 올렸는지 확인해 주세요.</div>`;return;}
+  const r=await window.FB.checkGeminiKey();
+  if(r.ok){
+    const list=(r.models||[]);
+    const now=(window.__aiDebug&&window.__aiDebug.tried||[]).join(' ');
+    const usable=list.filter(m=>/flash|pro/.test(m)).slice(0,12);
+    box.innerHTML=`<div class="card" style="padding:12px 13px;margin:0 0 8px;box-shadow:none;background:var(--paper)">
+      <b style="font-size:13.5px">✅ 키는 정상입니다 (${esc(r.msg)})</b>
+      <div class="muted small" style="margin-top:6px;line-height:1.6">
+        이 키로 <b>쓸 수 있는 모델</b>이에요. 앱이 부르는 이름과 다르면 그게 원인입니다.</div>
+      <div class="muted small" style="margin-top:7px;line-height:1.8;word-break:break-all">
+        ${usable.length?usable.map(m=>'· <b>'+esc(m)+'</b>').join('<br>'):'(생성 가능한 모델이 없습니다)'}
+        ${list.length>usable.length?'<br>· … 외 '+(list.length-usable.length)+'개':''}</div>
+      <div class="muted small" style="margin-top:8px;line-height:1.6">
+        위 목록에 있는 이름을 <b>ai-key.js</b> 의 <b>GABOJEN_AI_MODELS</b> 줄에 넣어 주세요.</div>
+    </div>`;
+  }else{
+    const guide = r.step==='nokey'
+      ? `<b>ai-key.js</b> 의 따옴표 사이가 비어 있습니다.`
+      : `키가 <b>거부됐습니다</b>. 아래 중 하나일 가능성이 높습니다.<br>
+         ① 키가 <b>무효화</b>됨 — GitHub에 공개돼 구글이 자동으로 막았을 수 있어요. <b>새 키를 만들어</b> 바꿔 보세요.<br>
+         ② 키를 붙여넣을 때 <b>일부가 빠지거나 공백</b>이 섞임<br>
+         ③ 그 키의 프로젝트에서 <b>Generative Language API</b> 가 꺼져 있음`;
+    box.innerHTML=`<div class="card" style="padding:12px 13px;margin:0 0 8px;box-shadow:none;background:var(--paper)">
+      <b style="font-size:13.5px">❌ 키를 쓸 수 없습니다</b>
+      <div class="muted small" style="margin-top:6px;line-height:1.6">${guide}</div>
+      <div class="muted small" style="margin-top:8px;word-break:break-all;opacity:.85">기술 메시지: ${esc(r.msg||'')}</div>
+    </div>`;
+  }
 }
 /* 앱 인증이 어디서 막혔는지 확인해 비개발자도 알아볼 수 있게 알려 줍니다 */
 async function runAiDiag(){
@@ -3076,8 +3115,11 @@ const FIREBASE_CONFIG = {
         (index.html 을 새로 올려도 키가 지워지지 않습니다) */
 const GEMINI_API_KEY = "" || (window.GABOJEN_AI_KEY || "");
 /* 위에서부터 차례로 시도하고, 안 되는 모델은 건너뜁니다.
-   쓰고 싶은 모델을 맨 앞에 두세요. */
-const GEMINI_MODELS  = ["gemini-3.5-flash","gemini-2.5-flash","gemini-2.0-flash"];
+   ai-key.js 에서 window.GABOJEN_AI_MODELS 로 바꿀 수 있습니다.
+   (index.html 을 갈아끼워도 설정이 유지됩니다) */
+const GEMINI_MODELS  = (Array.isArray(window.GABOJEN_AI_MODELS) && window.GABOJEN_AI_MODELS.length)
+  ? window.GABOJEN_AI_MODELS
+  : ["gemini-3.5-flash","gemini-2.5-flash","gemini-2.0-flash"];
 
 const app = initializeApp(FIREBASE_CONFIG);
 
@@ -3214,6 +3256,34 @@ window.FB={
   },
   /* 지금 '만들기 AI'가 어느 길로 가는지 (화면 안내·진단에서 사용) */
   aiRoute(){ return GEMINI_API_KEY ? 'direct' : 'firebase'; },
+  /* 별도 키가 살아 있는지, 그 키로 쓸 수 있는 모델이 무엇인지 직접 물어봅니다.
+     · 글을 만들지 않고 '모델 목록'만 받아오므로 사용량이 거의 들지 않습니다.
+     · 키 전달 방식(헤더/주소) 두 가지를 다 시험해 되는 쪽을 알려 줍니다. */
+  async checkGeminiKey(){
+    if(!GEMINI_API_KEY) return {ok:false,step:'nokey',msg:'키가 비어 있습니다 (ai-key.js 확인)'};
+    const base='https://generativelanguage.googleapis.com/v1beta/models';
+    const attempt=async(mode)=>{
+      try{
+        const url = mode==='query' ? base+'?key='+encodeURIComponent(GEMINI_API_KEY) : base;
+        const headers = mode==='header' ? {'x-goog-api-key':GEMINI_API_KEY} : {};
+        const res=await fetch(url,{headers});
+        if(!res.ok){
+          let d=''; try{const j=await res.json(); d=(j&&j.error&&j.error.message)||''; }catch(_){}
+          return {ok:false,status:res.status,msg:d||res.statusText};
+        }
+        const j=await res.json();
+        const names=(j.models||[])
+          .filter(m=>!m.supportedGenerationMethods||m.supportedGenerationMethods.indexOf('generateContent')>=0)
+          .map(m=>String(m.name||'').replace(/^models\//,''));
+        return {ok:true,models:names};
+      }catch(e){ return {ok:false,status:0,msg:String((e&&e.message)||e)}; }
+    };
+    const h=await attempt('header');
+    if(h.ok) return {ok:true,step:'header',models:h.models,msg:'헤더 방식으로 확인됨'};
+    const q=await attempt('query');
+    if(q.ok) return {ok:true,step:'query',models:q.models,msg:'주소 방식으로 확인됨'};
+    return {ok:false,step:'both',msg:'헤더: ['+h.status+'] '+h.msg+' / 주소: ['+q.status+'] '+q.msg};
+  },
   async askJson(prompt){
     const log=[]; window.__aiDebug={tried:log,raw:'',ok:false,route:this.aiRoute()};
 
