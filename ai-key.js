@@ -1,1 +1,1 @@
-window.GABOJEN_AI_KEY = "AIzaSyAgdQzUq0cDclJOa_uLsy4doMR2JSSBQ_M";
+window.GABOJEN_AI_KEY = "AQ.Ab8RN6KWarRDj1_IwBoRpSWzjItuPR5I5_mOB54c3q3C8lx1iA";
