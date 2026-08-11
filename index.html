@@ -332,6 +332,8 @@
   .planopt .pdi{display:flex;gap:9px;align-items:baseline;padding:2px 0;font-size:13px;}
   .planopt .pt{flex-shrink:0;font-weight:800;color:var(--ink-2);font-variant-numeric:tabular-nums;}
   .planopt .px{flex:1;min-width:0;color:var(--ink);}
+  .planopt .pkm{flex-shrink:0;font-size:11.5px;font-weight:700;color:var(--muted);
+    font-variant-numeric:tabular-nums;}
   .planopt .pw{color:#8A5D10;font-weight:800;}
   html.dark .planopt .pw{color:#E5AE4B;}
   .vote{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:8px;background:#fff;box-shadow:var(--e1);gap:10px;}
@@ -2098,16 +2100,30 @@ const PLAN_Q=[
   {k:'pace',  label:'여행 속도',   opts:[['여유','여유롭게 · 하루 2~3곳'],['알차게','알차게 · 하루 4~5곳']]},
   {k:'taste', label:'주로 하고 싶은 것', opts:[['자연','자연·경치'],['맛집','맛집·카페'],['체험','체험·액티비티'],['실내','실내·전시·박물관']]},
   {k:'move',  label:'이동 수단',   opts:[['렌터카','렌터카'],['대중교통','대중교통·도보']]},
+  {k:'range', label:'숙소에서 얼마나 멀리까지', opts:[['50','50km 안'],['100','100km 안'],['150','150km 안']]},
 ];
-let planAns={pace:'여유',taste:'자연',move:'렌터카'};
+let planAns={pace:'여유',taste:'자연',move:'렌터카',range:'50',day:'all'};
+/* 거리를 재는 기준점 — 숙소가 있으면 숙소, 없으면 여행지 */
+function planBase(t){
+  let stay='';
+  (t.days||[]).forEach(d=>(d.items||[]).forEach(i=>{ if(!stay&&i.cat==='stay'&&i.place)stay=i.place; }));
+  return stay||t.place||'';
+}
 function openPlanWizard(){
   const t=trip(curTrip); if(!t)return;
-  planAns={pace:'여유',taste:'자연',move:'렌터카'};
+  planAns={pace:'여유',taste:'자연',move:'렌터카',range:'50',day:'all'};
+  const base=planBase(t);
+  const dayOpts=`<option value="all">여행 전체 (${(t.days||[]).length}일)</option>`
+    +(t.days||[]).map((d,i)=>`<option value="${i}">DAY ${i+1} · ${mdLabel(d.date)}(${dowOf(d.date)})${(d.items||[]).length?'':' · 비어 있음'}</option>`).join('');
   openSheet(`<div class="grab"></div><h3>일정 짜기</h3>
-    <p class="muted small" style="margin:-8px 0 14px">${PLAN_Q.length}가지만 고르시면 <b style="color:var(--ink)">서로 다른 2가지 안</b>을 만들어 드려요.</p>
+    <p class="muted small" style="margin:-8px 0 14px">몇 가지만 고르시면 <b style="color:var(--ink)">서로 다른 2가지 안</b>을 만들어 드려요.</p>
+    <label class="fld">어느 날짜를 짤까요</label>
+    <select class="input" id="planDay" onchange="planAns.day=this.value">${dayOpts}</select>
     ${PLAN_Q.map(q=>`<label class="fld">${q.label}</label>
       <div class="qrow" data-k="${q.k}">${q.opts.map((o,i)=>
         `<button class="qopt${i===0?' on':''}" onclick="pickPlanOpt('${q.k}','${o[0]}',this)">${o[1]}</button>`).join('')}</div>`).join('')}
+    ${base?`<p class="muted small" style="margin:-6px 2px 12px">거리는 <b>${esc(base)}</b> 기준으로 재고, <b>범위를 넘는 곳은 자동으로 빼</b> 드려요.</p>`
+          :hintBox('i-info','숙소가 등록돼 있지 않아 거리를 정확히 재기 어려워요. 숙소를 먼저 넣으면 더 잘 골라 드려요.')}
     ${t.hasStudent?hintBox('i-users','<b>학생(자녀) 동행</b> 여행이라, 아이와 함께 가기 좋은 곳 위주로 골라 드려요.'):''}
     <button class="btn brand" id="planBtn" onclick="runPlanAI()">${svg('i-spark','ic')} 2가지 안 만들기</button>
     <div id="planOut"></div>`);
@@ -2127,6 +2143,12 @@ async function runPlanAI(){
   const b=$('planBtn'); if(b)b.disabled=true;
   const out=$('planOut'); out.innerHTML=aiBusy('일정 2가지 안을 짜는 중…');
   const who=t.hasStudent?'초·중학생 자녀가 함께하는 가족':(t.groupType||'일행');
+  const base=planBase(t);
+  const km=parseInt(planAns.range)||50;
+  const onlyDay=planAns.day==='all'?null:(t.days||[])[parseInt(planAns.day)];
+  const dayScope=onlyDay
+    ? `DAY ${parseInt(planAns.day)+1} (${onlyDay.date}) 하루만`
+    : `여행 전체(${(t.days||[]).length}일)`;
   const prompt=`너는 한국 여행 일정을 짜 주는 도우미다. 아래 여행에 대해 성격이 뚜렷이 다른 2가지 안을 만들어라.
 
 [여행]
@@ -2136,24 +2158,30 @@ async function runPlanAI(){
 - 원하는 속도: ${planAns.pace==='여유'?'여유롭게(하루 2~3곳)':'알차게(하루 4~5곳)'}
 - 주 관심사: ${planAns.taste}
 - 이동 수단: ${planAns.move}
+- 숙소(거리 기준점): ${base||'(없음)'}
+
+[짜야 할 범위]
+${dayScope}
 
 [이미 정해진 일정 — 절대 바꾸지 말고, 이 사이를 채워라]
 ${planContext(t)}
 
 [반드시 지킬 것]
+- ★ 모든 장소는 ${base?`"${base}"`:'숙소'} 에서 직선거리 ${km}km 안이어야 한다. 넘으면 넣지 마라.
+- ★ ${onlyDay?`오직 ${onlyDay.date} 하루치만 만들어라. 다른 날짜는 넣지 마라.`:'위 DAY 목록에 있는 날짜만 쓴다.'}
 - 이미 정해진 항공 도착 시각 전, 출발 시각 후에는 아무것도 넣지 마라.
 - 숙소 체크인·체크아웃 시각과 부딪히지 않게 하라.
 - 하루 안에서 장소들이 서로 가깝게, 이동이 최소가 되도록 묶어라.
 - 실제로 존재하는, 이름이 널리 알려진 곳만 넣어라. 지어내지 마라.
 - "place"에는 지도에서 검색되는 정확한 명칭을 쓴다.
 - 2가지 안은 컨셉이 뚜렷이 달라야 한다(예: 자연 중심 / 실내·먹거리 중심).
-- 날짜(date)는 위 DAY 목록에 있는 날짜만 쓴다.
 
 아래 JSON만 출력하라. 설명·마크다운 없이 JSON만.
 {"plans":[{"name":"안 이름(12자 이내)","summary":"한 줄 설명(30자 이내)","days":[{"date":"YYYY-MM-DD","items":[{"time":"HH:MM","title":"일정 제목(20자 이내)","place":"지도 검색용 정확한 장소명","kind":"plan 또는 ticket","why":"한 줄 이유(25자 이내)"}]}]}]}`;
   try{
     const j=await window.FB.askJson(prompt);
-    const valid=new Set((t.days||[]).map(d=>d.date));
+    /* 날짜 하루만 고른 경우엔 그 날짜만 남깁니다 (AI가 다른 날을 넣어도 걸러짐) */
+    const valid=new Set(onlyDay?[onlyDay.date]:(t.days||[]).map(d=>d.date));
     const plans=(j.plans||[]).slice(0,2).map(p=>({
       name:String(p.name||'추천 일정').slice(0,20),
       summary:String(p.summary||'').slice(0,60),
@@ -2168,12 +2196,37 @@ ${planContext(t)}
       })).filter(d=>d.items.length)
     })).filter(p=>p.days.length);
     if(!plans.length)throw new Error('일정을 만들지 못했어요');
-    out.innerHTML=aiBusy('추천한 곳이 실제로 있는지 지도에서 확인하는 중…');
+    out.innerHTML=aiBusy('추천한 곳이 실제로 있는지, 거리가 맞는지 지도에서 확인하는 중…');
     const flat=[];plans.forEach(p=>p.days.forEach(d=>d.items.forEach(x=>flat.push(x))));
     await verifyPlaces(flat);
-    window.__plans=plans;
-    out.innerHTML=`<div class="eyebrow" style="margin-top:16px">${svg('i-spark','ic')} 2가지 안</div>`
-      +plans.map((p,pi)=>{
+
+    /* ── 거리 확인: AI 말만 믿지 않고 실제로 잽니다 ──
+       기준점에서 ${km}km 를 넘는 곳은 목록에서 빼고, 무엇을 뺐는지 알려 줍니다.
+       (좌표를 못 구한 곳은 잴 수 없으므로 빼지 않고 '미확인'으로 둡니다) */
+    const baseGeo=(base&&kakaoReady)?await geocodeSafe(base):null;
+    const far=[];
+    if(baseGeo&&baseGeo!=='timeout'){
+      flat.forEach(x=>{ if(x.geo){ x.km=Math.round(haversine(baseGeo,x.geo)); if(x.km>km)x.tooFar=true; } });
+      plans.forEach(p=>{
+        p.days.forEach(d=>{
+          d.items=d.items.filter(x=>{ if(x.tooFar){far.push(x.title+' ('+x.km+'km)');return false;} return true; });
+        });
+        p.days=p.days.filter(d=>d.items.length);
+      });
+    }
+    const kept=plans.filter(p=>p.days.length);
+    if(!kept.length){
+      out.innerHTML=`<div class="card" style="margin-top:12px"><b>${km}km 안에서는 마땅한 곳을 못 찾았어요</b>
+        <div class="muted small" style="margin:4px 0 10px">추천된 곳이 모두 범위를 벗어났습니다${far.length?' ('+esc(far.slice(0,3).join(', '))+' 등)':''}.
+          범위를 넓혀서 다시 시도해 보세요.</div>
+        <button class="btn ghost sm" onclick="runPlanAI()">${svg('i-spark','ic')} 다시 시도</button></div>`;
+      return;
+    }
+    window.__plans=kept;
+    out.innerHTML=`<div class="eyebrow" style="margin-top:16px">${svg('i-spark','ic')} 2가지 안 <span style="font-weight:700;color:var(--muted)">· ${esc(base||'여행지')}에서 ${km}km 안</span></div>`
+      +(far.length?`<div class="sugg" style="padding:0"><div class="sm-warn" style="margin:0 0 10px">${svg('i-info')}
+          <span>${km}km를 넘어 <b>${far.length}곳</b>을 뺐어요 — ${esc(far.slice(0,3).join(', '))}${far.length>3?' 외 '+(far.length-3)+'곳':''}</span></div></div>`:'')
+      +kept.map((p,pi)=>{
         const cnt=p.days.reduce((a,d)=>a+d.items.length,0);
         const miss=p.days.reduce((a,d)=>a+d.items.filter(x=>x.check==='miss').length,0);
         return `<div class="card planopt">
@@ -2187,12 +2240,13 @@ ${planContext(t)}
           <div class="pdays">${p.days.map(d=>`
             <div class="pd"><div class="pdh">${mdLabel(d.date)}(${dowOf(d.date)})</div>
               ${d.items.map(x=>`<div class="pdi"><span class="pt">${esc(x.time)}</span>
-                <span class="px">${esc(x.title)}${x.check==='miss'?' <span class="pw">?</span>':''}</span></div>`).join('')}
+                <span class="px">${esc(x.title)}${x.check==='miss'?' <span class="pw">?</span>':''}</span>
+                ${x.km!=null?`<span class="pkm">${x.km}km</span>`:''}</div>`).join('')}
             </div>`).join('')}</div>
           <button class="btn ghost sm" style="margin-top:11px" onclick="savePlan(${pi})">${svg('i-check','ic')} 이 안으로 일정 채우기</button>
         </div>`;}).join('')
       +`<p class="muted small" style="margin-top:2px">AI가 짠 초안이에요. 저장한 뒤 자유롭게 고치실 수 있어요.
-        <b>?</b> 표시는 지도에서 못 찾은 곳이니 꼭 확인해 주세요.</p>`;
+        옆의 <b>km</b>는 ${esc(base||'여행지')}에서 잰 직선거리, <b>?</b> 는 지도에서 못 찾은 곳이에요.</p>`;
   }catch(e){
     out.innerHTML=aiErrCard(e,'일정을 만들지 못했어요','runPlanAI()');
   }finally{ const bb=$('planBtn'); if(bb)bb.disabled=false; }
