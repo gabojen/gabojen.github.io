@@ -240,6 +240,14 @@
   .gaprow svg{width:14px;height:14px;stroke-width:2;}
   .gaprow:active{transform:scale(.985);}
   /* ── AI 추천 카드 ── */
+  /* ── 이용권·예약확인 입력 줄 (누구 것 + 링크) ── */
+  .vrow{display:flex;gap:6px;align-items:center;margin-bottom:8px;}
+  .vrow .vw{flex:0 0 34%;margin:0;}
+  .vrow .vu{flex:1;min-width:0;margin:0;}
+  .vrow .vdel{flex-shrink:0;width:38px;height:44px;border:1px solid var(--line);background:var(--card);
+    border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#B23B3B;}
+  .vrow .vdel svg{width:16px;height:16px;stroke-width:2;}
+  .vrow .vdel:active{transform:scale(.94);}
   /* ── 일정에 붙인 사진 ── */
   .iphotos{display:flex;gap:6px;margin-top:10px;}
   .iphotos .ip{flex:1;min-width:0;aspect-ratio:1/1;border-radius:10px;background-size:cover;
@@ -1098,11 +1106,17 @@ function joinPrompt(){openSheet(`<div class="grab"></div><h3>초대코드로 참
   <input class="input" id="jCode" placeholder="예: a1b2c3d">
   <button class="btn brand" onclick="doJoin()">${svg('i-check','ic')} 참여하기</button>`);}
 async function doJoin(){const code=($('jCode').value||'').trim();if(!code){toast('코드를 입력해 주세요.');return;}
-  try{await window.FB.joinTrip(code);closeOv();toast('여행에 참여했어요!');}
+  try{await window.FB.joinTrip(code);closeOv();toast('여행에 참여했어요!');
+    /* 참여만 하고 제자리에 있으면 뭐가 됐는지 알 수 없으므로 [내 여행] 목록으로 데려다 줍니다.
+       (참여한 여행이 목록에 들어오는 데 잠깐 걸려 조금 기다렸다 이동합니다) */
+    setTimeout(()=>switchTab('trips'),300);}
   catch(e){toast('참여 실패: 코드를 확인해 주세요.');}}
 
 /* ---- 화면 전환 ---- */
 function show(id,{title,kicker,back=false,nav=true,push=true}={}){
+  /* 화면이 바뀌면 열려 있던 시트·팝업은 반드시 닫습니다.
+     (예: [내 계정]에서 로그아웃하면 로그인 화면 위에 계정 시트가 남아 있던 문제) */
+  closeOv();
   if(push){const c=document.querySelector('.screen.active');if(c)stack.push(c.id);}
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $(id).classList.add('active');$(id).scrollTop=0;
@@ -1481,9 +1495,20 @@ function telLinks(it){
     var num=parts[i].replace(/[^0-9+]/g,''); if(num.length<4)continue;
     out+='<button class="btn ghost" onclick="location.href=\'tel:'+num+'\'">'+svg('i-users','ic')+' '+esc(parts[i])+' 전화</button><div style="height:10px"></div>';}
   return out;}
+/* 저장된 일정에서 이용권 목록 꺼내기 (예전에 저장된 링크 1개짜리도 함께 처리) */
+function itemVouchers(it){
+  if(it&&Array.isArray(it.vouchers)&&it.vouchers.length)
+    return it.vouchers.filter(function(v){return v&&v.url;});
+  if(it&&it.url)return [{who:'',url:it.url}];
+  return [];
+}
 function goProvider(id){var f=itemById(id);if(!f)return;var it=f.it;
   var p=providerFor(it), links='';
-  if(it.url)links+='<button class="btn brand" onclick="openExt(\''+esc(it.url)+'\')">'+svg('i-ticket','ic')+' 모바일 이용권·예약 확인'+svg('i-ext','ic')+'</button><div style="height:10px"></div>';
+  /* 이용권은 사람마다 다를 수 있어, 누구 것인지 함께 보여 줍니다 */
+  var vs=itemVouchers(it);
+  for(var vi=0;vi<vs.length&&vi<6;vi++){
+    var lbl=vs[vi].who?(esc(vs[vi].who)+' 이용권·예약 확인'):'모바일 이용권·예약 확인';
+    links+='<button class="btn brand" onclick="openExt(\''+esc(vs[vi].url)+'\')">'+svg('i-ticket','ic')+' '+lbl+svg('i-ext','ic')+'</button><div style="height:10px"></div>';}
   links+=telLinks(it);
   if(p)links+='<button class="btn brand" onclick="openExt(\''+p.u+'\')">'+esc(p.n)+' 열기'+svg('i-ext','ic')+'</button><div style="height:10px"></div>';
   if(it.cat==='transport'){
@@ -1941,11 +1966,50 @@ function segCard(i,g){
   h+='<label class="fld">예약번호</label><input class="input" id="sg'+i+'r" value="'+esc(g.resv||'')+'">'
   +'<div class="row" style="gap:8px"><div style="flex:1"><label class="fld">문의 전화</label>'
   +'<input class="input" id="sg'+i+'tel" value="'+esc(g.tel||'')+'" placeholder="예: 1577-0069"></div></div>'
-  +'<label class="fld">이용권·예약확인 링크</label><input class="input" id="sg'+i+'url" value="'+esc(g.url||'')+'" placeholder="https://">'
+  /* ── 이용권·예약확인: 사람마다 링크가 다른 경우가 많아 여러 개 담습니다 ──
+     누구 것인지 적어 두면, 같이 가는 사람도 자기 것을 바로 찾을 수 있습니다. */
+  +'<label class="fld">이용권·예약확인 <span style="font-weight:700;color:var(--muted)">· 사람별로 여러 개 넣을 수 있어요</span></label>'
+  +'<div id="sg'+i+'vw">'+voucherRows(i,vouchersOf(g))+'</div>'
+  +'<button class="btn ghost sm" style="margin-bottom:12px" onclick="addVoucher('+i+')">'+svg('i-plus','ic')+' 이용권·예약확인 추가</button>'
   +(chips&&!isStay?'<div class="muted small" style="margin-bottom:6px">사진에서 찾은 지명 (누르면 빈 칸에 입력)</div><div class="filters" style="padding-bottom:4px">'+chips+'</div>':'')
   +'</div>';
   return h;}
 
+/* ============================================================================
+   이용권·예약확인 — 한 일정에 사람 수만큼 들어갈 수 있습니다.
+   예: 가족 4명이면 모바일 이용권 링크도 4개. 누구 것인지 적어 두면 서로 찾기 쉽습니다.
+   ============================================================================ */
+function vouchersOf(g){
+  if(g&&Array.isArray(g.vouchers)&&g.vouchers.length)return g.vouchers.slice();
+  if(g&&g.url)return [{who:'',url:g.url}];        /* 예전 방식(링크 1개)도 그대로 이어받습니다 */
+  return [{who:'',url:''}];
+}
+function voucherRows(i,list){
+  return list.map(function(v,k){
+    return '<div class="vrow">'
+      +'<input class="input vw" value="'+esc(v.who||'')+'" placeholder="누구 것 (예: '+esc(ME.name||'김광석')+')">'
+      +'<input class="input vu" value="'+esc(v.url||'')+'" placeholder="https:// 링크">'
+      +'<button class="vdel" onclick="delVoucher('+i+','+k+')" aria-label="이 이용권 지우기">'+svg('i-trash')+'</button>'
+      +'</div>';}).join('');
+}
+function readVouchers(i){
+  var box=document.getElementById('sg'+i+'vw'); if(!box)return [{who:'',url:''}];
+  var rows=[].slice.call(box.querySelectorAll('.vrow')).map(function(r){
+    return {who:(r.querySelector('.vw').value||'').trim(),
+            url:(r.querySelector('.vu').value||'').trim()};});
+  return rows.length?rows:[{who:'',url:''}];
+}
+function addVoucher(i){var cur=readForm(); if(!cur[i])return;
+  cur[i].vouchers=(cur[i].vouchers||[]).concat([{who:'',url:''}]); buildForm(cur);}
+function delVoucher(i,k){var cur=readForm(); if(!cur[i]||!cur[i].vouchers)return;
+  cur[i].vouchers.splice(k,1);
+  if(!cur[i].vouchers.length)cur[i].vouchers=[{who:'',url:''}];
+  buildForm(cur);}
+/* 저장할 때 쓰는 형태로 정리 (빈 줄 제거) */
+function cleanVouchers(list){
+  return (list||[]).filter(function(v){return v&&v.url;})
+                   .map(function(v){return {who:(v.who||'').trim(),url:v.url.trim()};});
+}
 function buildForm(segs){
   if(!segs||!segs.length){segs=[{date:'',time:'09:00',arr:'',from:'',to:'',flight:'',resv:'',outDate:'',outTime:''}];}
   ocrGuess=segs; var t=trip(curTrip);
@@ -1956,7 +2020,11 @@ function buildForm(segs){
    +['flight','stay','rentcar'].map(function(k){return '<button class="fchip'+(ocrKind===k?' on':'')+'" onclick="switchKind(\''+k+'\')">'+kindLabel(k)+'</button>';}).join('')
    +'</div>';
   for(var k2=0;k2<segs.length;k2++)h+=segCard(k2,segs[k2]);
-  h+='<button class="btn ghost sm" onclick="addSeg()">＋ 항목 추가</button><div style="height:10px"></div>'
+  /* '항목 추가'는 이용권 추가와 헷갈리므로, 무엇이 추가되는지 이름에 분명히 적습니다.
+     (이용권·예약확인은 위 각 카드 안에서 추가합니다) */
+  h+='<button class="btn ghost sm" onclick="addSeg()">＋ 다른 예약 항목 추가</button>'
+   +'<p class="muted small" style="margin:7px 2px 12px">가는편·오는편처럼 <b>일정 자체가 하나 더</b> 있을 때만 쓰세요. '
+   +'같은 일정의 이용권은 위 카드 안에서 추가합니다.</p>'
    +'<button class="btn brand" onclick="saveOcr()">'+svg('i-check','ic')+' 여행에 저장</button>';
   document.getElementById('ocrOut').innerHTML=h;}
 
@@ -1966,7 +2034,7 @@ function readForm(){var out=[],i;
   for(i=0;i<ocrGuess.length;i++){ if(!document.getElementById('sg'+i+'d'))continue;
     out.push({date:gv('sg'+i+'d'),time:gv('sg'+i+'h')||'09:00',arr:gv('sg'+i+'a'),
       from:gv('sg'+i+'f'),to:gv('sg'+i+'t'),flight:gv('sg'+i+'n'),resv:gv('sg'+i+'r'),
-      addr:gv('sg'+i+'ad'),tel:gv('sg'+i+'tel'),url:gv('sg'+i+'url'),
+      addr:gv('sg'+i+'ad'),tel:gv('sg'+i+'tel'),vouchers:readVouchers(i),
       outDate:gv('sg'+i+'od'),outTime:gv('sg'+i+'ot')});}
   return out;}
 function fillPlace(i,val){var a=document.getElementById('sg'+i+'f'),b=document.getElementById('sg'+i+'t');
@@ -2019,10 +2087,19 @@ function screenDups(t,plan){
     if(f)dups.push({q:q,why:'이미 똑같이 등록됨 ('+f.date.slice(5).replace('-','/')+' '+(f.it.time||'')+')'});
     else fresh.push(q);}
   return {fresh:fresh,dups:dups};}
+/* 일정이 저장된 뒤 어디로 갈지 —
+   붙여넣기처럼 '작업용 화면'에 그대로 남으면 끝난 건지 알 수 없으므로 여행 상세로 데려다 줍니다.
+   이미 여행 상세를 보고 있었다면 그 자리에서 새로 그리기만 합니다. */
+function afterItemsSaved(){
+  const cur=document.querySelector('.screen.active');
+  if(cur&&cur.id==='detail'){rerender();return;}
+  if(trip(curTrip)){viewAll=true;routeTo('detail');}   /* 왕복 항공처럼 여러 날에 걸쳐 저장될 수 있어 전체로 보여 줍니다 */
+  else rerender();
+}
 function commitPlan(t,list,label){
   for(var i=0;i<list.length;i++)pushItem(t,list[i].di,list[i].obj);
   closeOv();toast(list.length?(list.length+'건을 저장했어요'+(label||'')):'새로 저장할 항목이 없어요');
-  rerender();save();}
+  afterItemsSaved();save();}
 function askDup(t,res){
   var rows='';
   for(var i=0;i<res.dups.length;i++){var d=res.dups[i];
@@ -2054,19 +2131,19 @@ function saveOcr(){var t=trip(curTrip);if(!t)return;var segs=readForm(),plan=[],
     if(ocrKind==='stay'){
       var nm=tidyTitle(g.from||'숙소',20), loc=g.addr||g.from||'';
       plan.push({di:di,resv:g.resv,obj:{_id:uid(),cat:'stay',time:g.time||'15:00',title:nm+' 체크인',
-        place:loc,tel:g.tel||'',url:g.url||'',stayName:g.from||'',
+        place:loc,tel:g.tel||'',vouchers:cleanVouchers(g.vouchers),url:(cleanVouchers(g.vouchers)[0]||{}).url||'',stayName:g.from||'',
         sub:[g.flight?g.flight:'',g.resv?('예약번호 '+g.resv):'',
              g.outDate?('체크아웃 '+g.outDate.slice(5).replace('-','/')+' '+(g.outTime||'')):''].filter(Boolean).join(' · '),
         by:ME.name,comments:[],map:!!loc}});
       if(g.outDate)plan.push({di:dayIndexFor(t,g.outDate),resv:g.resv,obj:{_id:uid(),cat:'stay',time:g.outTime||'11:00',
-        title:nm+' 체크아웃',place:loc,tel:g.tel||'',url:g.url||'',stayName:g.from||'',
+        title:nm+' 체크아웃',place:loc,tel:g.tel||'',vouchers:cleanVouchers(g.vouchers),url:(cleanVouchers(g.vouchers)[0]||{}).url||'',stayName:g.from||'',
         sub:[g.resv?('예약번호 '+g.resv):'','체크인 '+(g.date?g.date.slice(5).replace('-','/'):'')+' '+(g.time||'')].filter(Boolean).join(' · '),
         by:ME.name,comments:[],map:!!loc}});
     }else if(ocrKind==='rentcar'){
       plan.push({di:di,resv:g.resv,obj:{_id:uid(),cat:'rentcar',time:g.time||'10:00',
         title:(g.flight?tidyTitle(g.flight,16)+' ':'')+'렌터카 대여',place:g.from||'',
         sub:[g.resv?('예약번호 '+g.resv):'',g.outDate?('반납 '+g.outDate.slice(5).replace('-','/')+' '+(g.outTime||'')):''].filter(Boolean).join(' · '),
-        tel:g.tel||'',url:g.url||'',by:ME.name,comments:[],map:!!g.from}});
+        tel:g.tel||'',vouchers:cleanVouchers(g.vouchers),url:(cleanVouchers(g.vouchers)[0]||{}).url||'',by:ME.name,comments:[],map:!!g.from}});
       if(g.outDate)plan.push({di:dayIndexFor(t,g.outDate),resv:g.resv,obj:{_id:uid(),cat:'rentcar',time:g.outTime||'10:00',
         title:'렌터카 반납',place:g.to||g.from||'',sub:g.resv?('예약번호 '+g.resv):'',by:ME.name,comments:[],map:!!(g.to||g.from)}});
     }else{
@@ -2074,7 +2151,7 @@ function saveOcr(){var t=trip(curTrip);if(!t)return;var segs=readForm(),plan=[],
         title:(g.from||'출발')+' → '+(g.to||'도착')+(g.flight?' ('+g.flight+')':''),
         place:(g.to?g.to+'공항':''),
         sub:[g.resv?('예약번호 '+g.resv):'',g.arr?('도착 '+g.arr):''].filter(Boolean).join(' · '),
-        tel:g.tel||'',url:g.url||'',by:ME.name,comments:[],map:!!g.to}});
+        tel:g.tel||'',vouchers:cleanVouchers(g.vouchers),url:(cleanVouchers(g.vouchers)[0]||{}).url||'',by:ME.name,comments:[],map:!!g.to}});
     }
   }
   if(!plan.length){toast('내용을 한 가지 이상 입력해 주세요.');return;}
@@ -2462,7 +2539,7 @@ function confirmDupOne(t,di,obj,f){
     +'<div class="row" style="gap:10px"><button class="btn ghost" style="flex:1" onclick="closeOv()">취소</button>'
     +'<button class="btn brand" style="flex:1" onclick="dupOneGo()">그래도 추가</button></div>');}
 function dupOneGo(){var d=window.__dupOne;if(!d)return;
-  pushItem(d.t,d.di,d.obj);closeOv();toast('추가했습니다');rerender();save();}
+  pushItem(d.t,d.di,d.obj);closeOv();toast('추가했습니다');afterItemsSaved();save();}
 function openEditItem(id){const f=itemById(id);if(!f)return;const it=f.it;
   const catOpts=CAT_ORDER.map(k=>`<option value="${k}" ${k===it.cat?'selected':''}>${CAT[k].name}</option>`).join('');
   openSheet(`<div class="grab"></div><h3>일정 수정</h3>
@@ -2510,8 +2587,12 @@ async function saveCreateTrip(){
     hasStudent:$('cStudent').checked,status:"active",start,end,   /* 표지는 저장하지 않고 coverArt()가 그때그때 그립니다 */
     members:[{n:initial(ME.name),c:AVCOL[0],uid:ME.uid}],memberUids:[ME.uid],
     days:daysBetween(start,end).map(d=>({date:d,items:[]})),pack:[],proposals:[],owner:ME.uid};
-  try{await window.FB.saveTrip(t);curTrip=t.id;curDay=0;curFilter="all";closeOv();toast('여행을 만들었어요!');
-    setTimeout(()=>routeTo('detail'),200);}
+  try{await window.FB.saveTrip(t);
+    /* 서버에서 목록이 다시 내려오길 기다리지 않고 바로 엽니다.
+       (인터넷이 느리면 0.2초 안에 안 내려와서 엉뚱하게 [내 여행] 목록으로 튕기던 문제) */
+    if(!trip(t.id))TRIPS.push(t);
+    curTrip=t.id;curDay=0;curFilter="all";viewAll=true;closeOv();toast('여행을 만들었어요!');
+    routeTo('detail');}
   catch(e){toast('저장 실패: 인터넷 연결을 확인해 주세요.');$('cBtn').disabled=false;}
 }
 
@@ -2785,7 +2866,9 @@ async function doClone(){
   const t={id:uid(),title,place:src.place,groupType:src.groupType,hasStudent:src.hasStudent,status:'active',
     start,end:days[days.length-1],members:[{n:initial(ME.name),c:AVCOL[0],uid:ME.uid,photo:ME.photo||''}],
     memberUids:[ME.uid],days:nd,pack:(src.pack||[]).map(p=>({title:p.title,sub:p.sub,done:false})),proposals:[],owner:ME.uid};
-  try{await window.FB.saveTrip(t);curTrip=t.id;curDay=0;closeOv();toast('복제했어요!');setTimeout(()=>routeTo('detail'),200);}
+  try{await window.FB.saveTrip(t);
+    if(!trip(t.id))TRIPS.push(t);          /* 위와 같은 이유 — 바로 열 수 있게 */
+    curTrip=t.id;curDay=0;viewAll=true;closeOv();toast('복제했어요!');routeTo('detail');}
   catch(e){toast('복제 실패: 잠시 후 다시 시도해 주세요.');}}
 
 /* ---- 체험학습 보고서 ---- */
