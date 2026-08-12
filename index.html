@@ -1865,10 +1865,26 @@ function aiBusy(msg){return `<div class="card" style="margin-top:12px"><b>${esc(
   <div class="muted small" style="margin-top:4px">보통 5~15초 걸립니다</div></div>`;}
 function aiErrCard(e,fallbackTitle,retryFn){
   const raw=String((e&&e.message)||e||'');
-  const r=aiFailReason(raw,fallbackTitle);
-  /* 앱 인증(App Check) 때문에 막힌 경우에는 자가 점검 버튼을 함께 줍니다 */
-  /* 별도 키로 부른 경우는 앱 인증과 무관하므로 점검 버튼을 띄우지 않습니다 */
   const isDirect=/\[별도키\]/.test(raw);
+  /* ★ 일정 짜기·추천·보고서는 '별도 AI 키'로 도는 기능입니다.
+     키가 없으면 예전(파이어베이스) 방식으로 넘어가 앱 인증 오류가 나는데,
+     그걸 그대로 보여 주면 리캡차를 뒤지게 되어 엉뚱한 곳을 고치게 됩니다.
+     그래서 키가 없을 때는 '키가 없다'고 정확히 알려 줍니다. */
+  const noKey=!isDirect && !!(window.FB&&window.FB.aiRoute&&window.FB.aiRoute()==='firebase');
+  if(noKey){
+    return `<div class="card" style="margin-top:12px"><b>AI 키가 설정되지 않았어요</b>
+      <div class="muted small" style="margin:4px 0 10px;line-height:1.6">
+        이 기능(일정 짜기·추천·보고서)은 <b>ai-key.js</b> 의 키로 동작합니다.
+        키가 없어 예전 방식으로 시도했고, 그 방식이 막혔습니다.
+        <b>리캡차·App Check 문제가 아닙니다.</b></div>
+      <button class="btn ghost sm" style="margin-bottom:8px" onclick="runKeyStatus()">${svg('i-info','ic')} 키 상태 확인하기</button>
+      <div id="keyStat"></div>
+      <div class="row" style="gap:8px">
+        ${retryFn?`<button class="btn ghost sm" style="flex:1" onclick="${retryFn}">${svg('i-spark','ic')} 다시 시도</button>`:''}
+        <button class="lnk" onclick="showAiDebug()">자세한 내용 보기</button></div></div>`;
+  }
+  const r=aiFailReason(raw,fallbackTitle);
+  /* 앱 인증(App Check) 때문에 막힌 경우에만 자가 점검 버튼을 줍니다 */
   const isAppCheck=!isDirect&&/app.?check|401|unauthor/i.test(raw);
   return `<div class="card" style="margin-top:12px"><b>${esc(r.t)}</b>
     <div class="muted small" style="margin:4px 0 10px">${esc(r.d)}</div>
@@ -1879,6 +1895,35 @@ function aiErrCard(e,fallbackTitle,retryFn){
     <div class="row" style="gap:8px">
       ${retryFn?`<button class="btn ghost sm" style="flex:1" onclick="${retryFn}">${svg('i-spark','ic')} 다시 시도</button>`:''}
       <button class="lnk" onclick="showAiDebug()">자세한 내용 보기</button></div></div>`;
+}
+/* ai-key.js 가 실제로 불러와졌는지 / 키가 들어 있는지 딱 잘라 알려 줍니다.
+   (원인이 '파일 문제'인지 '키 문제'인지 바로 갈립니다) */
+function runKeyStatus(){
+  const box=$('keyStat'); if(!box)return;
+  const v=window.GABOJEN_AI_KEY;
+  let title,guide;
+  if(typeof v==='undefined'){
+    title='❌ ai-key.js 파일을 못 불러왔어요';
+    guide=`GitHub 저장소 <b>맨 위 폴더</b>에 <b>ai-key.js</b> 라는 이름의 파일이 있는지 확인해 주세요.<br>
+      · 이름이 정확한가요? (<b>ai-key.js</b> — 대소문자·하이픈 주의)<br>
+      · index.html 과 <b>같은 위치</b>에 있나요? (폴더 안에 넣으면 안 됩니다)<br>
+      · Commit 을 눌러 저장하셨나요?`;
+  }else if(!String(v).trim()){
+    title='❌ 파일은 있는데 키가 비어 있어요';
+    guide=`ai-key.js 는 잘 불러왔습니다. 다만 따옴표 사이가 비어 있습니다.<br>
+      <b>window.GABOJEN_AI_KEY = "여기에키";</b> 처럼 따옴표 <b>사이</b>에 키를 넣어 주세요.`;
+  }else{
+    const s=String(v).trim();
+    title='✅ 키가 들어와 있어요';
+    guide=`키를 정상적으로 읽었습니다 (<b>${esc(s.slice(0,6))}…${esc(s.slice(-3))}</b>, ${s.length}자).<br>
+      이 화면이 보인다면 화면을 <b>새로고침</b>한 뒤 다시 시도해 주세요.`;
+  }
+  box.innerHTML=`<div class="card" style="padding:12px 13px;margin:0 0 8px;box-shadow:none;background:var(--paper)">
+    <b style="font-size:13.5px">${title}</b>
+    <div class="muted small" style="margin-top:6px;line-height:1.7">${guide}</div>
+    <div class="muted small" style="margin-top:7px;opacity:.8">지금 쓰는 방식: <b>${
+      (window.FB&&window.FB.aiRoute&&window.FB.aiRoute()==='direct')?'별도 AI 키':'예전(파이어베이스) 방식'}</b></div>
+  </div>`;
 }
 /* 별도 AI 키가 살아 있는지 + 그 키로 쓸 수 있는 모델이 무엇인지 알려 줍니다 */
 async function runKeyDiag(){
