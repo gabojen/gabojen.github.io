@@ -1706,7 +1706,7 @@ var ocrDay=0, ocrGuess=[], ocrPlaces=[], ocrKind='flight';
 
 function openPhotoAdd(dayIdx){ocrDay=dayIdx||0;ocrGuess=[];ocrPlaces=[];ocrKind='flight';
   openSheet('<div class="grab"></div><h3>사진으로 추가</h3>'
-  +'<p class="muted small" style="margin:-8px 0 14px">항공권·숙박·렌트카 <b style="color:var(--ink)">예약화면을 캡처해 올리면</b> 날짜·시간·예약번호를 읽어 <b style="color:var(--ink)">미리 채워</b> 드립니다. 틀린 곳만 고쳐 저장하세요.</p>'
+  +'<p class="muted small" style="margin:-8px 0 14px"><b style="color:var(--ink)">예약화면을 캡처해 올리면</b> 날짜·시간·예약번호를 읽어 <b style="color:var(--ink)">미리 채워</b> 드립니다. 틀린 곳만 고쳐 저장하세요.<br>항공·기차·버스·숙박·렌트카·입장권·공연·식당 예약 모두 됩니다.</p>'
   +'<label class="btn brand" style="cursor:pointer" for="ocrFile">사진 선택하기</label>'
   +'<input type="file" id="ocrFile" accept="image/*" style="display:none" onchange="runOCR(event)">'
   +'<div style="height:10px"></div><button class="btn ghost" onclick="buildForm([])">사진 없이 직접 입력</button>'
@@ -1930,9 +1930,17 @@ function showAiDebug(){
 function retryAI(){var f=window.__lastFile;if(!f){toast('사진을 다시 선택해 주세요.');return;}
   runOCR({target:{files:[f]}});}
 
-function kindLabel(k){return k==='stay'?'숙박':k==='rentcar'?'렌트카':'항공';}
+/* 붙여넣기·사진으로 담을 수 있는 예약 종류
+   (항공만이 아니라 기차·버스·배, 입장권·공연·체험, 식당 예약까지) */
+var OCR_KINDS=['flight','stay','rentcar','ticket','etc'];
+function kindLabel(k){return k==='stay'?'숙박':k==='rentcar'?'렌트카'
+  :k==='ticket'?'입장권·공연':k==='etc'?'식당·기타':'교통편';}
+/* 저장할 때 앱의 어느 분류로 들어갈지 */
+function kindToCat(k){return k==='stay'?'stay':k==='rentcar'?'rentcar'
+  :k==='ticket'?'ticket':k==='etc'?'plan':'transport';}
 function segCard(i,g){
-  var isStay=ocrKind==='stay', isCar=ocrKind==='rentcar';
+  var isStay=ocrKind==='stay', isCar=ocrKind==='rentcar',
+      isSpot=(ocrKind==='ticket'||ocrKind==='etc');
   var chips='',k;
   for(k=0;k<Math.min(ocrPlaces.length,6);k++)
     chips+='<button class="fchip" style="padding:5px 10px" onclick="fillPlace('+i+',\''+ocrPlaces[k]+'\')">'+esc(ocrPlaces[k])+'</button>';
@@ -1955,13 +1963,24 @@ function segCard(i,g){
     +'<div class="row" style="gap:8px"><div style="flex:1"><label class="fld">반납 날짜</label><input class="input" type="date" id="sg'+i+'od" value="'+esc(g.outDate||'')+'"></div>'
     +'<div style="flex:1"><label class="fld">시각</label><input class="input" type="time" id="sg'+i+'ot" value="'+esc(g.outTime||'10:00')+'"></div></div>'
     +'<label class="fld">반납 지점</label><input class="input" id="sg'+i+'t" value="'+esc(g.to||'')+'">';
+  }else if(isSpot){
+    /* 입장권·공연·체험 / 식당·기타 예약 — 장소 한 곳에서 시작해 끝나는 일정 */
+    h+='<label class="fld">'+(ocrKind==='ticket'?'이용 시설·공연 이름':'가게·장소 이름')+'</label>'
+    +'<input class="input" id="sg'+i+'f" value="'+esc(g.from||'')+'" placeholder="'+(ocrKind==='ticket'?'예: 아쿠아플라넷 제주':'예: 흑돼지 명가')+'">'
+    +'<label class="fld">'+(ocrKind==='ticket'?'권종·인원':'인원·메뉴')+'</label>'
+    +'<input class="input" id="sg'+i+'n" value="'+esc(g.flight||'')+'" placeholder="'+(ocrKind==='ticket'?'예: 성인 2, 어린이 1':'예: 4인 · 저녁')+'">'
+    +'<label class="fld">주소 · 만나는 곳</label><input class="input" id="sg'+i+'ad" value="'+esc(g.addr||'')+'" placeholder="예: 서귀포시 성산읍 …">'
+    +'<div class="row" style="gap:8px"><div style="flex:1"><label class="fld">날짜</label><input class="input" type="date" id="sg'+i+'d" value="'+esc(g.date||'')+'"></div>'
+    +'<div style="flex:1"><label class="fld">시각</label><input class="input" type="time" id="sg'+i+'h" value="'+esc(g.time||'10:00')+'"></div></div>'
+    +'<label class="fld">종료 시각 <span style="font-weight:700;color:var(--muted)">· 없으면 비워 두세요</span></label>'
+    +'<input class="input" type="time" id="sg'+i+'a" value="'+esc(g.arr||'')+'">';
   }else{
     h+='<label class="fld">날짜</label><input class="input" type="date" id="sg'+i+'d" value="'+esc(g.date||'')+'">'
     +'<div class="row" style="gap:8px"><div style="flex:1"><label class="fld">출발지</label><input class="input" id="sg'+i+'f" value="'+esc(g.from||'')+'" placeholder="예: 제주"></div>'
     +'<div style="flex:1"><label class="fld">도착지</label><input class="input" id="sg'+i+'t" value="'+esc(g.to||'')+'" placeholder="예: 원주"></div></div>'
     +'<div class="row" style="gap:8px"><div style="flex:1"><label class="fld">출발 시각</label><input class="input" type="time" id="sg'+i+'h" value="'+esc(g.time||'09:00')+'"></div>'
     +'<div style="flex:1"><label class="fld">도착 시각</label><input class="input" type="time" id="sg'+i+'a" value="'+esc(g.arr||'')+'"></div></div>'
-    +'<label class="fld">편명</label><input class="input" id="sg'+i+'n" value="'+esc(g.flight||'')+'" placeholder="예: LJ472">';
+    +'<label class="fld">편명·열차번호</label><input class="input" id="sg'+i+'n" value="'+esc(g.flight||'')+'" placeholder="예: LJ472 · KTX 101">';
   }
   h+='<label class="fld">예약번호</label><input class="input" id="sg'+i+'r" value="'+esc(g.resv||'')+'">'
   +'<div class="row" style="gap:8px"><div style="flex:1"><label class="fld">문의 전화</label>'
@@ -2017,7 +2036,7 @@ function buildForm(segs){
   for(var i=0;i<segs.length;i++){if(!segs[i].date)segs[i].date=d0;}
   var h='<div class="eyebrow">'+svg('i-check','ic')+' '+kindLabel(ocrKind)+' 정보를 확인·수정하세요</div>';
   h+='<div class="filters" style="padding-bottom:10px">'
-   +['flight','stay','rentcar'].map(function(k){return '<button class="fchip'+(ocrKind===k?' on':'')+'" onclick="switchKind(\''+k+'\')">'+kindLabel(k)+'</button>';}).join('')
+   +OCR_KINDS.map(function(k){return '<button class="fchip'+(ocrKind===k?' on':'')+'" onclick="switchKind(\''+k+'\')">'+kindLabel(k)+'</button>';}).join('')
    +'</div>';
   for(var k2=0;k2<segs.length;k2++)h+=segCard(k2,segs[k2]);
   /* '항목 추가'는 이용권 추가와 헷갈리므로, 무엇이 추가되는지 이름에 분명히 적습니다.
@@ -2146,10 +2165,20 @@ function saveOcr(){var t=trip(curTrip);if(!t)return;var segs=readForm(),plan=[],
         tel:g.tel||'',vouchers:cleanVouchers(g.vouchers),url:(cleanVouchers(g.vouchers)[0]||{}).url||'',by:ME.name,comments:[],map:!!g.from}});
       if(g.outDate)plan.push({di:dayIndexFor(t,g.outDate),resv:g.resv,obj:{_id:uid(),cat:'rentcar',time:g.outTime||'10:00',
         title:'렌터카 반납',place:g.to||g.from||'',sub:g.resv?('예약번호 '+g.resv):'',by:ME.name,comments:[],map:!!(g.to||g.from)}});
+    }else if(ocrKind==='ticket'||ocrKind==='etc'){
+      /* 입장권·공연·체험 / 식당·기타 — 한 장소에서 시작하는 일정 한 건 */
+      var spot=tidyTitle(g.from||(ocrKind==='ticket'?'입장권':'예약'),24), sloc=g.addr||g.from||'';
+      plan.push({di:di,resv:g.resv,obj:{_id:uid(),cat:kindToCat(ocrKind),
+        time:g.time||(ocrKind==='ticket'?'10:00':'12:00'),
+        title:spot,place:sloc,tel:g.tel||'',
+        vouchers:cleanVouchers(g.vouchers),url:(cleanVouchers(g.vouchers)[0]||{}).url||'',
+        sub:[g.flight?g.flight:'',g.resv?('예약번호 '+g.resv):'',g.arr?('~ '+g.arr+' 종료'):''].filter(Boolean).join(' · '),
+        by:ME.name,comments:[],map:!!sloc}});
     }else{
       plan.push({di:di,resv:g.resv,obj:{_id:uid(),cat:'transport',time:g.time||'09:00',
         title:(g.from||'출발')+' → '+(g.to||'도착')+(g.flight?' ('+g.flight+')':''),
-        place:(g.to?g.to+'공항':''),
+        /* 항공편일 때만 '공항'을 붙입니다 (기차·버스는 지명 그대로가 지도에서 더 잘 찾힘) */
+        place:(g.to?(/^[A-Z]{2}\s?\d{2,4}$/i.test((g.flight||'').trim())?g.to+'공항':g.to):''),
         sub:[g.resv?('예약번호 '+g.resv):'',g.arr?('도착 '+g.arr):''].filter(Boolean).join(' · '),
         tel:g.tel||'',vouchers:cleanVouchers(g.vouchers),url:(cleanVouchers(g.vouchers)[0]||{}).url||'',by:ME.name,comments:[],map:!!g.to}});
     }
@@ -2449,11 +2478,11 @@ function openAddChoice(dayIdx){
     <div style="height:10px"></div>
     <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();routeTo('paste')">
       <div class="tile" style="width:38px;height:38px;background:${CAT_BG.transport};color:var(--c-transport)">${svg('i-clip')}</div>
-      <div style="text-align:left"><b style="font-size:14.5px">예약 문자 붙여넣기</b><div class="muted small">항공·숙박·렌트카 문자를 자동 정리</div></div></button>
+      <div style="text-align:left"><b style="font-size:14.5px">예약 문자 붙여넣기</b><div class="muted small">항공·기차·숙박·렌트카·입장권·식당 예약까지 자동 정리</div></div></button>
     <div style="height:10px"></div>
     <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();openPhotoAdd(${dayIdx})">
       <div class="tile" style="width:38px;height:38px;background:${CAT_BG.ticket};color:var(--c-ticket)">${svg('i-camera')}</div>
-      <div style="text-align:left"><b style="font-size:14.5px">사진으로 추가 <span style="color:var(--brand)">NEW</span></b><div class="muted small">항공·숙박·렌트카 캡처를 올리면 자동 인식</div></div></button>`);}
+      <div style="text-align:left"><b style="font-size:14.5px">사진으로 추가 <span style="color:var(--brand)">NEW</span></b><div class="muted small">예약 확인 화면을 올리면 자동 인식</div></div></button>`);}
 /* 지금 보고 있는 범위(하루 또는 전체)의 분류별 건수 */
 function catCounts(t,all,di){
   const c={}; const ds = all ? (t.days||[]) : [(t.days||[])[di]].filter(Boolean);
@@ -2610,7 +2639,7 @@ const SMS=`[휘닉스 파크] 예약안내
 강원특별자치도 평창군 봉평면 태기로 174`;
 let parsed=null;
 function renderPaste(){parsed=null;
-  $('paste').innerHTML=`<p class="muted small" style="margin:6px 2px 12px">항공·숙박·렌트카 <b style="color:var(--ink)">확인 문자·메일</b>을 그대로 붙여넣으면, 필요한 항목만 골라 자동 정리합니다.</p>
+  $('paste').innerHTML=`<p class="muted small" style="margin:6px 2px 12px"><b style="color:var(--ink)">예약 확인 문자·메일</b>을 그대로 붙여넣으면 필요한 항목만 골라 자동 정리합니다.<br>항공·기차·버스·숙박·렌트카·입장권·공연·식당 예약 모두 됩니다.</p>
     <textarea class="input" id="pbox" placeholder="여기에 예약 확인 문자를 붙여넣으세요…"></textarea>
     <button class="btn brand" onclick="aiPaste()">${svg('i-spark','ic')} AI로 정리하기</button>
     <div style="height:10px"></div>
@@ -3306,26 +3335,35 @@ function watchTrips(uid){
 let _ai=null;
 function ai(){ if(!_ai) _ai=getAI(app,{backend:new GoogleAIBackend()}); return _ai; }
 const AI_MODELS=["gemini-3.6-flash","gemini-2.5-flash","gemini-2.0-flash"];
-const AI_PROMPT=`이 내용은 여행 예약 확인 정보(항공권/숙박/렌터카)입니다.
+const AI_PROMPT=`이 내용은 여행과 관련된 예약·확인 정보입니다.
 읽고 아래 JSON만 출력하세요. 설명·마크다운·코드블록 없이 JSON만.
 
-{"kind":"flight|stay|rentcar","items":[{
- "date":"YYYY-MM-DD (출발일/입실일/대여일)",
- "time":"HH:MM (24시간, 출발/체크인/대여 시각)",
+{"kind":"flight|stay|rentcar|ticket|etc","items":[{
+ "date":"YYYY-MM-DD (출발일/입실일/대여일/이용일)",
+ "time":"HH:MM (24시간, 출발/체크인/대여/입장 시각)",
  "endDate":"YYYY-MM-DD (도착일/퇴실일/반납일, 없으면 \"\")",
- "endTime":"HH:MM (도착/체크아웃/반납 시각, 없으면 \"\")",
- "from":"출발지 / 숙소명 / 대여지점 (한글)",
+ "endTime":"HH:MM (도착/체크아웃/반납/종료 시각, 없으면 \"\")",
+ "from":"출발지 / 숙소명 / 대여지점 / 시설·가게 이름 (한글)",
  "to":"도착지 / 반납지점 (없으면 \"\")",
- "code":"편명 또는 객실타입 또는 차종 (없으면 \"\")",
+ "code":"편명·열차번호 또는 객실타입 또는 차종 또는 권종·좌석 (없으면 \"\")",
  "resv":"예약번호 (없으면 \"\")",
  "addr":"주소 또는 만나는 장소. 도로명주소가 있으면 그것을 우선 (없으면 \"\")",
  "tel":"문의 전화번호. 여러 개면 쉼표로 (없으면 \"\")",
  "url":"모바일 이용권/예약확인 링크 (없으면 \"\")"}]}
 
+kind 고르는 법:
+- flight  : 항공·기차(KTX/SRT)·고속버스·배 등 이동 수단 예약
+- stay    : 호텔·펜션·리조트·게스트하우스 등 숙박
+- rentcar : 렌터카 대여
+- ticket  : 입장권·이용권·공연·전시·체험·티켓 (놀이공원, 박물관, 뮤지컬, 액티비티 등)
+- etc     : 위에 해당하지 않는 예약 (식당 예약, 미용실, 픽업 서비스 등)
+
 규칙:
-- 왕복 항공권이면 items에 2개(가는편·오는편)를 순서대로.
+- 왕복 항공권·왕복 기차표면 items에 2개(가는편·오는편)를 순서대로.
 - 공항코드(CJU 등)는 한글 지명(제주)으로 바꾸세요.
 - 숙박은 입실/퇴실 날짜·시각을 각각 date/endDate, time/endTime에 넣으세요.
+- ticket·etc 는 시설·가게 이름을 from 에, 위치를 addr 에 넣으세요.
+- 인원·매수가 적혀 있으면 code 에 함께 적으세요(예: "성인 2, 어린이 1").
 - 체크인 데스크나 프론트 위치가 있으면 addr에 함께 적으세요.
 - 화면/문장에 없는 값은 빈 문자열로 두고 절대 지어내지 마세요.`;
 
