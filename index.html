@@ -72,8 +72,9 @@
     --paper:#F7F4EE; --card:#FFFFFF; --line:#E7E0D4; --line-2:#D9D0C0;
     --brand:#D9552F; --brand-ink:#A63B18; --brand-bg:rgba(217,85,47,.10);
     --teal:#0E6E6D;
-    --c-transport:#2A6E9E; --c-stay:#6B4FD8; --c-rentcar:#0C8A7C;
-    --c-ticket:#B37613; --c-plan:#D9552F; --c-pack:#357A40;
+    /* 분류 색 — 칩 배경 위 작은 글자도 대비 4.5:1 을 넘도록 맞춘 값 (고령 사용자 가독성) */
+    --c-transport:#2A6E9E; --c-stay:#6B4FD8; --c-rentcar:#0B7B6E;
+    --c-ticket:#956210; --c-plan:#B84828; --c-pack:#34783F;
     /* 타입 스케일 (1.20 비율) */
     --t-cap:12.5px; --t-sm:13.5px; --t-body:15px; --t-lg:17px; --t-title:20px; --t-hero:24px;
     /* 간격 스케일 */
@@ -184,7 +185,9 @@
   .hero .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:30px;}
   .hero .badge{background:rgba(255,255,255,.18);backdrop-filter:blur(3px);padding:5px 11px;border-radius:999px;font-size:12px;font-weight:800;display:inline-flex;gap:6px;align-items:center;max-width:60%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
   /* 날짜는 여권 도장처럼 — 살짝 기울고 두 겹 테두리 */
+  /* 날짜 도장은 표지의 '해'처럼 밝은 부분 위에 올 수 있어, 어두운 바탕을 깔아 글자를 지킵니다 */
   .hero .now{font-size:12px;font-weight:800;color:#fff;letter-spacing:.02em;flex-shrink:0;
+    background:rgba(13,24,31,.34);backdrop-filter:blur(3px);
     border:1.5px solid rgba(255,255,255,.72);border-radius:7px;padding:4px 9px;
     box-shadow:inset 0 0 0 3px rgba(255,255,255,.16);transform:rotate(-2.5deg);font-variant-numeric:tabular-nums;}
   .hero .cap{font-size:13px;color:#F3E4D4;font-weight:800;letter-spacing:.01em;}
@@ -240,6 +243,9 @@
   .gaprow svg{width:14px;height:14px;stroke-width:2;}
   .gaprow:active{transform:scale(.985);}
   /* ── AI 추천 카드 ── */
+  /* 일정 카드 안의 이용권 열기 버튼 — 입장권 색으로 눈에 띄게 */
+  .vbtn-open{background:var(--c-ticket);color:#fff;}
+  html.dark .vbtn-open{color:#20130E;}
   /* ── 이용권·예약확인 입력 줄 (누구 것 + 링크) ── */
   .vrow{display:flex;gap:6px;align-items:center;margin-bottom:8px;}
   .vrow .vw{flex:0 0 34%;margin:0;}
@@ -340,7 +346,7 @@
   .planopt .pdi{display:flex;gap:9px;align-items:baseline;padding:2px 0;font-size:13px;}
   .planopt .pt{flex-shrink:0;font-weight:800;color:var(--ink-2);font-variant-numeric:tabular-nums;}
   .planopt .px{flex:1;min-width:0;color:var(--ink);}
-  .planopt .pkm{flex-shrink:0;font-size:11.5px;font-weight:700;color:var(--muted);
+  .planopt .pkm{flex-shrink:0;font-size:12px;font-weight:700;color:var(--muted);
     font-variant-numeric:tabular-nums;}
   .planopt .pw{color:#8A5D10;font-weight:800;}
   html.dark .planopt .pw{color:#E5AE4B;}
@@ -390,7 +396,7 @@
   .dseg{flex-shrink:0;display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;
     padding:8px 14px;border-radius:999px;font-size:13px;font-weight:800;color:var(--ink-2);
     transition:background .15s ease,color .15s ease;}
-  .dseg .w{font-size:11.5px;font-weight:700;opacity:.62;}
+  .dseg .w{font-size:12px;font-weight:700;opacity:.7;}
   .dseg.on{background:var(--ink);color:#fff;box-shadow:0 1px 3px rgba(18,33,46,.18);}
   .dseg.on .w{opacity:.72;}
   .dseg.all{position:relative;margin-right:5px;}
@@ -410,7 +416,7 @@
   .dayseg.more-l.more-r,.filterbar.more-l.more-r{
     -webkit-mask-image:linear-gradient(90deg,transparent,#000 28px,#000 calc(100% - 28px),transparent);
             mask-image:linear-gradient(90deg,transparent,#000 28px,#000 calc(100% - 28px),transparent);}
-  .fchip em{font-style:normal;font-weight:800;font-size:11.5px;opacity:.62;font-variant-numeric:tabular-nums;}
+  .fchip em{font-style:normal;font-weight:800;font-size:12px;opacity:.75;font-variant-numeric:tabular-nums;}
   .fchip.more{border-style:dashed;color:var(--muted);background:transparent;}
   /* 분류 시트의 한 줄 */
   .frow{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:var(--r);cursor:pointer;
@@ -675,7 +681,8 @@
   .tcard .tcv .cc .txt{flex:1;min-width:0;}
   .tcard .tcv .cc .avatars{flex-shrink:0;padding-bottom:2px;}
   .tcard .tcv .cc .avatars span{border-color:rgba(255,255,255,.85);}
-  .tcard .tt{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.005em;
+  /* display:block 이 있어야 말줄임(…)이 먹습니다 — <b> 는 기본이 inline 이라 긴 제목이 카드 밖으로 삐져나갔습니다 */
+  .tcard .tt{display:block;font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.005em;
     line-height:1.3;margin:0;text-shadow:0 1px 3px rgba(0,0,0,.38);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .tcard .tm{display:flex;align-items:center;gap:5px;margin-top:3px;
@@ -700,11 +707,11 @@
   .tcard .tf{position:relative;display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;}
   /* 분류 6종이 좁은 휴대폰(390px)에서도 한 줄에 들어가도록 여백을 줄였습니다 */
   .tchip{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;
-    font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums;}
+    font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;}
   .tchip svg{width:12px;height:12px;stroke-width:2.2;}
   .tchip.empty{background:transparent;color:var(--muted);border:1px dashed var(--line-2);font-weight:700;}
   /* 표지 위 도장은 카드 안에서 살짝 작게 */
-  .tcard .stamp{top:10px;right:11px;font-size:11.5px;padding:4px 9px;}
+  .tcard .stamp{top:10px;right:11px;font-size:12px;padding:4px 9px;}
 </style>
 </head>
 <body>
@@ -819,7 +826,8 @@ const CAT={
 const CAT_ORDER=["transport","stay","rentcar","ticket","plan","pack"];
 const CAT_BG={transport:"rgba(47,125,181,.12)",stay:"rgba(122,90,240,.12)",rentcar:"rgba(14,158,142,.12)",
   ticket:"rgba(201,135,23,.14)",plan:"rgba(226,96,59,.12)",pack:"rgba(63,138,74,.14)"};
-const AVCOL=["#E2603B","#0E7C7B","#7A5AF0","#D99A2B","#2F7DB5","#3F8A4A"];
+/* 흰 이니셜과 대비 4.5:1 이상이 되도록 조정한 색 */
+const AVCOL=["#C94B27","#0B6463","#6242C6","#9A6D1F","#255F8C","#2F6B37"];
 /* ============================================================================
    여행 표지(커버) — 여행지에 어울리는 손그림 풍경을 코드로 직접 그립니다.
    · 그림 파일을 내려받지 않으므로 인터넷이 끊겨도 표시되고, 저장 용량을 쓰지 않습니다.
@@ -1029,7 +1037,12 @@ async function doAuth(){
   $('authBtn').disabled=false;$('authBtn').textContent=(authTab==='signup'?'가입하고 시작하기':'로그인');
 }
 /* ---- 아바타(사진 또는 이니셜) ---- */
-function avatarStyle(m){return m&&m.photo?`background-image:url('${m.photo}')`:`background:${(m&&m.c)||AVCOL[0]}`;}
+/* 예전에 저장된 흐린 아바타 색은 흰 이니셜이 잘 안 보였습니다.
+   저장값을 고치지 않고, 화면에 그릴 때만 대비가 충분한 색으로 바꿔 줍니다. */
+const AV_FIX={"#E2603B":"#C94B27","#0E7C7B":"#0B6463","#7A5AF0":"#6242C6",
+              "#D99A2B":"#9A6D1F","#2F7DB5":"#255F8C","#3F8A4A":"#2F6B37"};
+function avatarColor(c){return AV_FIX[String(c||'').toUpperCase()]||c||AVCOL[0];}
+function avatarStyle(m){return m&&m.photo?`background-image:url('${m.photo}')`:`background:${avatarColor(m&&m.c)}`;}
 function avatarSpan(m){return `<span style="${avatarStyle(m)}">${m&&m.photo?'':esc(m?m.n:'?')}</span>`;}
 
 function setTheme(t){window.applyTheme(t,true);window.__theme=t;markTheme();toast(t==='light'?'밝은 화면으로 바꿨어요':(t==='dark'?'어두운 화면으로 바꿨어요':'휴대폰 설정을 따릅니다'));}
@@ -1399,6 +1412,8 @@ function timelineNode(i,dayIdx,dateStr,nextId){const c=CAT[i.cat];const cc=(i.co
     <div class="box"><b>${esc(i.title)}</b>
       <div class="sub">${svg('i-pin')} ${esc(i.place||'-')}${i.sub?' · '+esc(i.sub):''}</div>
       ${i.map?mapThumb(i.place):''}
+      ${/* 이용권·입장권은 가장 먼저 눈에 띄어야 합니다 — 메뉴 속이 아니라 카드에 바로 둡니다 */''}
+      ${voucherButton(i)}
       ${i.qr?`<button class="btn ghost sm" style="margin-top:10px" onclick="openQR('${esc(i.title)}')">${svg('i-ticket','ic')} 입장권 QR 열기</button>`:''}
       ${canHavePhotos(i.cat)?itemPhotoStrip(i):''}
       <div class="cbar">${i.by?`<span class="by">${svg('i-users')} ${esc(i.by)}</span>`:''}
@@ -1507,6 +1522,29 @@ function telLinks(it){
     var num=parts[i].replace(/[^0-9+]/g,''); if(num.length<4)continue;
     out+='<button class="btn ghost" onclick="location.href=\'tel:'+num+'\'">'+svg('i-users','ic')+' '+esc(parts[i])+' 전화</button><div style="height:10px"></div>';}
   return out;}
+/* 일정 카드에 바로 붙는 이용권 버튼.
+   입장권·이용권은 그 일정의 핵심 정보라, 분류와 상관없이 있으면 항상 크게 보여 줍니다. */
+function voucherButton(i){
+  var vs=itemVouchers(i); if(!vs.length)return '';
+  var one=vs.length===1;
+  var label=one?(vs[0].who?esc(vs[0].who)+' 이용권 열기':'이용권·예약확인 열기')
+               :('이용권 '+vs.length+'개 열기');
+  return '<button class="btn sm vbtn-open" style="margin-top:10px" onclick="openVouchers(\''+i._id+'\')">'
+    +svg('i-ticket','ic')+' '+label+(one?svg('i-ext','ic'):'')+'</button>';
+}
+/* 이용권이 하나면 바로 열고, 여러 개면 누구 것인지 골라 열게 합니다 */
+function openVouchers(id){
+  var f=itemById(id); if(!f)return;
+  var vs=itemVouchers(f.it);
+  if(!vs.length)return;
+  if(vs.length===1){ openExt(vs[0].url); return; }
+  openSheet('<div class="grab"></div><h3>'+esc(f.it.title)+'</h3>'
+    +'<p class="muted small" style="margin:-8px 0 14px">이용권·예약확인이 <b style="color:var(--ink)">'+vs.length+'개</b> 있어요. 누구 것을 여실 건가요?</p>'
+    +vs.map(function(v){
+      return '<button class="btn brand" onclick="openExt(\''+esc(v.url)+'\')">'+svg('i-ticket','ic')+' '
+        +(v.who?esc(v.who)+' 이용권':'이용권·예약확인')+svg('i-ext','ic')+'</button><div style="height:10px"></div>';
+    }).join(''));
+}
 /* 저장된 일정에서 이용권 목록 꺼내기 (예전에 저장된 링크 1개짜리도 함께 처리) */
 function itemVouchers(it){
   if(it&&Array.isArray(it.vouchers)&&it.vouchers.length)
@@ -1545,6 +1583,8 @@ function openItemMenu(id){const f=itemById(id);if(!f)return;const it=f.it;const 
 /* 여행 메뉴 (상단 ⋯) */
 function openTripMenu(){const t=trip(curTrip);if(!t)return;
   openSheet(`<div class="grab"></div><h3>여행 관리</h3>
+    <button class="btn ghost" onclick="openPlanWizard()">${svg('i-spark','ic')} AI로 일정 짜기</button>
+    <div style="height:10px"></div>
     <button class="btn ghost" onclick="closeOv();openShare()">${svg('i-share','ic')} 멤버 초대</button>
     <div style="height:10px"></div>
     ${t.hasStudent?`<button class="btn ghost" onclick="openReportPicker()">${svg('i-file','ic')} 체험학습 보고서 만들기</button>
@@ -1671,9 +1711,14 @@ function renderDetail(){
           <button class="vbtn ${mine?'on':''}" onclick="vote(${idx})">${svg('i-vote')} ${mine?'투표함':'투표'}</button>
           <button class="ibtn" style="width:34px;height:34px;flex-shrink:0" aria-label="후보 삭제" onclick="askDelProp(${idx})">${svg('i-trash','ic')}</button></div>`;}).join('')+
       `<div class="center"><button class="lnk" onclick="openPropose()">＋ 후보 장소 제안하기</button></div>`;
-  }else{voteBlock=`<div class="eyebrow">${svg('i-vote','ic')} 함께 정할 후보</div>
-    <div class="card center" style="padding:18px"><p class="muted small" style="margin:0 0 4px">가고 싶은 후보를 올려 멤버 투표로 정해보세요.</p>
-    <button class="lnk" onclick="openPropose()">＋ 후보 장소 제안하기</button></div>`;}
+  }else{
+    /* 혼자 여행이면 '멤버 투표'를 권할 수 없습니다 — 고민되는 곳을 적어 두는 용도로 안내를 바꿉니다 */
+    const alone=((t.members||[]).length<=1);
+    voteBlock=`<div class="eyebrow">${svg('i-vote','ic')} ${alone?'고민 중인 곳':'함께 정할 후보'}</div>
+    <div class="card center" style="padding:18px"><p class="muted small" style="margin:0 0 4px">${
+      alone?'갈지 말지 고민되는 곳을 적어 두고 천천히 정해 보세요.'
+           :'가고 싶은 후보를 올려 멤버 투표로 정해보세요.'}</p>
+    <button class="lnk" onclick="openPropose()">＋ ${alone?'고민되는 곳 적어두기':'후보 장소 제안하기'}</button></div>`;}
   let packBlock='';
   if((curFilter==='all'||curFilter==='pack')&&(t.pack||[]).length){
     packBlock=`<div class="eyebrow">${svg('i-bag','ic')} 준비물 <span style="text-transform:none;font-weight:700;color:var(--muted)">· 날짜와 무관</span></div>
@@ -2204,15 +2249,32 @@ function saveOcr(){var t=trip(curTrip);if(!t)return;var segs=readForm(),plan=[],
    기능 ① 항공·숙박만 있는 여행에, 질문 몇 개로 일정 2안 만들기
    ============================================================================ */
 /* 항공·숙소는 넣었는데 정작 '무엇을 할지'는 아직 안 정한 여행인가? */
+/* 일정 짜기 제안 카드를 띄울지 — 끝난 여행만 빼고, 아직 비는 시간이 있으면 계속 제안합니다.
+   (예전에는 일정이 2건만 넘으면 카드가 사라져 '기능이 없어진 것처럼' 보였습니다) */
 function needsPlanHelp(t){
   if(!t||!t.days||!t.days.length)return false;
   const n=new Date(), today=new Date(n.getFullYear(),n.getMonth(),n.getDate());
   if(dObj(t.end)<today)return false;                       // 이미 끝난 여행
-  let anchor=0,plans=0;
-  t.days.forEach(d=>(d.items||[]).forEach(i=>{
-    if(i.cat==='transport'||i.cat==='stay')anchor++;
-    if(i.cat==='plan'||i.cat==='ticket')plans++;}));
-  return anchor>=1&&plans<2;
+  return (t.days||[]).some(d=>freeWindows(d).length>0);    // 채울 빈 시간이 하나라도 있으면
+}
+/* 하루에서 '비어 있는 시간대'를 찾습니다. 앞뒤 일정을 함께 돌려주어 이동 거리를 따질 수 있게 합니다. */
+const PLAN_DAY_START='09:00', PLAN_DAY_END='21:00';
+function freeWindows(d){
+  if(!d)return [];
+  const items=(d.items||[]).slice().sort((a,b)=>a.time.localeCompare(b.time));
+  const out=[];
+  if(!items.length){out.push({from:PLAN_DAY_START,to:PLAN_DAY_END,after:null,before:null,mins:720});return out;}
+  const gap=(a,b)=>Math.round((dObj(d.date,b)-dObj(d.date,a))/60000);
+  if(items[0].time>PLAN_DAY_START&&gap(PLAN_DAY_START,items[0].time)>=GAP_MIN)
+    out.push({from:PLAN_DAY_START,to:items[0].time,after:null,before:items[0],mins:gap(PLAN_DAY_START,items[0].time)});
+  for(let i=0;i<items.length-1;i++){
+    const m=gap(items[i].time,items[i+1].time);
+    if(m>=GAP_MIN)out.push({from:items[i].time,to:items[i+1].time,after:items[i],before:items[i+1],mins:m});
+  }
+  const last=items[items.length-1];
+  if(last.time<PLAN_DAY_END&&gap(last.time,PLAN_DAY_END)>=GAP_MIN)
+    out.push({from:last.time,to:PLAN_DAY_END,after:last,before:null,mins:gap(last.time,PLAN_DAY_END)});
+  return out;
 }
 const PLAN_Q=[
   {k:'pace',  label:'여행 속도',   opts:[['여유','여유롭게 · 하루 2~3곳'],['알차게','알차게 · 하루 4~5곳']]},
@@ -2249,12 +2311,19 @@ function openPlanWizard(){
 function pickPlanOpt(k,v,el){planAns[k]=v;
   const row=el.parentElement;[...row.children].forEach(c=>c.classList.remove('on'));el.classList.add('on');}
 /* 이미 등록된 일정(도착·체크인 등)을 AI에게 알려 줘야 그 사이를 채울 수 있습니다 */
-function planContext(t){
+function planContext(t,onlyIdx){
   return (t.days||[]).map((d,i)=>{
+    if(onlyIdx!=null&&i!==onlyIdx)return null;
     const its=(d.items||[]).slice().sort((a,b)=>a.time.localeCompare(b.time));
-    return `DAY${i+1} ${d.date}(${dowOf(d.date)}): `+
+    const line=`DAY${i+1} ${d.date}(${dowOf(d.date)}): `+
       (its.length?its.map(x=>`${x.time} ${CAT[x.cat].name} ${x.title}${x.place?'@'+x.place:''}`).join(' / '):'비어 있음');
-  }).join('\n');
+    /* 어디가 비었고, 그 앞뒤가 어디인지 알려 줘야 이동 거리를 따져 채울 수 있습니다 */
+    const fw=freeWindows(d).map(w=>{
+      const a=w.after?`${w.after.title}${w.after.place?'@'+w.after.place:''}`:'하루 시작';
+      const b=w.before?`${w.before.title}${w.before.place?'@'+w.before.place:''}`:'하루 끝';
+      return `    · ${w.from}~${w.to} (${w.mins}분) — 직전: ${a} / 다음: ${b}`;}).join('\n');
+    return line+(fw?`\n  [비어 있는 시간]\n${fw}`:'\n  [비어 있는 시간] 없음');
+  }).filter(Boolean).join('\n');
 }
 async function runPlanAI(){
   const t=trip(curTrip); if(!t)return;
@@ -2281,12 +2350,16 @@ async function runPlanAI(){
 [짜야 할 범위]
 ${dayScope}
 
-[이미 정해진 일정 — 절대 바꾸지 말고, 이 사이를 채워라]
-${planContext(t)}
+[이미 정해진 일정과 비어 있는 시간 — 정해진 일정은 절대 바꾸지 말고, 비어 있는 시간만 채워라]
+${planContext(t,onlyDay?parseInt(planAns.day):null)}
 
 [반드시 지킬 것]
+- ★ 위 [비어 있는 시간]에만 넣어라. 이미 일정이 있는 시간대에는 겹치게 넣지 마라.
+- ★ 각 빈 시간의 <직전>·<다음> 일정 장소를 보고, **그 사이를 오갈 수 있는 곳**만 골라라.
+  직전 장소에서 가고, 다음 일정 시각까지 돌아올 수 있어야 한다. 이동 시간을 빼고 계산하라.
 - ★ 모든 장소는 ${base?`"${base}"`:'숙소'} 에서 직선거리 ${km}km 안이어야 한다. 넘으면 넣지 마라.
 - ★ ${onlyDay?`오직 ${onlyDay.date} 하루치만 만들어라. 다른 날짜는 넣지 마라.`:'위 DAY 목록에 있는 날짜만 쓴다.'}
+- 빈 시간이 짧으면(2~3시간) 한 곳만, 길면 두세 곳을 넣어라.
 - 이미 정해진 항공 도착 시각 전, 출발 시각 후에는 아무것도 넣지 마라.
 - 숙소 체크인·체크아웃 시각과 부딪히지 않게 하라.
 - 하루 안에서 장소들이 서로 가깝게, 이동이 최소가 되도록 묶어라.
