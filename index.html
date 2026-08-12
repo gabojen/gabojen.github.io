@@ -479,6 +479,15 @@
   .sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px;}
   .sheet h3{font-family:var(--font-display);font-size:19px;margin:0 0 14px;font-weight:700;letter-spacing:-.005em;}
   .code{font-family:ui-monospace,Menlo,monospace;font-size:16px;font-weight:800;letter-spacing:.08em;color:var(--brand-ink);background:rgba(226,96,59,.1);padding:10px 14px;border-radius:12px;display:inline-block;}
+  /* ── 확대했을 때만 뜨는 '원래 크기로' 버튼 ──
+     확대 중에는 position:fixed 가 보이는 화면 기준이 아니어서 화면 밖으로 밀려납니다.
+     그래서 위치를 보이는 영역(visualViewport) 기준으로 코드에서 잡아 줍니다. */
+  .zoomreset{position:fixed;left:12px;top:12px;z-index:130;display:none;align-items:center;gap:6px;
+    padding:10px 15px;border-radius:999px;border:none;cursor:pointer;
+    background:var(--ink);color:#fff;font-family:inherit;font-size:13px;font-weight:800;
+    box-shadow:var(--shadow-lg);transform-origin:top left;white-space:nowrap;}
+  .zoomreset.on{display:inline-flex;}
+  .zoomreset:active{opacity:.85;}
   .toast{position:absolute;left:20px;right:20px;bottom:92px;background:var(--ink);color:#fff;padding:13px 15px;border-radius:14px;font-size:13.5px;text-align:center;opacity:0;transform:translateY(8px);transition:.28s;pointer-events:none;box-shadow:var(--shadow-lg);z-index:80;}
   .toast.show{opacity:1;transform:none;}
   .splash{position:absolute;inset:0;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:90;}
@@ -789,6 +798,8 @@
   </div>
 
   <div class="ov" id="ov"><div id="ovc"></div></div>
+  <!-- 화면을 확대했을 때만 나타나는 되돌리기 버튼 (평소에는 숨어 있습니다) -->
+  <button class="zoomreset" id="zoomReset" onclick="resetZoom()">화면 원래 크기로</button>
   <div class="toast" id="toast"></div>
   <div class="splash" id="splash"><div class="spin"></div><div class="muted small" id="splashMsg">연결 중…</div></div>
 </div>
@@ -960,6 +971,7 @@ function brandCover(){return coverArt({id:'gabojen',title:'',place:'바다',star
 function paintStaticCovers(){
   const el=$('loginCover');
   if(el&&!el.dataset.painted){el.style.backgroundImage=brandCover();el.dataset.painted='1';}
+  if(!window.__zoomReady){window.__zoomReady=1;setupZoomReset();}
 }
 
 let TRIPS=[];               // Firestore에서 실시간으로 받아오는 내 여행들
@@ -3198,6 +3210,36 @@ function qrSvg(){let cells='';const seed=[1,0,1,1,0,1,0,1,1,0,0,1,0,1,1,0,1,0,1,
     <rect x="104" y="2" width="40" height="40" rx="8" fill="#fff" stroke="#12212E" stroke-width="6"/>
     <rect x="2" y="104" width="40" height="40" rx="8" fill="#fff" stroke="#12212E" stroke-width="6"/>
     <rect x="12" y="12" width="20" height="20" rx="3" fill="#12212E"/><rect x="114" y="12" width="20" height="20" rx="3" fill="#12212E"/><rect x="12" y="114" width="20" height="20" rx="3" fill="#12212E"/></svg>`;}
+/* ============================================================================
+   화면 확대 되돌리기
+   · 핀치 확대는 저시력 사용자를 위해 그대로 둡니다(v4.2 결정).
+   · 다만 한번 확대되면 되돌리기 어려워, 확대 중일 때만 버튼을 띄웁니다.
+   ============================================================================ */
+function resetZoom(){
+  var m=document.querySelector('meta[name=viewport]'); if(!m)return;
+  var orig=m.getAttribute('content');
+  /* 잠깐 '확대 금지'로 바꿨다 되돌리면 브라우저가 배율을 1로 되돌립니다 */
+  m.setAttribute('content','width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+  setTimeout(function(){ m.setAttribute('content',orig); },400);
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+function setupZoomReset(){
+  var vv=window.visualViewport, btn=document.getElementById('zoomReset');
+  if(!vv||!btn)return;                       // 지원 안 하는 브라우저면 버튼을 아예 안 씁니다
+  function upd(){
+    var zoomed=vv.scale>1.02;
+    btn.classList.toggle('on',zoomed);
+    if(zoomed){
+      /* 보이는 영역의 '아래쪽 가운데'에 놓습니다.
+         (위쪽은 뒤로가기·제목과 겹칩니다) 확대배율만큼 줄여 글자 크기는 그대로 보이게 합니다. */
+      var s=vv.scale, w=btn.offsetWidth||150, h=btn.offsetHeight||40;
+      btn.style.left=(vv.offsetLeft+vv.width/2-(w/s)/2)+'px';
+      btn.style.top =(vv.offsetTop +vv.height-(h/s)-(16/s))+'px';
+      btn.style.transform='scale('+(1/s)+')';
+    }
+  }
+  vv.addEventListener('resize',upd); vv.addEventListener('scroll',upd); upd();
+}
 let tt;function toast(m){const e=$('toast');e.textContent=m;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),1900);}
 
 /* ---- Firebase가 호출하는 콜백들 ---- */
