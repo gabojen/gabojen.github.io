@@ -130,6 +130,14 @@
   .cvhead .brandmark{box-shadow:0 10px 22px rgba(0,0,0,.28);}
   /* 표지 아래 남는 공간의 한가운데에 입력칸을 둡니다 (화면이 길어도 허전하지 않게) */
   .loginbody{flex:1;display:flex;flex-direction:column;justify-content:center;padding-bottom:12px;}
+  /* ── 키보드가 올라왔을 때: 표지를 접어 입력칸에 자리를 내줍니다 ── */
+  /* 글자는 접고 표지 그림만 얇은 띠로 남깁니다 (글자를 줄이면 잘려 보입니다) */
+  body.kb-up .cvhead{padding:0;height:54px;flex-shrink:0;margin-bottom:16px;}
+  body.kb-up .cvhead .brandmark,
+  body.kb-up .cvhead .wordmark,
+  body.kb-up .cvhead .tagline,
+  body.kb-up .cvhead .sub{display:none;}
+  body.kb-up .loginbody{justify-content:flex-start;padding-top:2px;}
   @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
   .screen::-webkit-scrollbar{width:0;}
   .nav{display:flex;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:8px 12px;}
@@ -149,6 +157,8 @@
   .input,select.input{width:100%;padding:14px;border:1px solid var(--line);border-radius:var(--r);font-size:var(--t-body);margin-bottom:10px;
     font-family:inherit;background:#fff;color:var(--ink);}
   .input:focus{outline:2px solid rgba(226,96,59,.35);border-color:var(--brand);}
+  /* 키보드가 올라와 입력칸을 화면 가운데로 옮길 때, 가장자리에 딱 붙지 않도록 여유를 둡니다 */
+  .input,textarea.input,select.input{scroll-margin:96px 0;}
   textarea.input{resize:vertical;min-height:120px;line-height:1.6;}
   label.fld{display:block;font-size:12.5px;font-weight:800;color:var(--ink-2);margin:2px 2px 6px;}
   /* 섹션 제목 — 공책의 괘선처럼 제목 뒤로 점선이 이어집니다.
@@ -255,10 +265,13 @@
   .vrow .vdel svg{width:16px;height:16px;stroke-width:2;}
   .vrow .vdel:active{transform:scale(.94);}
   /* ── 일정에 붙인 사진 ── */
-  .iphotos{display:flex;gap:6px;margin-top:10px;}
-  .iphotos .ip{flex:1;min-width:0;aspect-ratio:1/1;border-radius:10px;background-size:cover;
-    background-position:center;cursor:pointer;border:1px solid var(--line);max-width:78px;}
+  .iphotos{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .iphotos .ip{position:relative;flex:0 0 auto;width:78px;aspect-ratio:1/1;border-radius:10px;background-size:cover;
+    background-position:center;cursor:pointer;border:1px solid var(--line);max-width:78px;overflow:hidden;}
   .iphotos .ip:active{transform:scale(.96);}
+  .iphotos .ip .who{position:absolute;left:0;right:0;bottom:0;padding:2px 4px;
+    background:linear-gradient(transparent,rgba(0,0,0,.62));color:#fff;font-size:10px;font-weight:700;
+    text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .iphotos .ip.more{display:flex;align-items:center;justify-content:center;background:var(--paper);
     border:1px dashed var(--line-2);color:var(--muted);}
   .iphotos .ip.more svg{width:18px;height:18px;stroke-width:2;}
@@ -441,6 +454,9 @@
   .album .grain{position:absolute;inset:0;background-image:var(--grain);background-size:150px 150px;opacity:.13;mix-blend-mode:overlay;}
   .album .cap{position:absolute;left:12px;right:12px;bottom:11px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.4);}
   .album .cap b{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:-.005em;}
+  .album .who{position:absolute;left:0;right:0;bottom:0;padding:12px 8px 5px;color:#fff;font-size:11px;
+    font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    background:linear-gradient(transparent,rgba(0,0,0,.6));}
   .album .yr{position:absolute;top:10px;left:12px;color:#fff;font-size:12px;font-weight:800;
     font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.4);
     border:1.4px solid rgba(255,255,255,.7);border-radius:6px;padding:2px 7px;transform:rotate(-3deg);}
@@ -979,7 +995,7 @@ function brandCover(){return coverArt({id:'gabojen',title:'',place:'바다',star
 function paintStaticCovers(){
   const el=$('loginCover');
   if(el&&!el.dataset.painted){el.style.backgroundImage=brandCover();el.dataset.painted='1';}
-  if(!window.__zoomReady){window.__zoomReady=1;setupZoomReset();}
+  if(!window.__zoomReady){window.__zoomReady=1;setupZoomReset();setupKeyboardFix();}
 }
 
 let TRIPS=[];               // Firestore에서 실시간으로 받아오는 내 여행들
@@ -1427,15 +1443,17 @@ function timelineNode(i,dayIdx,dateStr,nextId){const c=CAT[i.cat];const cc=(i.co
    여행이 끝나면 [추억] 화면에 날짜·장소와 함께 그대로 모입니다.
    ============================================================================ */
 function itemPhotoStrip(i){
-  const ph=i.photos||[];
+  const ph=photoList(i), mine=myPhotoCount(i), room=ITEM_PHOTO_PER_PERSON-mine;
+  const addBtn=`<input type="file" id="ip_${i._id}" accept="image/*" multiple style="display:none" onchange="addItemPhotos(event,'${i._id}')">`;
   if(!ph.length)
-    return `<label class="addphoto" for="ip_${i._id}">${svg('i-camera')} 사진 남기기
-      <input type="file" id="ip_${i._id}" accept="image/*" multiple style="display:none" onchange="addItemPhotos(event,'${i._id}')"></label>`;
+    return `<label class="addphoto" for="ip_${i._id}">${svg('i-camera')} 사진 남기기 <em>· 1인 ${ITEM_PHOTO_PER_PERSON}장</em>${addBtn}</label>`;
   return `<div class="iphotos">
-    ${ph.map((p,k)=>`<div class="ip" style="background-image:url('${p}')" onclick="openItemPhoto('${i._id}',${k})"></div>`).join('')}
-    ${ph.length<ITEM_PHOTO_MAX?`<label class="ip more" for="ip_${i._id}">${svg('i-plus')}
-      <input type="file" id="ip_${i._id}" accept="image/*" multiple style="display:none" onchange="addItemPhotos(event,'${i._id}')"></label>`:''}
-  </div>`;
+    ${ph.map((p,k)=>{const w=photoWho(p);return `<div class="ip" style="background-image:url('${p.u}')" onclick="openItemPhoto('${i._id}',${k})"
+        ${w?`title="${esc(w)} 올림"`:''}>${w?`<span class="who">${esc(w)}</span>`:''}</div>`;}).join('')}
+    ${room>0?`<label class="ip more" for="ip_${i._id}">${svg('i-plus')}${addBtn}</label>`:''}
+  </div>
+  <div class="muted small" style="margin-top:6px">사진 ${ph.length}장 · 내가 올린 ${mine}/${ITEM_PHOTO_PER_PERSON}장${
+    room>0?'':' <b>(다 채웠어요)</b>'}</div>`;
 }
 async function addItemPhotos(ev,id){
   const t=trip(curTrip), f=itemById(id);
@@ -1443,14 +1461,15 @@ async function addItemPhotos(ev,id){
   ev.target.value='';
   if(!t||!f)return;
   const it=f.it; it.photos=it.photos||[];
-  const room=ITEM_PHOTO_MAX-it.photos.length;
-  if(room<=0){toast(`한 일정에 사진은 ${ITEM_PHOTO_MAX}장까지예요.`);return;}
+  /* 한 사람이 올릴 수 있는 장수로 셉니다 (남이 올린 사진은 내 몫을 깎지 않습니다) */
+  const room=ITEM_PHOTO_PER_PERSON-myPhotoCount(it);
+  if(room<=0){toast(`이 일정에는 한 사람당 ${ITEM_PHOTO_PER_PERSON}장까지 올릴 수 있어요.`);return;}
   let added=0, full=false;
   for(const file of files.slice(0,room)){
     let url;
     try{ url=await shrinkPhoto(file,ITEM_PHOTO_PX,ITEM_PHOTO_Q); }
     catch(e){ toast('열 수 없는 사진이 있어 건너뛰었어요.'); continue; }
-    it.photos.push(url);
+    it.photos.push({u:url,by:ME.name,uid:ME.uid});
     /* 한도를 넘으면 방금 넣은 것만 되돌립니다 — 넘긴 채 저장하면 이 여행 전체가 저장 불가 */
     if(docSize(t)>DOC_SAFE){ it.photos.pop(); full=true; break; }
     added++;
@@ -1466,15 +1485,21 @@ async function addItemPhotos(ev,id){
     : (added?`사진 ${added}장을 남겼어요`:'올린 사진이 없어요'));
 }
 function openItemPhoto(id,k){
-  const f=itemById(id); if(!f||!f.it.photos||!f.it.photos[k])return;
+  const f=itemById(id); if(!f)return;
+  const p=photoList(f.it)[k]; if(!p)return;
+  /* 여럿이 같이 보는 사진이라, 남이 올린 것은 지우지 못하게 합니다 */
+  const mine=canDeletePhoto(p);
   openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px">
       <b style="text-align:left;flex:1;min-width:0">${esc(f.it.title)}</b>
       <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
-    <img src="${f.it.photos[k]}" style="width:100%;border-radius:14px">
+    <img src="${p.u}" style="width:100%;border-radius:14px">
     <div class="muted small" style="margin-top:8px">${mdLabel(f.d.date)}(${dowOf(f.d.date)}) ${esc(f.it.time)}${f.it.place?' · '+esc(f.it.place):''}</div>
-    <button class="btn ghost sm" style="margin-top:10px;color:#B23B3B" onclick="delItemPhoto('${id}',${k})">${svg('i-trash','ic')} 이 사진 삭제</button>`);}
+    ${p.by?`<div class="muted small" style="margin-top:3px">${svg('i-users')} ${canDeletePhoto(p)?'내가':esc(p.by)+' 님이'} 올린 사진</div>`:''}
+    ${mine?`<button class="btn ghost sm" style="margin-top:10px;color:#B23B3B" onclick="delItemPhoto('${id}',${k})">${svg('i-trash','ic')} 이 사진 삭제</button>`
+          :`<p class="muted small" style="margin:10px 0 0">다른 사람이 올린 사진은 지울 수 없어요.</p>`}`);}
 function delItemPhoto(id,k){
   const t=trip(curTrip), f=itemById(id); if(!t||!f||!f.it.photos)return;
+  const p=photoList(f.it)[k]; if(!p||!canDeletePhoto(p)){toast('내가 올린 사진만 지울 수 있어요.');return;}
   f.it.photos.splice(k,1); closeOv(); toast('삭제했어요'); rerender(); save();}
 
 /* 일정 항목 메뉴 — 수정·삭제·보고서를 한 곳에 모아 화면을 단순하게 */
@@ -2896,13 +2921,24 @@ function renderHistory(){
    [중요] '어느 지난 여행의 사진인가'는 반드시 memTrip() 한 곳에서만 정합니다.
    예전에는 화면(정렬함)과 저장(정렬 안 함)이 서로 다른 여행을 가리켜,
    지난 여행이 2개 이상이면 엉뚱한 여행에 사진이 저장·삭제되는 문제가 있었습니다. */
-const PHOTO_MAX=6;                      // 추억 사진: 여행당 최대 장수
+const PHOTO_PER_PERSON=2;               // 추억 사진: 한 사람이 올릴 수 있는 장수(초대한 사람들과 같이 보임)
 const DOC_SAFE=800*1024;                // 여행 1건의 안전 저장 한도 (Firestore 문서 1MB의 80%)
 /* ── 일정 항목 사진 ──
-   교통편·렌트카는 남길 사진이 없으므로 제외하고, 나머지 항목에 최대 3장까지.
-   항목 사진은 개수가 많아질 수 있어 추억 사진(700px)보다 더 작게 줄여 저장합니다. */
-const ITEM_PHOTO_MAX=3;
+   · 사진은 여행 데이터에 함께 저장되므로 초대된 멤버 모두가 봅니다.
+   · 그래서 '한 일정에 몇 장'이 아니라 **한 사람이 몇 장**으로 제한합니다.
+     (4명이면 한 일정에 최대 8장까지 모입니다)
+   · 교통편·렌트카는 남길 사진이 없으므로 제외합니다. */
+const ITEM_PHOTO_PER_PERSON=2;          // 한 일정에 내가 올릴 수 있는 장수
 const ITEM_PHOTO_PX=480, ITEM_PHOTO_Q=0.62;
+/* 예전에는 사진을 '주소 문자열'만 저장해 누가 올렸는지 알 수 없었습니다.
+   이제 {u:사진, by:이름, uid:누구} 로 저장하고, 예전 자료도 함께 읽습니다. */
+function photoList(o){
+  return ((o&&o.photos)||[]).map(p=> (typeof p==='string')?{u:p,by:'',uid:''}:{u:p.u||'',by:p.by||'',uid:p.uid||''});
+}
+function myPhotoCount(o){return photoList(o).filter(p=>p.uid&&p.uid===ME.uid).length;}
+/* 내가 지울 수 있는 사진인가 — 내 사진이거나, 올린 사람을 알 수 없는 예전 사진 */
+function photoWho(p){return (p&&p.uid&&p.uid===ME.uid)?'나':((p&&p.by)||'');}   // 내 사진은 '나'로 표시
+function canDeletePhoto(p){return !p.uid||p.uid===ME.uid;}
 const NO_PHOTO_CATS=['transport','rentcar'];
 function canHavePhotos(cat){return NO_PHOTO_CATS.indexOf(cat)<0;}
 /* 이 여행이 저장 한도를 몇 % 쓰고 있는지 */
@@ -2911,7 +2947,7 @@ function usagePct(t){return t?Math.min(100,Math.round(docSize(t)/DOC_SAFE*100)):
 function allItemPhotos(t){
   const out=[];
   (t&&t.days||[]).forEach((d,di)=>(d.items||[]).forEach(it=>{
-    (it.photos||[]).forEach((p,pi)=>out.push({url:p,date:d.date,di,title:it.title,place:it.place||'',id:it._id,pi}));
+    photoList(it).forEach((p,pi)=>out.push({url:p.u,by:p.by,uid:p.uid,date:d.date,di,title:it.title,place:it.place||'',id:it._id,pi}));
   }));
   return out;
 }
@@ -2945,7 +2981,7 @@ function shrinkPhoto(file,maxPx,q){return new Promise(function(res,rej){
 function photoBlock(){
   const t=memTrip();
   const done=doneTrips();
-  const ph=(t&&t.photos)||[];
+  const ph=photoList(t), myPh=myPhotoCount(t);
   /* 지난 여행이 2개 이상이면 어느 여행의 사진인지 직접 고르게 (엉뚱한 저장 방지) */
   const picker=done.length>1
     ? `<label class="fld">사진을 볼·올릴 여행</label>
@@ -2954,7 +2990,8 @@ function photoBlock(){
        </select>` : '';
   let g='';
   for(let i=0;i<ph.length;i++)
-    g+=`<div class="album" style="height:110px;background:url('${ph[i]}') center/cover" onclick="openPhotoView(${i})"></div>`;
+    g+=`<div class="album" style="height:110px;background:url('${ph[i].u}') center/cover" onclick="openPhotoView(${i})">${
+        photoWho(ph[i])?`<span class="who">${esc(photoWho(ph[i]))}</span>`:''}</div>`;
   const usage=usagePct(t);
   /* 여행 중에 일정마다 붙여 둔 사진을 날짜별로 모아 보여 줍니다 */
   const trail=allItemPhotos(t);
@@ -2967,41 +3004,46 @@ function photoBlock(){
           <div class="mdh">${svg('i-pin')} DAY ${byDate[d][0].di+1} · ${mdLabel(d)}(${dowOf(d)})</div>
           <div class="mgrid">${byDate[d].map(x=>
             `<div class="mp" style="background-image:url('${x.url}')" onclick="openTrailPhoto('${esc(x.id)}',${x.pi})">
-               <div class="cap">${esc(tidyTitle(x.title,14))}</div></div>`).join('')}</div>
+               <div class="cap">${esc(tidyTitle(x.title,x.by?9:14))}${x.by?' · '+esc(photoWho(x)||x.by):''}</div></div>`).join('')}</div>
         </div>`).join('');
   }
   return `${picker}<div class="grid">${g}</div>${ph.length?'<div style="height:10px"></div>':''}
     <label class="btn ghost sm" style="cursor:pointer" for="memFile">${svg('i-plus','ic')} 사진 올리기${t?' · '+esc(t.title):''}</label>
     <input type="file" id="memFile" accept="image/*" multiple style="display:none" onchange="addMemPhotos(event)">
-    <p class="muted small" style="margin:8px 2px 0">사진은 작게 줄여 저장돼요. 여행당 ${PHOTO_MAX}장까지
-      ${ph.length?`(현재 ${ph.length}장)`:''}</p>
+    <p class="muted small" style="margin:8px 2px 0">사진은 작게 줄여 저장돼요. <b>한 사람이 ${PHOTO_PER_PERSON}장까지</b> 올릴 수 있고,
+      올린 사진은 같이 여행한 사람들에게도 보여요.${ph.length?` (모두 ${ph.length}장 · 내가 올린 ${myPh}장)`:''}</p>
     ${t?`<div class="gauge${usage>=80?' warn':''}"><i style="width:${usage}%"></i></div>
       <p class="muted small" style="margin:5px 2px 0">저장공간 ${usage}% 사용${usage>=80?' · 거의 찼어요':''}</p>`:''}
     ${trailBlock}`;}
 /* 추억 화면에서 일정 사진을 눌렀을 때 — 그 여행을 보고 있는 상태로 맞춰 준 뒤 크게 보여 줍니다 */
 function openTrailPhoto(id,k){const t=memTrip(); if(t)curTrip=t.id; openItemPhoto(id,k);}
 function openPhotoView(i){const t=memTrip();
-  if(!t||!t.photos||!t.photos[i])return;
+  const list=photoList(t), p=list[i]; if(!p)return;
   openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(t.title)}</b>
     <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
-    <img src="${t.photos[i]}" style="width:100%;border-radius:14px">
-    <button class="btn ghost sm" style="margin-top:10px;color:#B23B3B" onclick="delMemPhoto(${i})">${svg('i-trash','ic')} 이 사진 삭제</button>`);}
+    <img src="${p.u}" style="width:100%;border-radius:14px">
+    ${p.by?`<p class="muted small" style="margin:8px 2px 0">${canDeletePhoto(p)?'내가':esc(p.by)+' 님이'} 올린 사진</p>`:''}
+    ${canDeletePhoto(p)
+      ?`<button class="btn ghost sm" style="margin-top:10px;color:#B23B3B" onclick="delMemPhoto(${i})">${svg('i-trash','ic')} 이 사진 삭제</button>`
+      :`<p class="muted small" style="margin:10px 2px 0">다른 사람이 올린 사진은 지울 수 없어요.</p>`}`);}
 function delMemPhoto(i){const t=memTrip();
-  if(!t||!t.photos)return; t.photos.splice(i,1); closeOv(); toast('삭제했어요'); rerender(); window.FB.saveTrip(t);}
+  if(!t||!t.photos)return;
+  if(!canDeletePhoto(photoList(t)[i]||{})){toast('다른 사람이 올린 사진은 지울 수 없어요.');return;}
+  t.photos.splice(i,1); closeOv(); toast('삭제했어요'); rerender(); window.FB.saveTrip(t);}
 async function addMemPhotos(ev){
   const t=memTrip();
   const files=[...(ev.target.files||[])];
   ev.target.value='';                                     // 같은 사진을 다시 고를 수 있게 초기화
   if(!t){toast('끝난 여행이 없어요.');return;}
   t.photos=t.photos||[];
-  const room=PHOTO_MAX-t.photos.length;
-  if(room<=0){toast(`여행당 ${PHOTO_MAX}장까지 올릴 수 있어요.`);return;}
+  const room=PHOTO_PER_PERSON-myPhotoCount(t);
+  if(room<=0){toast(`한 사람이 ${PHOTO_PER_PERSON}장까지 올릴 수 있어요. 내가 올린 사진을 지우고 다시 올려 주세요.`);return;}
   let added=0, full=false;
   for(const f of files.slice(0,room)){
     let url;
     try{ url=await shrinkPhoto(f); }
     catch(e){ toast('열 수 없는 사진이 있어 건너뛰었어요.'); continue; }
-    t.photos.push(url);
+    t.photos.push({u:url,by:ME.name,uid:ME.uid});
     /* 저장 한도를 넘으면 방금 넣은 사진을 되돌립니다 (넘긴 채 저장하면 그 여행 전체가 저장 불가) */
     if(docSize(t)>DOC_SAFE){ t.photos.pop(); full=true; break; }
     added++;
@@ -3075,7 +3117,7 @@ function renderReport(){const t=trip(curTrip);
         </div>`);
     return;}
   /* ── 보고서는 학생이 직접 씁니다. AI는 '무엇을 쓸지' 질문만 던져 줍니다. ── */
-  const ph=it.photos||[];
+  const ph=photoList(it);
   const box=(k,label,ph2,rows)=>`
     <div class="wbox">
       <div class="wh"><label class="fld" style="margin:0">${label}</label>
@@ -3093,11 +3135,11 @@ function renderReport(){const t=trip(curTrip);
         <div class="muted small">${dayDate?mdLabel(dayDate)+'('+dowOf(dayDate)+') ':''}${esc(it.time)}${it.place?' · '+esc(it.place):''}</div></div>
       <button class="lnk" onclick="reportItemId=null;renderReport()">변경</button></div></div>
 
-    <div class="eyebrow">${svg('i-camera','ic')} 내가 찍은 사진 <span style="font-weight:700;color:var(--muted)">· ${ph.length}/${ITEM_PHOTO_MAX}장</span></div>
+    <div class="eyebrow">${svg('i-camera','ic')} 찍은 사진 <span style="font-weight:700;color:var(--muted)">· 모두 ${ph.length}장 · 내가 올린 ${myPhotoCount(it)}/${ITEM_PHOTO_PER_PERSON}장</span></div>
     <div class="card" style="padding:13px">
       ${ph.length?`<div class="iphotos">${ph.map((p,k)=>
-          `<div class="ip" style="background-image:url('${p}')" onclick="openItemPhoto('${it._id}',${k})"></div>`).join('')}
-        ${ph.length<ITEM_PHOTO_MAX?`<label class="ip more" for="rp_${it._id}">${svg('i-plus')}
+          `<div class="ip" style="background-image:url('${p.u}')" onclick="openItemPhoto('${it._id}',${k})">${photoWho(p)?`<span class="who">${esc(photoWho(p))}</span>`:''}</div>`).join('')}
+        ${myPhotoCount(it)<ITEM_PHOTO_PER_PERSON?`<label class="ip more" for="rp_${it._id}">${svg('i-plus')}
           <input type="file" id="rp_${it._id}" accept="image/*" multiple style="display:none" onchange="addItemPhotos(event,'${it._id}')"></label>`:''}
         </div>`
         :`<label class="btn ghost sm" style="cursor:pointer;margin:0" for="rp_${it._id}">${svg('i-camera','ic')} 사진 올리기
@@ -3229,7 +3271,7 @@ ${it0.title}${it0.place?' ('+it0.place+')':''}
 /* 보고서 종이 그리기 (다듬었는지 여부만 다름) */
 function renderReportPaper(tidied){
   const f=reportItemId?itemById(reportItemId):null; if(!f)return;
-  const it=f.it, ph=it.photos||[];
+  const it=f.it, ph=photoList(it);
   const dLabel=f.d?f.d.date.replace(/-/g,'.'):'';
   const nl=s=>esc(s).replace(/\n/g,'<br>');
   $('rout').innerHTML=`<div class="eyebrow">${svg('i-file','ic')} 완성된 보고서</div>
@@ -3238,7 +3280,7 @@ function renderReportPaper(tidied){
       <table class="rmeta"><tr><th>학생</th><td>${esc(reportDraft.name)}</td></tr>
         <tr><th>장소</th><td>${esc(it.title)}${it.place?' ('+esc(it.place)+')':''}</td></tr>
         <tr><th>일자</th><td>${esc(dLabel)}</td></tr></table>
-      ${ph.length?`<div class="rphotos">${ph.map(p=>`<img src="${p}" alt="">`).join('')}</div>`:''}
+      ${ph.length?`<div class="rphotos">${ph.map(p=>`<img src="${p.u}" alt="">`).join('')}</div>`:''}
       <div class="rsec"><b>1. 무엇을 보고 무엇을 했나요</b><p>${nl(reportDraft.did)}</p></div>
       <div class="rsec"><b>2. 새롭게 알게 된 점</b><p>${nl(reportDraft.learned)}</p></div>
       <div class="rsec"><b>3. 느낀 점</b><p>${nl(reportDraft.felt)}</p></div>
@@ -3340,6 +3382,34 @@ function resetZoom(){
   m.setAttribute('content','width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
   setTimeout(function(){ m.setAttribute('content',orig); },400);
   try{ window.scrollTo(0,0); }catch(e){}
+}
+/* ============================================================================
+   휴대폰 키보드가 올라올 때 입력칸이 가려지던 문제
+   · 아이폰은 키보드가 떠도 '화면 크기'는 그대로라서, 브라우저가 페이지를 위로 밀어 올립니다.
+     그 바람에 정작 입력 중인 칸이 화면 밖으로 사라졌습니다.
+   · 키보드가 차지한 만큼 앱 높이를 줄여 주고, 누른 입력칸을 화면 가운데로 데려옵니다.
+   ============================================================================ */
+function setupKeyboardFix(){
+  const vv=window.visualViewport; if(!vv)return;
+  const phone=document.querySelector('.phone'); if(!phone)return;
+  let base=vv.height;                       // 키보드가 없을 때의 높이
+  function apply(){
+    if(vv.scale>1.02){phone.style.height='';return;}   // 확대 중에는 건드리지 않음
+    if(vv.height>base)base=vv.height;                  // 키보드가 닫혀 넓어지면 기준 갱신
+    const kb=base-vv.height;                           // 키보드가 가린 높이
+    const up=kb>120;
+    phone.style.height = up ? vv.height+'px' : '';
+    document.body.classList.toggle('kb-up',up);        // 키보드 중에는 표지를 접어 입력칸에 자리를 줍니다
+  }
+  vv.addEventListener('resize',apply);
+  window.addEventListener('orientationchange',function(){setTimeout(function(){base=vv.height;apply();},350);});
+  /* 누른 입력칸을 화면 가운데로 (키보드가 다 올라온 뒤에) */
+  document.addEventListener('focusin',function(e){
+    const el=e.target;
+    if(!el||!el.matches||!el.matches('input,textarea,select'))return;
+    setTimeout(function(){ try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(_){} },280);
+  });
+  apply();
 }
 function setupZoomReset(){
   var vv=window.visualViewport, btn=document.getElementById('zoomReset');
