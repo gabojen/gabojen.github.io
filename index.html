@@ -159,7 +159,11 @@
   .btn.outline:active{background:var(--brand-bg);}
   html.dark .btn.outline{color:#F0A184;border-color:rgba(240,161,132,.5);}
   .btn.sm{padding:11px 12px;font-size:13.5px;border-radius:12px;}
-  .input,select.input{width:100%;padding:14px;border:1px solid var(--line);border-radius:var(--r);font-size:var(--t-body);margin-bottom:10px;
+  /* ⚠ 입력칸 글자는 16px 아래로 내리지 마세요.
+     아이폰(사파리)은 글자가 16px 미만인 칸을 누르면 화면을 '자동으로 확대'해 버립니다.
+     그 바람에 [화면 원래 크기로] 버튼이 계속 떴습니다. 16px 이면 확대가 일어나지 않습니다. */
+  .input,select.input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:var(--r);
+    font-size:16px;margin-bottom:10px;
     font-family:inherit;background:#fff;color:var(--ink);}
   .input:focus{outline:2px solid rgba(226,96,59,.35);border-color:var(--brand);}
   /* 키보드가 올라와 입력칸을 화면 가운데로 옮길 때, 가장자리에 딱 붙지 않도록 여유를 둡니다 */
@@ -317,7 +321,7 @@
   /* ── 보고서: 학생이 직접 쓰는 칸 ── */
   .wbox{margin-bottom:14px;}
   .wbox .wh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 6px;}
-  .wbox textarea{line-height:1.6;font-size:14px;margin-bottom:0;}
+  .wbox textarea{line-height:1.6;font-size:16px;margin-bottom:0;}   /* 16px 유지 — 위 설명 참고 */
   .ideas:empty{display:none;}
   .ideabox{margin-top:8px;padding:11px 13px;border-radius:12px;background:rgba(14,110,109,.09);
     border:1px dashed rgba(14,110,109,.35);}
@@ -4419,7 +4423,7 @@ function setupZoomReset(){
   var vv=window.visualViewport, btn=document.getElementById('zoomReset');
   if(!vv||!btn)return;                       // 지원 안 하는 브라우저면 버튼을 아예 안 씁니다
   function upd(){
-    var zoomed=vv.scale>1.02;
+    var zoomed=vv.scale>1.08;   /* 살짝 스친 정도로는 안 뜨게 (일부러 확대했을 때만) */
     btn.classList.toggle('on',zoomed);
     if(zoomed){
       /* 보이는 영역의 '아래쪽 가운데'에 놓습니다.
