@@ -319,6 +319,90 @@
   .hint.warn .ht{color:#8A5D10;}
   html.dark .hint.warn{background:rgba(212,165,74,.13);border-color:rgba(212,165,74,.32);}
   html.dark .hint.warn .ht{color:#D4A54A;}
+  /* ── 여행책(추억 앨범) ─────────────────────────────────────
+     한 장씩 옆으로 넘기는 책. 스크롤이 아니라 '넘김'이라 scroll-snap 을 씁니다. */
+  #album{padding:0 0 8px;}
+  .book{display:flex;flex-direction:column;height:100%;}
+  .pages{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;
+    scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;
+    overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;}
+  .pages::-webkit-scrollbar{display:none;}
+  .pg{flex:0 0 100%;width:100%;scroll-snap-align:center;scroll-snap-stop:always;
+    overflow-y:auto;overscroll-behavior-y:contain;padding:14px 18px 18px;}
+  /* 표지 장 */
+  /* 표지 장 — 표지 그림은 가로로 긴 그림이라, 세로 화면에 꽉 채우면 하늘만 보입니다.
+     그래서 그림은 위쪽 판에 비율대로 담고, 제목은 그 아래 어두운 판에 얹습니다. */
+  .pg.cover{position:relative;padding:0;display:flex;flex-direction:column;justify-content:flex-end;
+    color:#fff;overflow:hidden;background:#0F1D26;}
+  .pg.cover .art{position:absolute;left:0;right:0;top:0;height:72%;
+    background-size:cover;background-position:center 62%;}
+  .pg.cover .pgrad{position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(15,29,38,.10) 0%,rgba(15,29,38,.20) 52%,#0F1D26 100%);}
+  .pg.cover .grain{position:absolute;inset:0;background-image:var(--grain);background-size:150px 150px;opacity:.14;mix-blend-mode:overlay;}
+  .cvin{position:relative;padding:22px 20px 26px;width:100%;}
+  .cvin .kick{font-size:12px;font-weight:800;letter-spacing:.02em;opacity:.86;}
+  .cvin h2{font-family:var(--font-display);font-size:27px;font-weight:700;margin:6px 0 6px;line-height:1.25;}
+  .cvin .sub{display:flex;align-items:center;gap:5px;font-size:13.5px;font-weight:700;opacity:.94;}
+  .cvin .sub svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;}
+  .cvin .who{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:12.5px;font-weight:700;opacity:.92;}
+  .cvin .who .avatars span{border-color:rgba(255,255,255,.85);}
+  .cvin .figs{display:flex;align-items:baseline;gap:7px;margin-top:14px;padding-top:13px;
+    border-top:1px solid rgba(255,255,255,.28);font-size:12.5px;font-weight:700;opacity:.92;}
+  .cvin .figs b{font-size:19px;font-weight:800;}
+  .cvin .figs i{opacity:.5;font-style:normal;}
+  .pg.cover .turn{position:absolute;right:16px;bottom:14px;display:flex;align-items:center;gap:5px;
+    font-size:11.5px;font-weight:800;color:#fff;opacity:.72;}
+  .pg.cover .turn svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.4;}
+  /* 날짜 장 */
+  .pg.day .dhd{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .pg.day .dno{font-size:11.5px;font-weight:800;color:var(--brand-ink);background:var(--brand-bg);
+    padding:4px 9px;border-radius:999px;}
+  .pg.day .dhd b{font-size:15px;}
+  .pg.day .cnt{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted);}
+  .shot{position:relative;border-radius:var(--r);background-size:cover;background-position:center;
+    cursor:pointer;border:1px solid var(--line);overflow:hidden;}
+  .shot.big{height:230px;}
+  .shot.big .cap{position:absolute;left:0;right:0;bottom:0;padding:26px 13px 11px;color:#fff;
+    background:linear-gradient(transparent,rgba(13,24,31,.82));display:flex;align-items:baseline;gap:7px;}
+  .shot.big .cap b{font-size:14.5px;font-weight:800;}
+  .shot.big .cap span{font-size:11.5px;font-weight:700;opacity:.85;margin-left:auto;}
+  .shot.sm{flex:1;min-width:0;aspect-ratio:1/1;}
+  .strip{display:flex;gap:7px;margin-top:7px;}
+  .noshot{display:flex;align-items:center;justify-content:center;gap:7px;height:120px;border-radius:var(--r);
+    background:var(--paper);border:1px dashed var(--line-2);color:var(--muted);font-size:12.5px;font-weight:700;}
+  .noshot svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;}
+  .route{margin-top:15px;padding-top:13px;border-top:1px solid var(--line);}
+  .route .rw{display:flex;align-items:center;gap:9px;padding:5px 0;}
+  .route .tm{font-size:12px;font-weight:800;color:var(--muted);width:38px;flex-shrink:0;
+    font-variant-numeric:tabular-nums;}
+  .route .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .route .nm{font-size:13.5px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* 마무리 장 */
+  .endfig{display:flex;flex-direction:column;gap:9px;margin-bottom:6px;}
+  .endfig div{display:flex;align-items:baseline;gap:8px;}
+  .endfig b{font-family:var(--font-display);font-size:30px;font-weight:700;color:var(--brand-ink);
+    min-width:52px;text-align:right;}
+  .endfig span{font-size:14px;font-weight:700;color:var(--ink-2);}
+  .endppl{display:flex;flex-wrap:wrap;gap:14px;}
+  .endppl .pp{display:flex;flex-direction:column;align-items:center;gap:5px;width:56px;}
+  .endppl .mav{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;color:#fff;font-size:17px;font-weight:800;background-size:cover;
+    background-position:center;flex-shrink:0;}
+  .endppl .pp span{font-size:11.5px;font-weight:700;color:var(--muted);text-align:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56px;}
+  .mosaic{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .mosaic div{aspect-ratio:1/1;border-radius:10px;background-size:cover;background-position:center;
+    cursor:pointer;border:1px solid var(--line);}
+  /* 넘김 막대 */
+  .bnav{display:flex;align-items:center;gap:12px;padding:10px 18px 4px;flex-shrink:0;}
+  .bbtn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);
+    color:var(--ink-2);display:flex;align-items:center;justify-content:center;cursor:pointer;
+    box-shadow:var(--shadow);flex-shrink:0;}
+  .bbtn:active{transform:scale(.94);}
+  .dots{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .dots i{width:6px;height:6px;border-radius:50%;background:var(--line-2);transition:width .18s,background .18s;}
+  .dots i.on{width:18px;background:var(--brand);border-radius:3px;}
+  html.dark .bbtn{background:var(--card);border-color:var(--line-2);}
   /* ── 완성된 보고서 ── */
   .report{padding:18px 16px;}
   .report h4{font-family:var(--font-display);font-size:18px;font-weight:700;margin:0 0 12px;text-align:center;letter-spacing:-.005em;}
@@ -781,6 +865,8 @@
 <body>
 
 <svg id="sprite" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.2l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.7l6.1-.9z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H4a1 1 0 0 1-1-1z"/></symbol>
   <symbol id="i-suitcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></symbol>
   <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.4"/></symbol>
@@ -861,6 +947,7 @@
   <div class="screen" id="paste"></div>
   <div class="screen" id="history"></div>
   <div class="screen" id="report"></div>
+  <div class="screen" id="album"></div>
 
   <div class="nav hidden" id="nav">
     <button data-tab="today" onclick="switchTab('today')"><svg class="ic"><use href="#i-home"/></svg>홈</button>
@@ -1294,12 +1381,15 @@ function routeTo(id,opt={}){
   else if(id==='detail'){if(!trip(curTrip)){switchTab('trips');return;}renderDetail();show('detail',{kicker:trip(curTrip).place+' · '+mdLabel(trip(curTrip).start)+'–'+mdLabel(trip(curTrip).end),title:trip(curTrip).title,back:true,...opt});}
   else if(id==='paste'){renderPaste();show('paste',{title:'예약 붙여넣기',back:true,...opt});}
   else if(id==='report'){renderReport();show('report',{title:'체험학습 보고서',back:true,...opt});}
+  else if(id==='album'){const t=trip(albumTrip); if(!t){switchTab('history');return;}
+    renderAlbum(); show('album',{kicker:'여행책',title:t.title,back:true,nav:false,...opt});}
   else show(id,opt);
 }
 // 현재 화면 다시 그리기 (실시간 반영용)
 function rerender(){const cur=document.querySelector('.screen.active');if(!cur)return;const id=cur.id;
   if(id==='today')renderToday();else if(id==='trips')renderTrips();else if(id==='detail'){if(trip(curTrip))renderDetail();else switchTab('trips');}
   else if(id==='history')renderHistory();
+  else if(id==='album')renderAlbum();
   else if(id==='report')renderReport();}     /* 보고서 화면에서 사진을 올리면 바로 반영되게 */
 // 화면을 그린 뒤에는 항상 지도를 실제 지도로 채웁니다
 function afterRender(){setTimeout(()=>{
@@ -1562,7 +1652,7 @@ function itemPhotoStrip(i){
   if(!ph.length)
     return `<label class="addphoto" for="ip_${i._id}">${svg('i-camera')} 사진 남기기 <em>· 1인 ${ITEM_PHOTO_PER_PERSON}장</em>${addBtn}</label>`;
   return `<div class="iphotos">
-    ${ph.map((p,k)=>{const w=photoWho(p);return `<div class="ip" style="background-image:url('${p.u}')" onclick="openItemPhoto('${i._id}',${k})"
+    ${ph.map((p,k)=>{const w=photoWho(p);return `<div class="ip" style="background-image:url('${photoThumb(p)}')" onclick="openItemPhoto('${i._id}',${k})"
         ${w?`title="${esc(w)} 올림"`:''}>${w?`<span class="who">${esc(w)}</span>`:''}</div>`;}).join('')}
     ${room>0?`<label class="ip more" for="ip_${i._id}">${svg('i-plus')}${addBtn}</label>`:''}
   </div>
@@ -1579,13 +1669,14 @@ async function addItemPhotos(ev,id){
   const room=ITEM_PHOTO_PER_PERSON-myPhotoCount(it);
   if(room<=0){toast(`이 일정에는 한 사람당 ${ITEM_PHOTO_PER_PERSON}장까지 올릴 수 있어요.`);return;}
   let added=0, full=false;
+  toast('사진을 올리는 중…');
   for(const file of files.slice(0,room)){
-    let url;
-    try{ url=await shrinkPhoto(file,ITEM_PHOTO_PX,ITEM_PHOTO_Q); }
+    let rec;
+    try{ rec=await preparePhoto(t.id,file); }
     catch(e){ toast('열 수 없는 사진이 있어 건너뛰었어요.'); continue; }
-    it.photos.push({u:url,by:ME.name,uid:ME.uid});
+    it.photos.push(rec);
     /* 한도를 넘으면 방금 넣은 것만 되돌립니다 — 넘긴 채 저장하면 이 여행 전체가 저장 불가 */
-    if(docSize(t)>DOC_SAFE){ it.photos.pop(); full=true; break; }
+    if(docSize(t)>DOC_SAFE){ it.photos.pop(); window.FB.deletePhoto(rec.sp); full=true; break; }
     added++;
   }
   if(added){
@@ -1606,7 +1697,7 @@ function openItemPhoto(id,k){
   openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px">
       <b style="text-align:left;flex:1;min-width:0">${esc(f.it.title)}</b>
       <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
-    <img src="${p.u}" style="width:100%;border-radius:14px">
+    <img src="${photoSrc(p)}" style="width:100%;border-radius:14px">
     <div class="muted small" style="margin-top:8px">${mdLabel(f.d.date)}(${dowOf(f.d.date)}) ${esc(f.it.time)}${f.it.place?' · '+esc(f.it.place):''}</div>
     ${p.by?`<div class="muted small" style="margin-top:3px">${svg('i-users')} ${canDeletePhoto(p)?'내가':esc(p.by)+' 님이'} 올린 사진</div>`:''}
     ${mine?`<button class="btn ghost sm" style="margin-top:10px;color:#B23B3B" onclick="delItemPhoto('${id}',${k})">${svg('i-trash','ic')} 이 사진 삭제</button>`
@@ -1614,6 +1705,7 @@ function openItemPhoto(id,k){
 function delItemPhoto(id,k){
   const t=trip(curTrip), f=itemById(id); if(!t||!f||!f.it.photos)return;
   const p=photoList(f.it)[k]; if(!p||!canDeletePhoto(p)){toast('내가 올린 사진만 지울 수 있어요.');return;}
+  window.FB.deletePhoto(p.sp);                       // 보관소에 올린 원본도 같이 정리
   f.it.photos.splice(k,1); closeOv(); toast('삭제했어요'); rerender(); save();}
 
 /* 일정 항목 메뉴 — 수정·삭제·보고서를 한 곳에 모아 화면을 단순하게 */
@@ -3033,6 +3125,128 @@ function savePaste(){const t=trip(curTrip);const di=parseInt($('pday').value)||0
   pushItem(t,di,obj);curDay=di;toast('저장했습니다');save();routeTo('detail');}
 
 /* ---- 추억 ---- */
+
+/* ============================================================================
+   여행책 (추억 앨범)
+   · 참고한 방식: TripMemo 의 'TripBook', Polarsteps 의 'Travel Book' —
+     표지 → 날짜별 페이지 → 마무리 장으로, 스크롤이 아니라 '한 장씩 넘기는' 책.
+   · 옆으로 밀어 넘깁니다(CSS scroll-snap). 손가락으로 밀거나 좌우 버튼을 누릅니다.
+   ============================================================================ */
+let albumTrip=null, albumPage=0;
+function openAlbum(id){albumTrip=id;albumPage=0;routeTo('album');}
+
+/* 이 여행의 사진을 날짜별로 모읍니다 (일정에 붙인 사진 + 여행 전체 사진) */
+function albumPhotosByDate(t){
+  const by={};
+  (t.days||[]).forEach((d,di)=>{
+    (d.items||[]).slice().sort((a,b)=>a.time.localeCompare(b.time)).forEach(it=>{
+      photoList(it).forEach((ph,pi)=>{
+        (by[d.date]=by[d.date]||[]).push({ph,it,pi,di,time:it.time});
+      });
+    });
+  });
+  return by;
+}
+function albumStats(t){
+  let spots=0, photos=0;
+  (t.days||[]).forEach(d=>(d.items||[]).forEach(i=>{
+    if(i.cat==='plan'||i.cat==='ticket')spots++;
+    photos+=photoList(i).length;
+  }));
+  photos+=photoList(t).length;
+  return {days:(t.days||[]).length, spots, photos, people:memberCount(t)};
+}
+
+function renderAlbum(){
+  const t=trip(albumTrip); if(!t){switchTab('history');return;}
+  const byDate=albumPhotosByDate(t), st=albumStats(t);
+  const pages=[];
+
+  /* ── 1장: 표지 ── */
+  pages.push(`<section class="pg cover">
+    <div class="art" style="background-image:${coverArt(t)}"><div class="pgrad"></div><div class="grain"></div></div>
+    <div class="cvin">
+      <div class="kick">${esc(t.start.replace(/-/g,'.'))} – ${esc(t.end.replace(/-/g,'.'))}</div>
+      <h2>${esc(t.title)}</h2>
+      <div class="sub">${svg('i-pin')} ${esc(t.place||'')}</div>
+      <div class="who">${avatarRow(t,5)}<span>${esc(t.groupType)} · ${st.people}명</span></div>
+      <div class="figs"><b>${st.days}</b>일<i>·</i><b>${st.spots}</b>곳<i>·</i><b>${st.photos}</b>장</div>
+    </div>
+    <div class="turn">${svg('i-right')} 옆으로 넘겨 보세요</div>
+  </section>`);
+
+  /* ── 2장~: 하루에 한 장 ── */
+  (t.days||[]).forEach((d,di)=>{
+    const items=(d.items||[]).slice().sort((a,b)=>a.time.localeCompare(b.time));
+    const shots=byDate[d.date]||[];
+    if(!items.length&&!shots.length)return;
+    const big=shots.slice(0,1), rest=shots.slice(1,5);
+    pages.push(`<section class="pg day">
+      <div class="dhd"><span class="dno">DAY ${di+1}</span>
+        <b>${mdLabel(d.date)}(${dowOf(d.date)})</b>
+        <span class="cnt">${shots.length?shots.length+'장':''}</span></div>
+      ${big.length?`<div class="shot big" onclick="openTrailPhoto('${esc(big[0].it._id)}',${big[0].pi})"
+          style="background-image:url('${photoThumb(big[0].ph)}')">
+          <div class="cap"><b>${esc(tidyTitle(big[0].it.title,18))}</b>${
+            photoWho(big[0].ph)?`<span>${esc(photoWho(big[0].ph))}</span>`:''}</div></div>`
+        :`<div class="noshot">${svg('i-camera')} 이 날은 남긴 사진이 없어요</div>`}
+      ${rest.length?`<div class="strip">${rest.map(x=>
+          `<div class="shot sm" onclick="openTrailPhoto('${esc(x.it._id)}',${x.pi})"
+             style="background-image:url('${photoThumb(x.ph)}')"></div>`).join('')}</div>`:''}
+      <div class="route">${items.map(it=>`<div class="rw">
+          <span class="tm">${esc(it.time)}</span>
+          <span class="dot" style="background:${CAT[it.cat].color}"></span>
+          <span class="nm">${esc(tidyTitle(it.title,22))}</span></div>`).join('')}</div>
+    </section>`);
+  });
+
+  /* ── 마지막 장: 마무리 ── */
+  const trailAll=[]; Object.keys(byDate).sort().forEach(k=>byDate[k].forEach(x=>trailAll.push(x)));
+  pages.push(`<section class="pg end">
+    <div class="eyebrow" style="margin-top:0">${svg('i-star','ic')} 이번 여행은</div>
+    <div class="endfig">
+      <div><b>${st.days}</b><span>일 동안</span></div>
+      <div><b>${st.spots}</b><span>곳을 다녀오고</span></div>
+      <div><b>${st.photos}</b><span>장을 남겼어요</span></div>
+    </div>
+    <div class="eyebrow">${svg('i-users','ic')} 함께한 사람</div>
+    <div class="endppl">${(t.members||[]).map(m=>`<div class="pp">
+        <div class="mav" style="${avatarStyle(m)}">${m.photo?'':esc(m.n||'?')}</div>
+        <span>${esc(memberName(m))}</span></div>`).join('')}</div>
+    ${trailAll.length?`<div class="eyebrow">${svg('i-camera','ic')} 사진 모아보기</div>
+      <div class="mosaic">${trailAll.slice(0,12).map(x=>
+        `<div onclick="openTrailPhoto('${esc(x.it._id)}',${x.pi})"
+           style="background-image:url('${photoThumb(x.ph)}')"></div>`).join('')}</div>`:''}
+    <button class="btn ghost sm" style="margin-top:16px" onclick="openTrip('${t.id}')">
+      ${svg('i-list','ic')} 그때의 일정 자세히 보기</button>
+  </section>`);
+
+  const n=pages.length;
+  $('album').innerHTML=`<div class="book">
+      <div class="pages" id="bookPages" onscroll="albumScrolled()">${pages.join('')}</div>
+      <div class="bnav">
+        <button class="bbtn" onclick="albumGo(-1)" aria-label="이전 장">${svg('i-left','ic')}</button>
+        <div class="dots" id="bookDots">${pages.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('')}</div>
+        <button class="bbtn" onclick="albumGo(1)" aria-label="다음 장">${svg('i-right','ic')}</button>
+      </div>
+    </div>`;
+  setTimeout(()=>{const el=$('bookPages'); if(el&&albumPage)el.scrollLeft=el.clientWidth*albumPage;},0);
+}
+/* 어느 장을 보고 있는지 점으로 표시 */
+function albumScrolled(){
+  const el=$('bookPages'); if(!el)return;
+  const i=Math.round(el.scrollLeft/el.clientWidth);
+  if(i===albumPage)return; albumPage=i;
+  const d=$('bookDots'); if(!d)return;
+  [...d.children].forEach((c,k)=>c.className=(k===i?'on':''));
+}
+function albumGo(dir){
+  const el=$('bookPages'); if(!el)return;
+  const total=el.children.length;
+  const next=Math.max(0,Math.min(total-1,albumPage+dir));
+  el.scrollTo({left:el.clientWidth*next,behavior:'smooth'});
+}
+
 function renderHistory(){
   const done=doneTrips();
   const upcoming=TRIPS.filter(t=>ddayOf(t)!=='종료');
@@ -3063,7 +3277,7 @@ function renderHistory(){
     return;
   }
 
-  const cards=done.map(t=>`<div class="album" style="background-image:${coverArt(t)}" onclick="openTrip('${t.id}')">
+  const cards=done.map(t=>`<div class="album" style="background-image:${coverArt(t)}" onclick="openAlbum('${t.id}')">
       <div class="grad"></div><div class="grain"></div><div class="yr">${t.start.slice(0,4)}</div>
       <div class="cap"><b>${esc(t.title)}</b>
         <div class="small" style="opacity:.92;margin-top:1px">${esc(t.place)} · ${esc(t.groupType)}</div></div></div>`).join('');
@@ -3073,7 +3287,7 @@ function renderHistory(){
       <div style="width:1px;background:var(--line)"></div>
       <div><div style="font-size:22px;font-weight:800">${spots}</div><div class="muted small">방문한 곳</div></div>
     </div>
-    <p class="muted small" style="margin:2px 2px 12px">눌러서 그때의 일정과 나눈 의견을 다시 볼 수 있어요.</p>
+    <p class="muted small" style="margin:2px 2px 12px">눌러서 <b style="color:var(--ink)">여행책</b>을 펼쳐 보세요 — 표지부터 날짜별로 한 장씩 넘겨 볼 수 있어요.</p>
     <div class="grid">${cards}</div>
     <div class="eyebrow" style="margin-top:18px">${svg('i-camera','ic')} 여행 사진</div>
     ${photoBlock()}
@@ -3091,12 +3305,23 @@ const DOC_SAFE=800*1024;                // 여행 1건의 안전 저장 한도 (
      (4명이면 한 일정에 최대 8장까지 모입니다)
    · 교통편·렌트카는 남길 사진이 없으므로 제외합니다. */
 const ITEM_PHOTO_PER_PERSON=2;          // 한 일정에 내가 올릴 수 있는 장수
+/* 보관소가 켜져 있으면: 원본(1600px)은 보관소로, 작은 그림(320px)만 여행 데이터에 남김
+   보관소가 꺼져 있으면: 480px 한 장만 여행 데이터에 남김 (예전 방식) */
+const PHOTO_FULL_PX=1600, PHOTO_FULL_Q=0.82;
+const PHOTO_THUMB_PX=320, PHOTO_THUMB_Q=0.52;
 const ITEM_PHOTO_PX=480, ITEM_PHOTO_Q=0.62;
 /* 예전에는 사진을 '주소 문자열'만 저장해 누가 올렸는지 알 수 없었습니다.
    이제 {u:사진, by:이름, uid:누구} 로 저장하고, 예전 자료도 함께 읽습니다. */
+/* 사진 한 장 = {u:작은 그림(글자로 저장), f:원본 주소(보관소), sp:보관소 경로, by:올린 사람, uid}
+   · u 는 항상 있습니다 — 보관소가 꺼져 있어도, 인터넷이 느려도 바로 보입니다.
+   · f 가 있으면 크게 볼 때 원본을 씁니다. */
 function photoList(o){
-  return ((o&&o.photos)||[]).map(p=> (typeof p==='string')?{u:p,by:'',uid:''}:{u:p.u||'',by:p.by||'',uid:p.uid||''});
+  return ((o&&o.photos)||[]).map(p=> (typeof p==='string')
+    ?{u:p,f:'',sp:'',by:'',uid:''}
+    :{u:p.u||'',f:p.f||'',sp:p.sp||'',by:p.by||'',uid:p.uid||''});
 }
+function photoSrc(p){return (p&&(p.f||p.u))||'';}      /* 크게 볼 때 */
+function photoThumb(p){return (p&&(p.u||p.f))||'';}    /* 목록에서 작게 볼 때 */
 function myPhotoCount(o){return photoList(o).filter(p=>p.uid&&p.uid===ME.uid).length;}
 /* 내가 지울 수 있는 사진인가 — 내 사진이거나, 올린 사람을 알 수 없는 예전 사진 */
 function photoWho(p){return (p&&p.uid&&p.uid===ME.uid)?'나':((p&&p.by)||'');}   // 내 사진은 '나'로 표시
@@ -3109,7 +3334,7 @@ function usagePct(t){return t?Math.min(100,Math.round(docSize(t)/DOC_SAFE*100)):
 function allItemPhotos(t){
   const out=[];
   (t&&t.days||[]).forEach((d,di)=>(d.items||[]).forEach(it=>{
-    photoList(it).forEach((p,pi)=>out.push({url:p.u,by:p.by,uid:p.uid,date:d.date,di,title:it.title,place:it.place||'',id:it._id,pi}));
+    photoList(it).forEach((p,pi)=>out.push({url:photoThumb(p),full:photoSrc(p),by:p.by,uid:p.uid,date:d.date,di,title:it.title,place:it.place||'',id:it._id,pi}));
   }));
   return out;
 }
@@ -3140,6 +3365,22 @@ function shrinkPhoto(file,maxPx,q){return new Promise(function(res,rej){
   r.onerror=function(){rej(new Error('파일을 읽지 못했습니다'));};
   r.readAsDataURL(file);});}
 
+/* 사진 한 장을 저장할 수 있는 형태로 만듭니다.
+   ① 보관소가 켜져 있으면 → 원본(1600px)은 보관소로 올리고, 작은 그림(320px)만 데이터에 남깁니다.
+      이러면 여행 1건에 사진 수백 장을 넣어도 데이터가 거의 늘지 않습니다.
+   ② 보관소가 꺼져 있으면 → 예전처럼 480px 그림 한 장만 데이터에 넣습니다. */
+async function preparePhoto(tripId,file){
+  if(window.FB.storageOn&&window.FB.storageOn()){
+    const big=await shrinkPhoto(file,PHOTO_FULL_PX,PHOTO_FULL_Q);
+    const up=await window.FB.uploadPhoto(tripId,big);
+    if(up){
+      const th=await shrinkPhoto(file,PHOTO_THUMB_PX,PHOTO_THUMB_Q);
+      return {u:th,f:up.url,sp:up.path,by:ME.name,uid:ME.uid};
+    }
+  }
+  const url=await shrinkPhoto(file,ITEM_PHOTO_PX,ITEM_PHOTO_Q);
+  return {u:url,f:'',sp:'',by:ME.name,uid:ME.uid};
+}
 function photoBlock(){
   const t=memTrip();
   const done=doneTrips();
@@ -3152,7 +3393,7 @@ function photoBlock(){
        </select>` : '';
   let g='';
   for(let i=0;i<ph.length;i++)
-    g+=`<div class="album" style="height:110px;background:url('${ph[i].u}') center/cover" onclick="openPhotoView(${i})">${
+    g+=`<div class="album" style="height:110px;background:url('${photoThumb(ph[i])}') center/cover" onclick="openPhotoView(${i})">${
         photoWho(ph[i])?`<span class="who">${esc(photoWho(ph[i]))}</span>`:''}</div>`;
   const usage=usagePct(t);
   /* 여행 중에 일정마다 붙여 둔 사진을 날짜별로 모아 보여 줍니다 */
@@ -3183,7 +3424,7 @@ function openPhotoView(i){const t=memTrip();
   const list=photoList(t), p=list[i]; if(!p)return;
   openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(t.title)}</b>
     <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
-    <img src="${p.u}" style="width:100%;border-radius:14px">
+    <img src="${photoSrc(p)}" style="width:100%;border-radius:14px">
     ${p.by?`<p class="muted small" style="margin:8px 2px 0">${canDeletePhoto(p)?'내가':esc(p.by)+' 님이'} 올린 사진</p>`:''}
     ${canDeletePhoto(p)
       ?`<button class="btn ghost sm" style="margin-top:10px;color:#B23B3B" onclick="delMemPhoto(${i})">${svg('i-trash','ic')} 이 사진 삭제</button>`
@@ -3191,6 +3432,7 @@ function openPhotoView(i){const t=memTrip();
 function delMemPhoto(i){const t=memTrip();
   if(!t||!t.photos)return;
   if(!canDeletePhoto(photoList(t)[i]||{})){toast('다른 사람이 올린 사진은 지울 수 없어요.');return;}
+  window.FB.deletePhoto((photoList(t)[i]||{}).sp);
   t.photos.splice(i,1); closeOv(); toast('삭제했어요'); rerender(); window.FB.saveTrip(t);}
 async function addMemPhotos(ev){
   const t=memTrip();
@@ -3201,13 +3443,14 @@ async function addMemPhotos(ev){
   const room=PHOTO_PER_PERSON-myPhotoCount(t);
   if(room<=0){toast(`한 사람이 ${PHOTO_PER_PERSON}장까지 올릴 수 있어요. 내가 올린 사진을 지우고 다시 올려 주세요.`);return;}
   let added=0, full=false;
+  toast('사진을 올리는 중…');
   for(const f of files.slice(0,room)){
-    let url;
-    try{ url=await shrinkPhoto(f); }
+    let rec;
+    try{ rec=await preparePhoto(t.id,f); }
     catch(e){ toast('열 수 없는 사진이 있어 건너뛰었어요.'); continue; }
-    t.photos.push({u:url,by:ME.name,uid:ME.uid});
+    t.photos.push(rec);
     /* 저장 한도를 넘으면 방금 넣은 사진을 되돌립니다 (넘긴 채 저장하면 그 여행 전체가 저장 불가) */
-    if(docSize(t)>DOC_SAFE){ t.photos.pop(); full=true; break; }
+    if(docSize(t)>DOC_SAFE){ t.photos.pop(); window.FB.deletePhoto(rec.sp); full=true; break; }
     added++;
   }
   if(added){
@@ -3300,7 +3543,7 @@ function renderReport(){const t=trip(curTrip);
     <div class="eyebrow">${svg('i-camera','ic')} 찍은 사진 <span style="font-weight:700;color:var(--muted)">· 모두 ${ph.length}장 · 내가 올린 ${myPhotoCount(it)}/${ITEM_PHOTO_PER_PERSON}장</span></div>
     <div class="card" style="padding:13px">
       ${ph.length?`<div class="iphotos">${ph.map((p,k)=>
-          `<div class="ip" style="background-image:url('${p.u}')" onclick="openItemPhoto('${it._id}',${k})">${photoWho(p)?`<span class="who">${esc(photoWho(p))}</span>`:''}</div>`).join('')}
+          `<div class="ip" style="background-image:url('${photoThumb(p)}')" onclick="openItemPhoto('${it._id}',${k})">${photoWho(p)?`<span class="who">${esc(photoWho(p))}</span>`:''}</div>`).join('')}
         ${myPhotoCount(it)<ITEM_PHOTO_PER_PERSON?`<label class="ip more" for="rp_${it._id}">${svg('i-plus')}
           <input type="file" id="rp_${it._id}" accept="image/*" multiple style="display:none" onchange="addItemPhotos(event,'${it._id}')"></label>`:''}
         </div>`
@@ -3363,7 +3606,8 @@ async function reportIdea(k){
 /* 학생이 쓴 내용 + 사진으로 보고서를 완성합니다 (AI가 문장을 만들지 않습니다) */
 /* 학생이 쓴 글이 너무 짧으면 AI가 다듬을 거리가 없습니다.
    ("좋았어요." 같은 한 마디를 늘리면 AI가 없는 내용을 지어내게 됩니다) */
-const MIN_LEN=15;
+const MIN_LEN=8;      /* 공백 뺀 글자수. '한 문장씩만 써도 된다'고 안내하므로 짧은 문장도 통과시킵니다
+                         (예전 15자는 "별이 많아서 놀랐다."(9자)조차 막아서, AI가 돌지도 못했습니다) */
 const SEC_LABEL={did:'1번(무엇을 보고 했나)',learned:'2번(새롭게 알게 된 점)',felt:'3번(느낀 점)'};
 function reportGaps(){
   const g=[];
@@ -3372,7 +3616,7 @@ function reportGaps(){
     const v=(reportDraft[k]||'').trim();
     if(!v)g.push({k,why:SEC_LABEL[k]+'을 적어 주세요.'});
     else if(v.replace(/\s/g,'').length<MIN_LEN)
-      g.push({k,why:SEC_LABEL[k]+'이 너무 짧아요. 본 것·한 일을 한두 문장 더 적어 주세요.'});
+      g.push({k,why:SEC_LABEL[k]+'을 한 문장으로 적어 주세요. (예: 천체관에서 별자리 영상을 봤다)'});
   });
   return g;
 }
@@ -3391,7 +3635,8 @@ async function finishReport(){
   reportDraft.fact=''; reportDraft.captions=[];      // 지난번 결과가 섞이지 않게
   const out=$('rout'); out.innerHTML=aiBusy('사진을 보고 장소를 확인하며 보고서를 쓰는 중…');
   const it0=f.it;
-  const pics=photoList(it0).map(p=>p.u).slice(0,3);   // 사진은 3장까지 함께 읽힙니다
+  /* AI에는 '글자로 저장된 작은 그림(u)'만 보냅니다 — 보관소 주소(f)는 AI가 열어볼 수 없습니다 */
+  const pics=photoList(it0).map(p=>p.u).filter(u=>/^data:/.test(u)).slice(0,3);
   const dateLine=f.d?`${f.d.date}(${dowOf(f.d.date)}요일)`:'';
   const prompt=`너는 중학생의 교외체험학습 보고서를 완성해 주는 선생님이다.
 학생이 쓴 짧은 문장이 뼈대이고, 너는 살을 붙여 '실제로 다녀온 사람이 쓴 것 같은' 보고서로 만든다.
@@ -3465,7 +3710,7 @@ function renderReportPaper(tidied){
       <table class="rmeta"><tr><th>학생</th><td>${esc(reportDraft.name)}</td></tr>
         <tr><th>장소</th><td>${esc(it.title)}${it.place?' ('+esc(it.place)+')':''}</td></tr>
         <tr><th>일자</th><td>${esc(dLabel)}</td></tr></table>
-      ${ph.length?`<div class="rphotos">${ph.map((p,k)=>`<figure><img src="${p.u}" alt="">${
+      ${ph.length?`<div class="rphotos">${ph.map((p,k)=>`<figure><img src="${photoSrc(p)}" alt="">${
         (reportDraft.captions||[])[k]?`<figcaption>${esc(reportDraft.captions[k])}</figcaption>`:''}</figure>`).join('')}</div>`:''}
       ${reportDraft.fact?`<div class="rsec rfact"><b>다녀온 곳은 이런 곳입니다</b><p>${nl(reportDraft.fact)}</p></div>`:''}
       <div class="rsec"><b>1. 무엇을 보고 무엇을 했나요</b><p>${nl(reportDraft.did)}</p></div>
@@ -3748,6 +3993,9 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppChec
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app-check.js";
 import { getAI, getGenerativeModel, GoogleAIBackend }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-ai.js";
+/* 사진 원본 보관소 — 켜져 있으면 쓰고, 안 켜져 있으면 조용히 예전 방식으로 돌아갑니다 */
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject }
+  from "https://www.gstatic.com/firebasejs/12.4.0/firebase-storage.js";
 
 // ▼▼▼ 내 Firebase 프로젝트 설정 (김광석님 프로젝트) ▼▼▼
 const FIREBASE_CONFIG = {
@@ -4030,6 +4278,27 @@ window.FB={
   async saveTrip(t){
     const clean=JSON.parse(JSON.stringify(t));      // undefined 제거
     await setDoc(doc(db,'trips',t.id),clean);
+  },
+  /* ── 사진 원본 보관소 ────────────────────────────────────────
+     사진을 여행 데이터 안에 글자로 넣으면 한 여행이 1MB를 못 넘어
+     30장쯤에서 꽉 찼습니다. 원본은 보관소에 올리고 주소만 남깁니다.
+     보관소가 꺼져 있으면 null 을 돌려주고, 앱은 예전 방식으로 저장합니다. */
+  storageOn(){ try{ return !!getStorage(app); }catch(e){ return false; } },
+  async uploadPhoto(tripId,dataUrl){
+    try{
+      const st=getStorage(app);
+      const m=/^data:([^;]+);base64,(.*)$/.exec(dataUrl||''); if(!m)return null;
+      const bin=atob(m[2]); const arr=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+      const path='trips/'+tripId+'/'+auth.currentUser.uid+'_'+Date.now()+'_'
+        +Math.random().toString(36).slice(2,7)+'.jpg';
+      const r=sRef(st,path);
+      await uploadBytes(r,new Blob([arr],{type:m[1]}),{contentType:m[1]});
+      return {url:await getDownloadURL(r), path};
+    }catch(e){ console.warn('[사진보관소] 사용 불가 — 예전 방식으로 저장합니다:',e&&e.code||e); return null; }
+  },
+  async deletePhoto(path){
+    if(!path)return; try{ await deleteObject(sRef(getStorage(app),path)); }catch(e){}
   },
   async deleteTrip(id){ await deleteDoc(doc(db,'trips',id)); },
   async joinTrip(code){
