@@ -1256,6 +1256,10 @@ function paintStaticCovers(){
   if(el&&!el.dataset.painted){el.style.backgroundImage=brandCover();el.dataset.painted='1';}
   if(!window.__zoomReady){window.__zoomReady=1;setupZoomReset();setupKeyboardFix();}
 }
+/* 화면을 그리기 전이라도 키보드 대응은 미리 켜 둡니다 (로그인 화면이 첫 화면이므로) */
+window.addEventListener('DOMContentLoaded',function(){
+  if(!window.__zoomReady){window.__zoomReady=1;setupZoomReset();setupKeyboardFix();}
+});
 
 let TRIPS=[];               // Firestore에서 실시간으로 받아오는 내 여행들
 let ME={uid:null,name:"나",email:"",photo:"",verified:false};
@@ -1635,7 +1639,15 @@ function tripCard(t,lead){
   </div>`;
 }
 /* ---- 홈: 지금 할 일(히어로) + 여행별 요약 카드 ---- */
+/* 여행 목록이 도착하기 전에는 '없어요' 대신 '불러오는 중'을 보여 줍니다.
+   (예전에는 로그인 직후 잠깐 '여행이 없어요'가 떠서 고장난 것처럼 보였습니다) */
+function loadingCard(msg){
+  return `<div class="card center" style="padding:30px 20px">
+    <div class="spin" style="margin:0 auto 12px"></div>
+    <p class="muted small" style="margin:0">${esc(msg||'여행을 불러오는 중…')}</p></div>`;
+}
 function renderToday(){
+  if(!TRIPS_READY&&!TRIPS.length){$('today').innerHTML=loadingCard();return;}
   const act=sortTrips(TRIPS.filter(x=>x.status!=='done'));
   if(!act.length){renderEmptyHome();return;}
   if(!curTrip||!trip(curTrip)||trip(curTrip).status==='done')curTrip=act[0].id;
@@ -1970,6 +1982,7 @@ function renderEmptyHome(){
 
 /* ---- 내 여행 ---- */
 function renderTrips(){
+  if(!TRIPS_READY&&!TRIPS.length){$('trips').innerHTML=loadingCard();return;}
   const av=t=>avatarRow(t,4);
   const act=sortTrips(TRIPS.filter(t=>t.status!=='done'));
   const list=act.length?act.map(t=>`<div class="card trip" onclick="openTrip('${t.id}')">
@@ -3593,7 +3606,73 @@ async function compactTripPhotos(){
       저장공간 <b>${Math.round(before/1024)}KB → ${Math.round(after/1024)}KB</b> (${savedKB}KB 되찾음)<br>
       이제 사진을 <b>${left}장쯤</b> 더 넣을 수 있어요.</p></div>`);
 }
+
+/* ── 예전에 올린 사진을 밖으로 옮기기 ──────────────────────────
+   여행 데이터 '안에' 들어 있던 사진을 photos 칸으로 하나씩 옮깁니다.
+   사진은 그대로 보이고, 여행 데이터만 홀쭉해져 '저장공간 98%' 경고가 사라집니다.
+   화질도 그대로입니다(줄이는 게 아니라 자리를 옮기는 것). */
+function embeddedPhotoSpots(t){
+  const out=[];
+  (t&&t.days||[]).forEach(d=>(d.items||[]).forEach(i=>{
+    (i.photos||[]).forEach((p,k)=>{
+      const u=(typeof p==='string')?p:(p&&p.u);
+      if(u&&/^data:/.test(u)&&!(p&&p.ref))out.push({box:i.photos,k,p});
+    });
+  }));
+  (t&&t.photos||[]).forEach((p,k)=>{
+    const u=(typeof p==='string')?p:(p&&p.u);
+    if(u&&/^data:/.test(u)&&!(p&&p.ref))out.push({box:t.photos,k,p});
+  });
+  return out;
+}
+async function migratePhotosOut(){
+  const t=memTrip()||trip(curTrip); if(!t){toast('여행을 먼저 골라 주세요.');return;}
+  const spots=embeddedPhotoSpots(t);
+  if(!spots.length){toast('옮길 사진이 없어요.');return;}
+  if(!window.FB.savePhoto){toast('아직 준비되지 않았어요.');return;}
+  const before=docSize(t);
+  openModal(`<div class="center" style="padding:6px 0">
+    <div class="spin" style="margin:0 auto 12px"></div>
+    <b>사진을 옮기는 중…</b>
+    <p class="muted small" id="mgProg" style="margin:6px 0 0">0 / ${spots.length}장</p>
+    <p class="muted small" style="margin:8px 0 0">화질은 그대로예요. 자리만 옮깁니다.</p></div>`);
+  let moved=0, failed=0;
+  for(const sp of spots){
+    const cur=sp.p, u=(typeof cur==='string')?cur:cur.u;
+    try{
+      const id=await window.FB.savePhoto(t.id,{u, by:(cur&&cur.by)||ME.name});
+      PHOTOS[id]={u, by:(cur&&cur.by)||ME.name, uid:(cur&&cur.uid)||ME.uid};
+      sp.box[sp.k]={ref:id, by:(cur&&cur.by)||ME.name, uid:(cur&&cur.uid)||ME.uid};
+      moved++;
+    }catch(e){ failed++; if(failed>=2)break; }     // 규칙이 없으면 두 번 실패하고 멈춥니다
+    const e2=$('mgProg'); if(e2)e2.textContent=`${moved} / ${spots.length}장`;
+  }
+  if(!moved){
+    closeOv();
+    openModal(`<div class="row" style="justify-content:flex-end;margin-bottom:-4px">
+        <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
+      <div class="hint warn"><div class="ht">${svg('i-info')}</div>
+        <div class="hb"><b class="t">아직 옮길 수 없어요</b>
+        사진을 따로 저장하려면 <b>보안 규칙</b>을 먼저 붙여넣어야 합니다.
+        받으신 <b>firestore_보안규칙_붙여넣기.txt</b> 안내대로 Firebase 콘솔에서
+        [Firestore Database] → [규칙] 에 붙여넣고 <b>게시</b>를 눌러 주세요.</div></div>`);
+    return;
+  }
+  try{ await window.FB.saveTrip(t); }
+  catch(e){ closeOv(); toast('저장 실패: 인터넷 연결을 확인해 주세요.'); return; }
+  const after=docSize(t);
+  closeOv(); rerender();
+  openModal(`<div class="row" style="justify-content:flex-end;margin-bottom:-4px">
+      <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
+    <div class="center"><div class="tile" style="width:52px;height:52px;margin:0 auto 12px;background:var(--brand-bg);color:var(--brand-ink)">${svg('i-check')}</div>
+    <b style="font-size:16px">사진 ${moved}장을 옮겼어요</b>
+    <p class="muted small" style="margin:8px 0 0;line-height:1.7">
+      저장공간 <b>${usagePctOf(before)}% → ${usagePctOf(after)}%</b><br>
+      이제 사진 장수 제한이 없어요. 화질도 그대로입니다.</p></div>`);
+}
+function usagePctOf(bytes){return Math.min(100,Math.round(bytes/DOC_SAFE*100));}
 function renderHistory(){
+  if(!TRIPS_READY&&!TRIPS.length){$('history').innerHTML=loadingCard('추억을 불러오는 중…');return;}
   const done=doneTrips();
   const upcoming=TRIPS.filter(t=>ddayOf(t)!=='종료');
   // 통계: 다녀온 여행 수 / 방문 장소 수
@@ -3728,7 +3807,7 @@ function photoRoomNote(t){
   return `<div class="roomnote${left<=2?' low':''}">${svg('i-info')}
     <span>${left>0?`이 여행에 사진 <b>${left}장</b>쯤 더 넣을 수 있어요.`
       :'사진 저장공간이 다 찼어요.'}
-      <button class="lnk" style="padding:0 2px" onclick="compactTripPhotos()">사진 줄여서 자리 만들기</button></span></div>`;
+      <button class="lnk" style="padding:0 2px" onclick="migratePhotosOut()">사진 밖으로 옮기기</button></span></div>`;
 }
 /* 여행 전체에서 일정에 붙은 사진을 날짜순으로 모읍니다 (추억 화면에서 사용) */
 function allItemPhotos(t){
@@ -3830,10 +3909,15 @@ function photoBlock(){
     <p class="muted small" style="margin:8px 2px 0">사진은 작게 줄여 저장돼요. <b>한 사람이 ${PHOTO_PER_PERSON}장까지</b> 올릴 수 있고,
       올린 사진은 같이 여행한 사람들에게도 보여요.${ph.length?` (모두 ${ph.length}장 · 내가 올린 ${myPh}장)`:''}</p>
     ${photoRoomNote(t)}
-    ${t?`<div class="gauge${usage>=80?' warn':''}"><i style="width:${usage}%"></i></div>
-      <p class="muted small" style="margin:5px 2px 0">저장공간 ${usage}% 사용${usage>=80?' · 거의 찼어요':''}</p>
-      ${usage>=55?`<button class="btn ghost sm" style="margin-top:9px" onclick="compactTripPhotos()">
-        ${svg('i-camera','ic')} 이미 올린 사진 줄여서 자리 만들기</button>`:''}`:''}
+    ${t?(()=>{const emb=embeddedPhotoSpots(t).length;
+      if(!emb)return `<p class="muted small" style="margin:8px 2px 0">${svg('i-check')}
+        사진을 따로 보관하고 있어 <b>장수 제한이 없어요.</b></p>`;
+      return `<div class="gauge${usage>=80?' warn':''}"><i style="width:${usage}%"></i></div>
+      <p class="muted small" style="margin:5px 2px 0">저장공간 ${usage}% 사용${usage>=80?' · 거의 찼어요':''}
+        <br>예전에 올린 사진 <b>${emb}장</b>이 여행 데이터 안에 들어 있어요.</p>
+      <button class="btn ghost sm" style="margin-top:9px" onclick="migratePhotosOut()">
+        ${svg('i-camera','ic')} 사진을 밖으로 옮겨 자리 비우기</button>
+      <p class="muted small" style="margin:6px 2px 0">화질은 그대로예요. 자리만 옮깁니다.</p>`;})():''}
     ${trailBlock}`;}
 /* 추억 화면에서 일정 사진을 눌렀을 때 — 그 여행을 보고 있는 상태로 맞춰 준 뒤 크게 보여 줍니다 */
 function openTrailPhoto(id,k){const t=memTrip(); if(t){curTrip=t.id;watchTripPhotos(t.id);} openItemPhoto(id,k);}
@@ -4284,25 +4368,50 @@ function resetZoom(){
      그 바람에 정작 입력 중인 칸이 화면 밖으로 사라졌습니다.
    · 키보드가 차지한 만큼 앱 높이를 줄여 주고, 누른 입력칸을 화면 가운데로 데려옵니다.
    ============================================================================ */
+/* 입력칸을 '그 칸이 들어 있는 스크롤 상자' 안에서만 가운데로 옮깁니다.
+   scrollIntoView 는 창 전체를 움직여 버려, 아이폰에서 화면이 위로 밀려 올라갔습니다. */
+function centerInput(el){
+  const sc=el.closest('#ovc')||el.closest('.screen');
+  if(!sc){ try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(_){} return; }
+  const r=el.getBoundingClientRect(), sr=sc.getBoundingClientRect();
+  const to=sc.scrollTop+(r.top-sr.top)-(sr.height/2-r.height/2);
+  try{ sc.scrollTo({top:Math.max(0,to),behavior:'smooth'}); }catch(_){ sc.scrollTop=Math.max(0,to); }
+}
 function setupKeyboardFix(){
   const vv=window.visualViewport; if(!vv)return;
   const phone=document.querySelector('.phone'); if(!phone)return;
-  let base=vv.height;                       // 키보드가 없을 때의 높이
+  /* 기준 높이는 키보드와 상관없는 '창 높이'로 잡습니다.
+     예전에는 이 함수가 도는 순간의 vv.height 를 기준으로 삼았는데,
+     그때 이미 키보드가 떠 있으면 기준이 작게 잡혀 보정이 아예 안 걸렸습니다.
+     (앱을 켜자마자 키보드가 뜨는 경우가 정확히 이 상황이었습니다) */
+  const baseOf=function(){return Math.max(window.innerHeight||0, vv.height);};
+  let base=baseOf();
   function apply(){
     if(vv.scale>1.02){phone.style.height='';return;}   // 확대 중에는 건드리지 않음
-    if(vv.height>base)base=vv.height;                  // 키보드가 닫혀 넓어지면 기준 갱신
+    base=Math.max(base, baseOf());
     const kb=base-vv.height;                           // 키보드가 가린 높이
     const up=kb>120;
     phone.style.height = up ? vv.height+'px' : '';
     document.body.classList.toggle('kb-up',up);        // 키보드 중에는 표지를 접어 입력칸에 자리를 줍니다
+    /* 아이폰은 키보드가 뜨면 페이지 자체를 위로 밀어 올립니다. 그래서 입력칸이 화면 밖으로
+       사라졌습니다. 밀린 만큼 도로 내려 줍니다. */
+    if(up&&(window.scrollY||window.pageYOffset||0)>0){ try{window.scrollTo(0,0);}catch(_){} }
   }
   vv.addEventListener('resize',apply);
-  window.addEventListener('orientationchange',function(){setTimeout(function(){base=vv.height;apply();},350);});
+  vv.addEventListener('scroll',apply);
+  /* 키보드가 올라와 있는 동안 창이 밀리면 계속 되돌립니다 */
+  window.addEventListener('scroll',function(){
+    if(document.body.classList.contains('kb-up')&&(window.scrollY||window.pageYOffset||0)>0){
+      try{window.scrollTo(0,0);}catch(_){}
+    }
+  },{passive:true});
+  window.addEventListener('orientationchange',function(){setTimeout(function(){base=baseOf();apply();},350);});
   /* 누른 입력칸을 화면 가운데로 (키보드가 다 올라온 뒤에) */
   document.addEventListener('focusin',function(e){
     const el=e.target;
     if(!el||!el.matches||!el.matches('input,textarea,select'))return;
-    setTimeout(function(){ try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(_){} },280);
+    setTimeout(function(){ apply(); centerInput(el); },300);
+    setTimeout(function(){ apply(); centerInput(el); },650);   // 키보드가 늦게 뜨는 기기 대비
   });
   apply();
 }
@@ -4340,10 +4449,11 @@ window.onAuthed=function(user,profile){
   if(firstTime||!document.querySelector('.screen.active')){stack=[];switchTab('today');}
   else rerender();};
 let AUTHED_UID=null;
-window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;
+window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   $('splash').style.display='none';stack=[];show('login',{push:false});authMode('login');
   $('aEmail').value='';$('aPw').value='';};
-window.onTrips=function(list){TRIPS=list;
+let TRIPS_READY=false;
+window.onTrips=function(list){TRIPS=list;TRIPS_READY=true;
   if(curTrip&&!trip(curTrip))curTrip=null;
   if(!curTrip){const act=TRIPS.filter(t=>t.status!=='done');if(act.length)curTrip=act[0].id;}
   healMyMember();
@@ -4407,7 +4517,8 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
          signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail,
          sendEmailVerification }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, updateDoc,
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+         collection, doc, setDoc, deleteDoc, getDoc, updateDoc,
          query, where, onSnapshot, arrayUnion, addDoc, getDocs, writeBatch }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppCheckToken }
@@ -4469,7 +4580,19 @@ try{
   });
 }catch(e){ appCheckErr=e; console.warn('[여행가보젠] App Check 초기화 실패:',e); }
 const auth = getAuth(app);
-const db = getFirestore(app);
+/* 받아온 여행·사진을 이 기기에 저장해 둡니다.
+   그래야 앱을 다시 열 때 인터넷을 기다리지 않고 **바로** 목록이 뜹니다.
+   (예전에는 열 때마다 처음부터 다시 받아와서 몇 초씩 비어 보였습니다)
+   사생활 보호 모드처럼 저장이 안 되는 브라우저면 조용히 예전 방식으로 돌아갑니다. */
+let db;
+try{
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+}catch(e){
+  console.warn('[여행가보젠] 기기 저장 사용 불가 — 매번 새로 받아옵니다:', e && e.code || e);
+  db = getFirestore(app);
+}
 let unsub = null;
 
 // 오류 메시지를 한국어로 바꿔주는 함수
