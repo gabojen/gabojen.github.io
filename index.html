@@ -1267,6 +1267,45 @@ function markTheme(){var w=document.getElementById('themeTabs');if(!w)return;
   if(!window.__theme)window.__theme='light';
   var b=w.querySelectorAll('button'),k=['light','dark','auto'];
   for(var i=0;i<b.length;i++)b[i].classList.toggle('on',k[i]===(window.__theme||'auto'));}
+/* 사진 보관소가 실제로 되는지 아주 작은 파일 하나로 시험해 봅니다.
+   "올리는 중"에서 멈추던 문제를 사용자가 스스로 확인할 수 있게 만든 점검 도구입니다. */
+async function runStorageDiag(){
+  const t=trip(curTrip)||TRIPS[0];
+  if(!t){toast('먼저 여행을 하나 만들어 주세요.');return;}
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <b style="font-size:16px">사진 보관소 점검</b>
+      <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
+    <div id="stDiag">${aiBusy('아주 작은 시험 파일을 올려 보는 중… (최대 12초)')}</div>`);
+  /* 1x1 점 하나짜리 그림 */
+  const tiny='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsL'
+    +'DBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA'
+    +'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+  const t0=Date.now();
+  const up=await window.FB.uploadPhoto(t.id,tiny);
+  const sec=((Date.now()-t0)/1000).toFixed(1);
+  const st=window.FB.storageState();
+  const box=$('stDiag'); if(!box)return;
+  if(up){
+    window.FB.deletePhoto(up.path);
+    box.innerHTML=`<div class="hint"><div class="ht">${svg('i-check')}</div>
+      <div class="hb"><b class="t">보관소가 켜져 있습니다</b>
+      시험 파일을 ${sec}초 만에 올리고 지웠습니다. 사진을 <b>수백 장</b> 넣을 수 있고, 화질도 원본에 가깝게 저장됩니다.</div></div>`;
+  }else{
+    const why=String(st.why||'');
+    let 원인='보관소가 아직 켜져 있지 않은 것 같습니다.';
+    if(/unauthorized|permission/i.test(why))원인='보관소는 켜졌는데 <b>규칙(Rules)</b>이 막고 있습니다. 안내문의 규칙을 붙여넣고 [게시]를 눌러 주세요.';
+    else if(/시간 초과|retry|timeout/i.test(why))원인='보관소에 연결되지 않습니다. <b>Storage를 아직 만들지 않았을</b> 가능성이 큽니다.';
+    else if(/app-check|401|403/i.test(why))원인='앱 인증(App Check)이 보관소를 막고 있습니다. Firebase 콘솔 → App Check 에서 <b>Storage</b>를 확인해 주세요.';
+    else if(/bucket|not-found|404/i.test(why))원인='보관소(버킷)가 없습니다. Firebase 콘솔 → Storage → [시작하기]를 눌러 만들어 주세요.';
+    box.innerHTML=`<div class="hint warn"><div class="ht">${svg('i-info')}</div>
+      <div class="hb"><b class="t">보관소를 쓰지 못하고 있습니다</b>
+      ${원인}<br><br>
+      지금은 <b>예전 방식(사진을 여행 데이터에 넣기)</b>으로 저장되고 있어, 여행 1건에 <b>30장쯤</b>이 한계입니다.
+      앱은 정상 작동합니다.
+      <div class="muted small" style="margin-top:8px">기술 메시지: ${esc(why||'(없음)')} · ${sec}초</div></div></div>
+      <button class="btn ghost sm" style="margin-top:10px" onclick="closeOv()">닫기</button>`;
+  }
+}
 function openAccount(){
   const v=ME.verified;
   openSheet(`<div class="grab"></div><h3>내 계정</h3>
@@ -1669,10 +1708,11 @@ async function addItemPhotos(ev,id){
   const room=ITEM_PHOTO_PER_PERSON-myPhotoCount(it);
   if(room<=0){toast(`이 일정에는 한 사람당 ${ITEM_PHOTO_PER_PERSON}장까지 올릴 수 있어요.`);return;}
   let added=0, full=false;
-  toast('사진을 올리는 중…');
-  for(const file of files.slice(0,room)){
+  const list=files.slice(0,room);
+  for(let n=0;n<list.length;n++){
+    toast(list.length>1?`사진 올리는 중… (${n+1}/${list.length})`:'사진 올리는 중…');
     let rec;
-    try{ rec=await preparePhoto(t.id,file); }
+    try{ rec=await preparePhoto(t.id,list[n]); }
     catch(e){ toast('열 수 없는 사진이 있어 건너뛰었어요.'); continue; }
     it.photos.push(rec);
     /* 한도를 넘으면 방금 넣은 것만 되돌립니다 — 넘긴 채 저장하면 이 여행 전체가 저장 불가 */
@@ -1688,6 +1728,7 @@ async function addItemPhotos(ev,id){
   toast(full
     ? (added?`${added}장 저장했어요. 저장공간이 꽉 차 나머지는 못 올렸어요.`:'저장공간이 꽉 찼어요. 사진을 좀 지우고 올려 주세요.')
     : (added?`사진 ${added}장을 남겼어요`:'올린 사진이 없어요'));
+  if(added)noteStorageFallback();
 }
 function openItemPhoto(id,k){
   const f=itemById(id); if(!f)return;
@@ -1842,6 +1883,8 @@ function renderEmptyHome(){
       <button class="btn brand" onclick="openCreateTrip()">${svg('i-plus','ic')} 첫 여행 만들기</button>
       <div style="height:10px"></div>
       <button class="btn ghost" onclick="joinPrompt()">${svg('i-key','ic')} 초대코드로 참여하기</button>
+  <div style="height:8px"></div>
+  <button class="btn ghost sm" onclick="runStorageDiag()">${svg('i-info','ic')} 사진 보관소 점검하기</button>
     </div>`;
 }
 
@@ -3377,9 +3420,18 @@ async function preparePhoto(tripId,file){
       const th=await shrinkPhoto(file,PHOTO_THUMB_PX,PHOTO_THUMB_Q);
       return {u:th,f:up.url,sp:up.path,by:ME.name,uid:ME.uid};
     }
+    /* 여기 왔다는 건 보관소가 안 된다는 뜻입니다 — 아래에서 예전 방식으로 저장합니다 */
   }
   const url=await shrinkPhoto(file,ITEM_PHOTO_PX,ITEM_PHOTO_Q);
   return {u:url,f:'',sp:'',by:ME.name,uid:ME.uid};
+}
+/* 사진을 올린 뒤, 보관소를 못 쓴 경우에만 한 번 알려 줍니다 (매번 뜨면 성가심) */
+let _stToldOnce=false;
+function noteStorageFallback(){
+  const st=window.FB.storageState?window.FB.storageState():{ok:null};
+  if(st.ok!==false||_stToldOnce)return;
+  _stToldOnce=true;
+  setTimeout(()=>toast('사진 보관소가 꺼져 있어 작게 저장했어요. 여행당 30장쯤이 한계예요.'),1400);
 }
 function photoBlock(){
   const t=memTrip();
@@ -3443,10 +3495,11 @@ async function addMemPhotos(ev){
   const room=PHOTO_PER_PERSON-myPhotoCount(t);
   if(room<=0){toast(`한 사람이 ${PHOTO_PER_PERSON}장까지 올릴 수 있어요. 내가 올린 사진을 지우고 다시 올려 주세요.`);return;}
   let added=0, full=false;
-  toast('사진을 올리는 중…');
-  for(const f of files.slice(0,room)){
+  const list2=files.slice(0,room);
+  for(let n=0;n<list2.length;n++){
+    toast(list2.length>1?`사진 올리는 중… (${n+1}/${list2.length})`:'사진 올리는 중…');
     let rec;
-    try{ rec=await preparePhoto(t.id,f); }
+    try{ rec=await preparePhoto(t.id,list2[n]); }
     catch(e){ toast('열 수 없는 사진이 있어 건너뛰었어요.'); continue; }
     t.photos.push(rec);
     /* 저장 한도를 넘으면 방금 넣은 사진을 되돌립니다 (넘긴 채 저장하면 그 여행 전체가 저장 불가) */
@@ -3461,7 +3514,8 @@ async function addMemPhotos(ev){
   }
   toast(full
     ? (added?`${added}장 저장했어요. 저장공간이 꽉 차 나머지는 못 올렸어요.`:'저장공간이 꽉 찼어요. 기존 사진을 지우고 올려 주세요.')
-    : (added?`사진 ${added}장을 올렸어요`:'올린 사진이 없어요'));}
+    : (added?`사진 ${added}장을 올렸어요`:'올린 사진이 없어요'));
+  if(added)noteStorageFallback();}
 
 /* 지난 여행 복제 */
 function openClone(){
@@ -4283,19 +4337,40 @@ window.FB={
      사진을 여행 데이터 안에 글자로 넣으면 한 여행이 1MB를 못 넘어
      30장쯤에서 꽉 찼습니다. 원본은 보관소에 올리고 주소만 남깁니다.
      보관소가 꺼져 있으면 null 을 돌려주고, 앱은 예전 방식으로 저장합니다. */
-  storageOn(){ try{ return !!getStorage(app); }catch(e){ return false; } },
+  /* 보관소를 쓸 수 있는지 — 한 번 실패하면 이번 접속 동안 다시 시도하지 않습니다.
+     (예전 코드는 보관소가 꺼져 있어도 '쓸 수 있다'고 답해, 올릴 때마다 파이어베이스가
+      최대 10분간 재시도하며 '올리는 중…'에서 멈춰 있었습니다.) */
+  _stOK:null,           // null=아직 모름, true=쓸 수 있음, false=못 씀
+  _stWhy:'',
+  storageOn(){ return this._stOK!==false; },
+  storageState(){ return {ok:this._stOK, why:this._stWhy}; },
   async uploadPhoto(tripId,dataUrl){
+    if(this._stOK===false) return null;
+    let st;
     try{
-      const st=getStorage(app);
+      st=getStorage(app);
+      /* 기본값은 재시도 10분입니다 — 보관소가 없으면 그동안 화면이 멈춥니다. 8초로 줄입니다 */
+      st.maxUploadRetryTime=8000; st.maxOperationRetryTime=8000;
+    }catch(e){ this._stOK=false; this._stWhy='보관소를 시작할 수 없음: '+(e&&e.code||e); return null; }
+    try{
       const m=/^data:([^;]+);base64,(.*)$/.exec(dataUrl||''); if(!m)return null;
       const bin=atob(m[2]); const arr=new Uint8Array(bin.length);
       for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
       const path='trips/'+tripId+'/'+auth.currentUser.uid+'_'+Date.now()+'_'
         +Math.random().toString(36).slice(2,7)+'.jpg';
       const r=sRef(st,path);
-      await uploadBytes(r,new Blob([arr],{type:m[1]}),{contentType:m[1]});
-      return {url:await getDownloadURL(r), path};
-    }catch(e){ console.warn('[사진보관소] 사용 불가 — 예전 방식으로 저장합니다:',e&&e.code||e); return null; }
+      /* 그래도 안 끝나면 12초에서 끊고 예전 방식으로 넘어갑니다 */
+      const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('시간 초과')),12000));
+      await Promise.race([uploadBytes(r,new Blob([arr],{type:m[1]}),{contentType:m[1]}), timeout]);
+      const url=await Promise.race([getDownloadURL(r), timeout]);
+      this._stOK=true; this._stWhy='';
+      return {url, path};
+    }catch(e){
+      this._stOK=false;
+      this._stWhy=(e&&(e.code||e.message))||String(e);
+      console.warn('[사진보관소] 사용 불가 — 이번 접속 동안은 예전 방식으로 저장합니다:',this._stWhy);
+      return null;
+    }
   },
   async deletePhoto(path){
     if(!path)return; try{ await deleteObject(sRef(getStorage(app),path)); }catch(e){}
