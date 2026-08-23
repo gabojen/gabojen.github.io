@@ -271,6 +271,14 @@
     border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#B23B3B;}
   .vrow .vdel svg{width:16px;height:16px;stroke-width:2;}
   .vrow .vdel:active{transform:scale(.94);}
+  /* 사진 저장공간이 얼마 안 남았을 때 붙는 한 줄 */
+  .roomnote{display:flex;align-items:center;gap:6px;margin-top:8px;padding:7px 10px;border-radius:10px;
+    background:rgba(154,109,31,.10);border:1px solid rgba(154,109,31,.28);color:#8A5D10;
+    font-size:12px;font-weight:700;line-height:1.5;}
+  .roomnote svg{width:14px;height:14px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;}
+  .roomnote.low{background:rgba(178,59,59,.10);border-color:rgba(178,59,59,.30);color:#9B3535;}
+  html.dark .roomnote{background:rgba(212,165,74,.13);border-color:rgba(212,165,74,.30);color:#D4A54A;}
+  html.dark .roomnote.low{background:rgba(224,120,120,.14);border-color:rgba(224,120,120,.32);color:#E58585;}
   /* ── 일정에 붙인 사진 ── */
   .iphotos{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
   .iphotos .ip{position:relative;flex:0 0 auto;width:78px;aspect-ratio:1/1;border-radius:10px;background-size:cover;
@@ -1288,8 +1296,18 @@ async function runStorageDiag(){
   if(up){
     window.FB.deletePhoto(up.path);
     box.innerHTML=`<div class="hint"><div class="ht">${svg('i-check')}</div>
-      <div class="hb"><b class="t">보관소가 켜져 있습니다</b>
-      시험 파일을 ${sec}초 만에 올리고 지웠습니다. 사진을 <b>수백 장</b> 넣을 수 있고, 화질도 원본에 가깝게 저장됩니다.</div></div>`;
+      <div class="hb"><b class="t">보관소를 쓸 수 있습니다</b>
+      시험 파일을 ${sec}초 만에 올리고 지웠습니다.
+      ${USE_PHOTO_STORAGE
+        ? '앱이 이미 보관소를 쓰고 있어, 사진을 <b>수백 장</b> 넣을 수 있습니다.'
+        : '다만 앱에서는 <b>아직 꺼 둔 상태</b>입니다. 켜려면 <b>index.html</b> 의 <b>USE_PHOTO_STORAGE=false</b> 를 <b>true</b> 로 바꿔 다시 올리면 됩니다.'}</div></div>`;
+  }else if(!USE_PHOTO_STORAGE){
+    box.innerHTML=`<div class="hint"><div class="ht">${svg('i-info')}</div>
+      <div class="hb"><b class="t">지금은 보관소를 쓰지 않습니다</b>
+      사진을 <b>여행 데이터 안에</b> 작게 넣어 저장하고 있습니다. 파이어베이스 콘솔에서 따로 할 일이 없는 대신,
+      <b>여행 1건에 30장쯤</b>이 한계입니다. 얼마 안 남으면 화면에 미리 알려 드립니다.
+      <div class="muted small" style="margin-top:8px">더 많이 넣으시려면 'firebase_사진보관소_설정.txt' 를 참고해 창고를 먼저 만드세요.</div></div></div>
+      <button class="btn ghost sm" style="margin-top:10px" onclick="closeOv()">닫기</button>`;
   }else{
     const why=String(st.why||'');
     let 원인='보관소가 아직 켜져 있지 않은 것 같습니다.';
@@ -1689,14 +1707,14 @@ function itemPhotoStrip(i){
   const ph=photoList(i), mine=myPhotoCount(i), room=ITEM_PHOTO_PER_PERSON-mine;
   const addBtn=`<input type="file" id="ip_${i._id}" accept="image/*" multiple style="display:none" onchange="addItemPhotos(event,'${i._id}')">`;
   if(!ph.length)
-    return `<label class="addphoto" for="ip_${i._id}">${svg('i-camera')} 사진 남기기 <em>· 1인 ${ITEM_PHOTO_PER_PERSON}장</em>${addBtn}</label>`;
+    return `<label class="addphoto" for="ip_${i._id}">${svg('i-camera')} 사진 남기기 <em>· 1인 ${ITEM_PHOTO_PER_PERSON}장</em>${addBtn}</label>${photoRoomNote(trip(curTrip))}`;
   return `<div class="iphotos">
     ${ph.map((p,k)=>{const w=photoWho(p);return `<div class="ip" style="background-image:url('${photoThumb(p)}')" onclick="openItemPhoto('${i._id}',${k})"
         ${w?`title="${esc(w)} 올림"`:''}>${w?`<span class="who">${esc(w)}</span>`:''}</div>`;}).join('')}
     ${room>0?`<label class="ip more" for="ip_${i._id}">${svg('i-plus')}${addBtn}</label>`:''}
   </div>
   <div class="muted small" style="margin-top:6px">사진 ${ph.length}장 · 내가 올린 ${mine}/${ITEM_PHOTO_PER_PERSON}장${
-    room>0?'':' <b>(다 채웠어요)</b>'}</div>`;
+    room>0?'':' <b>(다 채웠어요)</b>'}</div>${photoRoomNote(trip(curTrip))}`;
 }
 async function addItemPhotos(ev,id){
   const t=trip(curTrip), f=itemById(id);
@@ -3350,6 +3368,13 @@ const DOC_SAFE=800*1024;                // 여행 1건의 안전 저장 한도 (
 const ITEM_PHOTO_PER_PERSON=2;          // 한 일정에 내가 올릴 수 있는 장수
 /* 보관소가 켜져 있으면: 원본(1600px)은 보관소로, 작은 그림(320px)만 여행 데이터에 남김
    보관소가 꺼져 있으면: 480px 한 장만 여행 데이터에 남김 (예전 방식) */
+/* ── 사진 보관소를 쓸지 말지 (한 줄 스위치) ──────────────────
+   false = 사진을 여행 데이터 안에 넣습니다. 여행 1건에 30장쯤이 한계지만,
+           파이어베이스 콘솔에서 따로 할 일이 없습니다. ← 지금 이 상태
+   true  = Firebase Storage(사진 창고)에 원본을 올립니다. 수백 장 가능.
+           켜기 전에 반드시 'firebase_사진보관소_설정.txt' 대로 창고를 먼저 만드세요.
+           창고 없이 true 로 두면 사진 올릴 때마다 몇 초씩 기다리게 됩니다. */
+const USE_PHOTO_STORAGE=false;
 const PHOTO_FULL_PX=1600, PHOTO_FULL_Q=0.82;
 const PHOTO_THUMB_PX=320, PHOTO_THUMB_Q=0.52;
 const ITEM_PHOTO_PX=480, ITEM_PHOTO_Q=0.62;
@@ -3373,6 +3398,22 @@ const NO_PHOTO_CATS=['transport','rentcar'];
 function canHavePhotos(cat){return NO_PHOTO_CATS.indexOf(cat)<0;}
 /* 이 여행이 저장 한도를 몇 % 쓰고 있는지 */
 function usagePct(t){return t?Math.min(100,Math.round(docSize(t)/DOC_SAFE*100)):0;}
+/* 이 여행에 사진을 몇 장쯤 더 넣을 수 있는지 — 실제 사진으로 재 보니 1장이 평균 27KB 였습니다.
+   갑자기 '꽉 찼어요'가 뜨지 않도록, 여유가 얼마 안 남으면 미리 알려 주기 위한 계산입니다. */
+const PHOTO_AVG_BYTES=27*1024;
+function photoRoomLeft(t){
+  if(!t)return 99;
+  if(USE_PHOTO_STORAGE&&window.FB.storageState&&window.FB.storageState().ok===true)return 99;
+  return Math.max(0,Math.floor((DOC_SAFE-docSize(t))/PHOTO_AVG_BYTES));
+}
+/* 여유가 8장 아래로 내려가면 붙이는 한 줄 */
+function photoRoomNote(t){
+  const left=photoRoomLeft(t);
+  if(left>8)return '';
+  return `<div class="roomnote${left<=2?' low':''}">${svg('i-info')}
+    <span>${left>0?`이 여행에 사진 <b>${left}장</b>쯤 더 넣을 수 있어요.`
+      :'이 여행의 사진 저장공간이 다 찼어요. 사진을 지우면 다시 넣을 수 있어요.'}</span></div>`;
+}
 /* 여행 전체에서 일정에 붙은 사진을 날짜순으로 모읍니다 (추억 화면에서 사용) */
 function allItemPhotos(t){
   const out=[];
@@ -3413,7 +3454,7 @@ function shrinkPhoto(file,maxPx,q){return new Promise(function(res,rej){
       이러면 여행 1건에 사진 수백 장을 넣어도 데이터가 거의 늘지 않습니다.
    ② 보관소가 꺼져 있으면 → 예전처럼 480px 그림 한 장만 데이터에 넣습니다. */
 async function preparePhoto(tripId,file){
-  if(window.FB.storageOn&&window.FB.storageOn()){
+  if(USE_PHOTO_STORAGE&&window.FB.storageOn&&window.FB.storageOn()){
     const big=await shrinkPhoto(file,PHOTO_FULL_PX,PHOTO_FULL_Q);
     const up=await window.FB.uploadPhoto(tripId,big);
     if(up){
@@ -3428,6 +3469,7 @@ async function preparePhoto(tripId,file){
 /* 사진을 올린 뒤, 보관소를 못 쓴 경우에만 한 번 알려 줍니다 (매번 뜨면 성가심) */
 let _stToldOnce=false;
 function noteStorageFallback(){
+  if(!USE_PHOTO_STORAGE)return;          // 애초에 안 쓰기로 한 상태 — 알릴 것이 없습니다
   const st=window.FB.storageState?window.FB.storageState():{ok:null};
   if(st.ok!==false||_stToldOnce)return;
   _stToldOnce=true;
@@ -3467,6 +3509,7 @@ function photoBlock(){
     <input type="file" id="memFile" accept="image/*" multiple style="display:none" onchange="addMemPhotos(event)">
     <p class="muted small" style="margin:8px 2px 0">사진은 작게 줄여 저장돼요. <b>한 사람이 ${PHOTO_PER_PERSON}장까지</b> 올릴 수 있고,
       올린 사진은 같이 여행한 사람들에게도 보여요.${ph.length?` (모두 ${ph.length}장 · 내가 올린 ${myPh}장)`:''}</p>
+    ${photoRoomNote(t)}
     ${t?`<div class="gauge${usage>=80?' warn':''}"><i style="width:${usage}%"></i></div>
       <p class="muted small" style="margin:5px 2px 0">저장공간 ${usage}% 사용${usage>=80?' · 거의 찼어요':''}</p>`:''}
     ${trailBlock}`;}
