@@ -334,6 +334,81 @@
   .hint.warn .ht{color:#8A5D10;}
   html.dark .hint.warn{background:rgba(212,165,74,.13);border-color:rgba(212,165,74,.32);}
   html.dark .hint.warn .ht{color:#D4A54A;}
+  /* ── 처음 사용법 안내 ── */
+  #intro{position:absolute;inset:0;z-index:120;background:var(--paper);
+    display:flex;flex-direction:column;animation:rise .3s cubic-bezier(.2,.7,.3,1);}
+  #intro .skip{position:absolute;top:14px;right:16px;z-index:2;background:none;border:none;
+    font-family:inherit;font-size:14px;font-weight:800;color:var(--muted);cursor:pointer;
+    padding:10px 12px;min-height:44px;}
+  #intro .skip:active{opacity:.6;}
+  .ipages{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;
+    scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;
+    overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;}
+  .ipages::-webkit-scrollbar{display:none;}
+  .ipg{flex:0 0 100%;width:100%;scroll-snap-align:center;scroll-snap-stop:always;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:52px 26px 12px;overflow-y:auto;}
+  /* 안내에 들어가는 '작은 실제 화면' */
+  .ipg .idemo{margin-bottom:24px;}
+  .dph{width:246px;background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:0 6px 20px rgba(24,20,14,.10);padding:12px;text-align:left;
+    display:flex;flex-direction:column;gap:6px;}
+  .dph .dhead{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--ink);
+    margin-bottom:2px;}
+  .dph .dtag{display:inline-block;align-self:flex-start;font-size:9.5px;font-weight:800;
+    color:var(--brand-ink);background:var(--brand-bg);padding:3px 7px;border-radius:999px;}
+  .drow{display:flex;align-items:center;gap:7px;background:var(--paper);border-radius:9px;padding:6px 8px;}
+  .drow .dic{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;flex-shrink:0;}
+  .drow .dic svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;}
+  .drow b{font-size:10px;font-weight:800;color:var(--ink);flex-shrink:0;font-variant-numeric:tabular-nums;}
+  .drow .dtx{font-size:10.5px;font-weight:600;color:var(--ink-2);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .dph .dmsg{font-size:9.5px;line-height:1.6;color:var(--ink-2);background:var(--paper);
+    border:1px dashed var(--line-2);border-radius:9px;padding:8px 9px;}
+  .dph .dmid{display:flex;align-items:center;justify-content:center;gap:4px;font-size:9.5px;
+    font-weight:800;color:var(--teal);padding:1px 0;}
+  .dph .dmid svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;}
+  .dph .dnote{font-size:9.5px;color:var(--muted);text-align:center;margin-top:2px;font-weight:700;}
+  .dph .dmem{display:flex;align-items:center;gap:0;}
+  .dph .dmem .dav{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--card);
+    margin-left:-5px;display:flex;align-items:center;justify-content:center;color:#fff;
+    font-size:9px;font-weight:800;flex-shrink:0;}
+  .dph .dmem .dav:first-child{margin-left:0;}
+  .dph .dmem em{font-style:normal;font-size:10px;font-weight:700;color:var(--muted);margin-left:8px;}
+  .dph .dcode{font-size:9.5px;font-weight:700;color:var(--muted);}
+  .dph .dcode b{color:var(--brand-ink);letter-spacing:.04em;}
+  .dph .dpics{display:flex;gap:5px;}
+  .dph .dpics span{flex:1;aspect-ratio:1/1;border-radius:7px;position:relative;overflow:hidden;}
+  .dph .dpics i{position:absolute;left:0;right:0;bottom:0;font-style:normal;font-size:7.5px;
+    font-weight:800;color:#fff;text-align:center;padding:1px 0 2px;
+    background:linear-gradient(transparent,rgba(0,0,0,.55));}
+  .dph.dbook{padding:10px;}
+  .dph .dcover{height:104px;border-radius:12px;background-size:cover;background-position:center 62%;
+    position:relative;overflow:hidden;display:flex;align-items:flex-end;}
+  .dph .dcgrad{position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(13,24,31,.05),rgba(13,24,31,.78));}
+  .dph .dctx{position:relative;padding:8px 9px;color:#fff;}
+  .dph .dctx b{display:block;font-family:var(--font-display);font-size:12.5px;font-weight:700;}
+  .dph .dctx span{font-size:9px;font-weight:700;opacity:.9;}
+  .dph .ddots{display:flex;justify-content:center;gap:4px;padding:2px 0;}
+  .dph .ddots i{width:4px;height:4px;border-radius:50%;background:var(--line-2);}
+  .dph .ddots i.on{width:12px;border-radius:2px;background:var(--brand);}
+  .dph .dstamps{display:flex;justify-content:center;gap:7px;padding:2px 0;}
+  .dph .dstamps span{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;color:var(--sink);border:1.6px solid var(--sink);
+    box-shadow:inset 0 0 0 2px var(--card),inset 0 0 0 3px var(--sink);}
+  .dph .dstamps span.off{color:var(--line-2);border:1.6px dashed var(--line-2);box-shadow:none;}
+  .dph .dstamps svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;}
+  .ipg h2{font-family:var(--font-display);font-size:21px;font-weight:700;margin:0 0 10px;
+    letter-spacing:-.01em;line-height:1.35;}
+  .ipg p{margin:0;font-size:14px;line-height:1.7;color:var(--ink-2);max-width:300px;}
+  .ifoot{flex-shrink:0;padding:8px 26px 26px;}
+  .idots{display:flex;justify-content:center;gap:7px;margin-bottom:18px;}
+  .idots i{width:7px;height:7px;border-radius:50%;background:var(--line-2);transition:width .2s,background .2s;}
+  .idots i.on{width:22px;background:var(--brand);border-radius:4px;}
+  html.dark #intro{background:var(--paper);}
+  html.dark .ipg .ico .ring{box-shadow:inset 0 0 0 4px var(--paper),inset 0 0 0 6px var(--sink);}
   /* ── 여행 스탬프 ─────────────────────────────────────────── */
   .stampcard{padding:0;overflow:hidden;}
   .stamphd{display:flex;align-items:center;gap:11px;width:100%;padding:13px 14px;background:none;
@@ -423,7 +498,9 @@
   .endfig .dim{opacity:.45;}
   /* ── 여행책(추억 앨범) ─────────────────────────────────────
      한 장씩 옆으로 넘기는 책. 스크롤이 아니라 '넘김'이라 scroll-snap 을 씁니다. */
-  #album{padding:0 0 8px;}
+  /* 여행책은 스스로 배치를 관리하므로 바깥 화면 상자는 스크롤하지 않습니다.
+     (세로로 스크롤되는 상자가 겹쳐 있으면 아이폰이 옆으로 미는 손가락을 세로로 잘못 잡습니다) */
+  #album{padding:0 0 8px;overflow:hidden;}
   .book{display:flex;flex-direction:column;height:100%;}
   .pages{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;
     scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;
@@ -1050,7 +1127,7 @@
       <div id="authErr"></div>
       <div id="nameWrap" style="display:none"><input class="input" id="aName" placeholder="이름 (예: 김광석)" aria-label="이름"></div>
       <input class="input" id="aEmail" type="email" placeholder="이메일" aria-label="이메일" autocomplete="username">
-      <input class="input" id="aPw" type="password" placeholder="비밀번호 (6자 이상)" aria-label="비밀번호" autocomplete="current-password">
+      <input class="input" id="aPw" type="password" placeholder="비밀번호 (8자 이상)" aria-label="비밀번호" autocomplete="current-password">
       <button class="btn brand" id="authBtn" onclick="doAuth()">로그인</button>
       <button class="lnk" id="resetLink" onclick="doReset()">비밀번호를 잊으셨나요?</button>
       <p class="muted small" style="margin-top:10px;">처음이시면 위 <b>회원가입</b> 탭을 눌러 계정을 만들어 주세요.<br>비밀번호는 <b>Firebase가 암호화해 보관</b>하며, 앱이나 저희가 볼 수 없습니다.</p>
@@ -1330,7 +1407,22 @@ function nextItem(t){const now=new Date();let best=null;(t.days||[]).forEach((d,
 function relText(dt,now){let m=Math.round((dt-now)/60000);if(m<0)return"";if(m<60)return m+"분 후";
   const h=Math.floor(m/60);if(h<24)return h+"시간"+(m%60?" "+(m%60)+"분":"")+" 후";return Math.floor(h/24)+"일 후";}
 function focusDayIdx(t){const now=new Date();let idx=0;(t.days||[]).forEach((d,i)=>{if(now>=dObj(d.date)&&now<=dObj(d.date,"23:59"))idx=i;});return idx;}
-function uid(){return Math.random().toString(36).slice(2,9);}
+/* 예측 불가능한 임의 문자열.
+   예전에는 Math.random() 을 썼는데, 이 함수는 '암호용'이 아니라서
+   같은 브라우저에서 뽑은 값 몇 개를 알면 다음 값을 계산해 낼 수 있습니다.
+   초대코드가 곧 여행 주소라서, 추측이 불가능한 방식으로 바꿉니다. */
+function randId(n){
+  const AB='abcdefghijkmnpqrstuvwxyz23456789';      // 헷갈리는 l,o,0,1 제외
+  try{
+    const a=new Uint8Array(n); crypto.getRandomValues(a);
+    return Array.from(a,x=>AB[x%AB.length]).join('');
+  }catch(e){
+    let s=''; for(let i=0;i<n;i++)s+=AB[Math.floor(Math.random()*AB.length)];
+    return s;
+  }
+}
+function uid(){return randId(7);}          // 일정 등 내부 번호
+function tripId(){return randId(8);}       // 여행 = 초대코드 (더 길게)
 function initial(name){return (name||"?").trim().charAt(0)||"?";}
 
 /* ---- 인증 화면 ---- */
@@ -1345,10 +1437,26 @@ function setFails(e,n){try{localStorage.setItem(fkey(e),String(n));}catch(x){}}
 function clearFails(e){try{localStorage.removeItem(fkey(e));}catch(x){}}
 function lockPanel(){$('authErr').innerHTML='<div class="err">비밀번호를 5번 잘못 입력했습니다.<br>보안을 위해 로그인을 잠갔어요. 아래 <b>비밀번호 재설정 메일 보내기</b>를 눌러 이메일 인증으로 새 비밀번호를 설정해 주세요.</div>';$('authBtn').disabled=true;var rl=document.getElementById('resetLink');if(rl){rl.textContent='비밀번호 재설정 메일 보내기';rl.style.fontSize='14px';}}
 function okPanel(m){$('authErr').innerHTML='<div class="err" style="background:rgba(63,138,74,.12);color:#2f6b38">'+m+'</div>';}
+/* 가입만 하고 버리는 '일회용 메일' 주소는 막습니다.
+   완벽한 차단은 아니지만(계속 새 도메인이 생깁니다), 손쉬운 대량 가입은 걸러집니다. */
+const TEMP_MAIL=['mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com','temp-mail.org',
+  'throwawaymail.com','yopmail.com','sharklasers.com','trashmail.com','getnada.com','maildrop.cc',
+  'dispostable.com','fakeinbox.com','mohmal.com','emailondeck.com','moakt.com','tempr.email',
+  'discard.email','mailnesia.com','inboxbear.com','1secmail.com','vpsmail.top','tempmailo.com'];
+function isTempMail(email){
+  const d=String(email||'').split('@')[1];
+  if(!d)return false;
+  const dom=d.toLowerCase().trim();
+  return TEMP_MAIL.some(x=>dom===x||dom.endsWith('.'+x));
+}
 async function doAuth(){
   const email=$('aEmail').value.trim(),pw=$('aPw').value,name=($('aName').value||'').trim();
   if(!email||!pw){authError('이메일과 비밀번호를 입력해 주세요.');return;}
   if(authTab==='signup'&&!name){authError('이름을 입력해 주세요.');return;}
+  if(authTab==='signup'&&isTempMail(email)){
+    authError('일회용 메일 주소로는 가입할 수 없어요. 평소 쓰시는 메일 주소를 입력해 주세요.');return;}
+  if(authTab==='signup'&&pw.length<8){
+    authError('비밀번호를 8자 이상으로 만들어 주세요.');return;}
   if(authTab==='login'&&getFails(email)>=5){lockPanel();return;}
   $('authBtn').disabled=true;$('authBtn').textContent='처리 중…';
   try{
@@ -1516,7 +1624,9 @@ function joinPrompt(){openSheet(`<div class="grab"></div><h3>초대코드로 참
   <p class="muted small" style="margin:0 0 12px">함께 가는 사람이 알려준 <b>초대코드</b>를 입력하면 그 여행에 참여합니다.</p>
   <input class="input" id="jCode" placeholder="예: a1b2c3d">
   <button class="btn brand" onclick="doJoin()">${svg('i-check','ic')} 참여하기</button>`);}
-async function doJoin(){const code=($('jCode').value||'').trim();if(!code){toast('코드를 입력해 주세요.');return;}
+async function doJoin(){
+  if(!ME.verified){closeOv();needVerify();return;}
+  const code=($('jCode').value||'').trim();if(!code){toast('코드를 입력해 주세요.');return;}
   try{await window.FB.joinTrip(code);closeOv();toast('여행에 참여했어요!');
     /* 참여만 하고 제자리에 있으면 뭐가 됐는지 알 수 없으므로 [내 여행] 목록으로 데려다 줍니다.
        (참여한 여행이 목록에 들어오는 데 잠깐 걸려 조금 기다렸다 이동합니다) */
@@ -2024,11 +2134,20 @@ function renderEmptyHome(){
       <div style="height:10px"></div>
       <button class="btn ghost" onclick="joinPrompt()">${svg('i-key','ic')} 초대코드로 참여하기</button>
   <div style="height:8px"></div>
+  <button class="btn ghost sm" onclick="closeOv();openIntro()">${svg('i-info','ic')} 사용법 다시 보기</button>
+  <div style="height:8px"></div>
   <button class="btn ghost sm" onclick="runStorageDiag()">${svg('i-info','ic')} 사진 보관소 점검하기</button>
     </div>`;
 }
 
 /* ---- 내 여행 ---- */
+function verifyBar(){
+  if(ME.verified||!ME.uid)return '';
+  return `<div class="hint warn" style="margin:0 0 12px"><div class="ht">${svg('i-info')}</div>
+    <div class="hb"><b class="t">메일 인증이 아직이에요</b>
+      새 여행을 만들거나 초대코드로 참여하려면 인증이 필요해요.
+      <button class="lnk" style="padding:0 2px" onclick="needVerify()">인증하기</button></div></div>`;
+}
 function renderTrips(){
   if(!TRIPS_READY&&!TRIPS.length){$('trips').innerHTML=loadingCard();return;}
   const av=t=>avatarRow(t,4);
@@ -2039,7 +2158,7 @@ function renderTrips(){
         <div class="cc"><h3>${esc(t.title)}</h3><div class="loc">${svg('i-pin')} ${esc(t.place)} · ${mdLabel(t.start)}–${mdLabel(t.end)}</div></div></div>
       <div class="foot"><span class="pill" style="background:${CAT_BG.plan};color:var(--brand-ink)">${svg('i-users')} ${esc(t.groupType)}</span>${av(t)}</div>
     </div>`).join(''):`<div class="card center" style="padding:26px"><p class="muted small" style="margin:0">진행 중·예정된 여행이 없어요.</p></div>`;
-  $('trips').innerHTML=`<button class="btn brand" onclick="openCreateTrip()">${svg('i-plus','ic')} 새 여행 만들기</button>
+  $('trips').innerHTML=`${verifyBar()}<button class="btn brand" onclick="openCreateTrip()">${svg('i-plus','ic')} 새 여행 만들기</button>
     <div class="eyebrow">진행 중 · 예정된 여행</div>${list}
     <button class="btn ghost" onclick="switchTab('history')">${svg('i-camera','ic')} 지난 여행(추억) 보기</button>`;
 }
@@ -3215,7 +3334,39 @@ function askDeleteTrip(){openModal(`<b style="font-size:16px">여행을 삭제�
 async function doDeleteTrip(){const id=curTrip;closeOv();await window.FB.deleteTrip(id);curTrip=null;toast('여행을 삭제했습니다');switchTab('trips');}
 
 /* ---- 새 여행 ---- */
-function openCreateTrip(){const y=new Date().getFullYear();
+/* ── 이메일 인증을 해야 새 여행을 만들거나 참여할 수 있습니다 ──────────
+   왜: 가입만 하고 버리는 계정이 저장공간을 채우는 것을 막습니다.
+       메일함을 실제로 가진 사람만 데이터를 만들 수 있게 하는 것이 가장 효과적입니다.
+   이미 만들어 둔 여행은 인증 전에도 그대로 보고 쓸 수 있습니다. */
+function needVerify(){
+  if(ME.verified)return false;
+  openModal(`<div class="row" style="justify-content:flex-end;margin-bottom:-4px">
+      <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
+    <div class="center"><div class="tile" style="width:52px;height:52px;margin:0 auto 12px;
+        background:var(--brand-bg);color:var(--brand-ink)">${svg('i-info')}</div>
+      <b style="font-size:16px">메일 인증을 먼저 해 주세요</b>
+      <p class="muted small" style="margin:10px 0 0;line-height:1.75">
+        <b>${esc(ME.email)}</b> 으로 보낸 메일에서<br>링크를 한 번 눌러 주시면 됩니다.<br>
+        <span style="font-size:12px">메일함에 없으면 <b>스팸함</b>도 확인해 주세요.</span></p></div>
+    <button class="btn brand" style="margin-top:16px" onclick="resendVerify()">${svg('i-share','ic')} 인증 메일 다시 보내기</button>
+    <button class="btn ghost sm" style="margin-top:8px" onclick="recheckVerify()">${svg('i-check','ic')} 인증했어요 · 다시 확인</button>
+    <p class="muted small center" style="margin:12px 0 0">이미 만들어 둔 여행은 그대로 보실 수 있어요.</p>`);
+  return true;
+}
+async function resendVerify(){
+  try{ await window.FB.sendVerify(); toast('인증 메일을 다시 보냈어요. 메일함을 확인해 주세요.'); }
+  catch(e){ toast('발송 실패: 잠시 후 다시 시도해 주세요.'); }
+}
+async function recheckVerify(){
+  try{
+    const ok=await window.FB.refreshVerified();
+    if(ok){ ME.verified=true; closeOv(); toast('인증이 확인됐어요. 이제 여행을 만들 수 있어요!'); rerender(); }
+    else toast('아직 인증 전이에요. 메일의 링크를 눌러 주세요.');
+  }catch(e){ toast('확인하지 못했어요. 잠시 후 다시 시도해 주세요.'); }
+}
+function openCreateTrip(){
+  if(needVerify())return;
+  const y=new Date().getFullYear();
   openSheet(`<div class="grab"></div><h3>새 여행 만들기</h3>
     <label class="fld">여행 제목</label><input class="input" id="cTitle" placeholder="예: 제주 여름 여행">
     <label class="fld">여행지</label><input class="input" id="cPlace" placeholder="예: 제주도">
@@ -3232,7 +3383,7 @@ async function saveCreateTrip(){
   const start=$('cStart').value,end=$('cEnd').value;
   if(!start||!end||dObj(end)<dObj(start)){toast('여행 기간을 확인해 주세요.');return;}
   $('cBtn').disabled=true;
-  const t={id:uid(),title,place:$('cPlace').value.trim()||"여행지",groupType:$('cGroup').value,
+  const t={id:tripId(),title,place:$('cPlace').value.trim()||"여행지",groupType:$('cGroup').value,
     hasStudent:$('cStudent').checked,status:"active",start,end,   /* 표지는 저장하지 않고 coverArt()가 그때그때 그립니다 */
     members:[memberRec()],memberUids:[ME.uid],
     days:daysBetween(start,end).map(d=>({date:d,items:[]})),pack:[],proposals:[],owner:ME.uid};
@@ -3554,12 +3705,77 @@ function renderAlbum(){
         <button class="bbtn" onclick="albumGo(1)" aria-label="다음 장">${svg('i-right','ic')}</button>
       </div>
     </div>`;
-  setTimeout(()=>{const el=$('bookPages'); if(el&&albumPage)el.scrollLeft=el.clientWidth*albumPage;},0);
+  setTimeout(()=>{const el=$('bookPages');
+    if(el){ setupBookSwipe(el); if(albumPage)el.scrollLeft=el.clientWidth*albumPage; }},0);
   afterRender();          // 지도 자리를 실제 지도로 채웁니다
+}
+
+/* ── 여행책 옆으로 넘기기 ──────────────────────────────────────
+   세로로 스크롤되는 상자(화면·각 장)와 가로로 넘기는 상자가 겹쳐 있어서,
+   아이폰이 옆으로 미는 손가락을 '세로 스크롤'로 잘못 잡는 일이 있었습니다.
+   그래서 옆으로 미는 동작만 직접 받아 처리합니다. 위아래로 미는 것은 그대로 둡니다. */
+/* 지금 몇 번째 장인지는 '스크롤 위치'로 판단합니다 (변수보다 확실합니다) */
+function bookPageNow(el){return Math.round(el.scrollLeft/(el.clientWidth||1));}
+function bookGoTo(el,n){
+  const max=el.children.length-1, W=el.clientWidth||1;
+  albumPage=Math.max(0,Math.min(max,n));
+  const target=albumPage*W;
+  el._go=1;
+  el.style.scrollBehavior='smooth';
+  try{ el.scrollTo({left:target,behavior:'smooth'}); }catch(_){ el.scrollLeft=target; }
+  /* 부드러운 이동이 중간에 멈추는 기기가 있어, 조금 뒤 정확한 자리에 확실히 앉힙니다.
+     (이게 없으면 장과 장 사이에 어중간하게 걸쳐 있게 됩니다) */
+  setTimeout(function(){
+    el.style.scrollSnapType='';
+    if(Math.abs(el.scrollLeft-target)>2){ el.style.scrollBehavior='auto'; el.scrollLeft=target; }
+    el._go=0;
+    albumPage=Math.round(el.scrollLeft/(el.clientWidth||1));
+    albumScrolled();
+  },340);
+}
+function setupBookSwipe(el){
+  if(!el||el.dataset.swipe)return; el.dataset.swipe='1';
+  let x0=0,y0=0,lastX=0,left0=0,dragging=false,decided=false,active=false;
+  const W=()=>el.clientWidth||1;
+  el.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1)return;
+    x0=e.touches[0].clientX; y0=e.touches[0].clientY; lastX=x0;
+    left0=el.scrollLeft; dragging=true; decided=false; active=false;
+    el.style.scrollBehavior='auto';
+    el.style.scrollSnapType='none';        // 끄지 않으면 손끝을 따라오지 않습니다
+  },{passive:true});
+  el.addEventListener('touchmove',function(e){
+    if(!dragging||e.touches.length!==1)return;
+    const dx=e.touches[0].clientX-x0, dy=e.touches[0].clientY-y0;
+    if(!decided){
+      if(Math.abs(dx)<6&&Math.abs(dy)<6)return;      // 아직 방향을 알 수 없음
+      decided=true;
+      active=Math.abs(dx)>Math.abs(dy)*1.2;          // 옆으로 미는 뜻이 분명할 때만
+      if(!active){ el.style.scrollSnapType=''; dragging=false; return; }  // 위아래는 원래대로
+    }
+    if(!active)return;
+    e.preventDefault();                              // 세로 스크롤이 가로채지 못하게
+    lastX=e.touches[0].clientX;
+    el.scrollLeft=left0-dx;
+  },{passive:false});
+  function end(){
+    if(!dragging&&!active){el.style.scrollSnapType='';return;}
+    dragging=false;
+    if(active){
+      /* 책장 넘기듯 — 화면 폭의 18%만 밀어도 다음 장으로 넘어갑니다.
+         (절반 넘게 밀어야 넘어가면 넘길 때마다 손이 아픕니다) */
+      const dx=lastX-x0, from=Math.round(left0/W());
+      const go=Math.abs(dx)>W()*0.18 ? from+(dx<0?1:-1) : from;
+      bookGoTo(el,go);
+    }else{ el.style.scrollSnapType=''; }
+    active=false;
+  }
+  el.addEventListener('touchend',end,{passive:true});
+  el.addEventListener('touchcancel',end,{passive:true});
 }
 /* 어느 장을 보고 있는지 점으로 표시 */
 function albumScrolled(){
-  const el=$('bookPages'); if(!el)return;
+  const el=$('bookPages'); if(!el||el._go)return;   // 옮기는 중엔 끼어들지 않음
   const i=Math.round(el.scrollLeft/el.clientWidth);
   if(i===albumPage)return; albumPage=i;
   const d=$('bookDots'); if(!d)return;
@@ -3567,9 +3783,7 @@ function albumScrolled(){
 }
 function albumGo(dir){
   const el=$('bookPages'); if(!el)return;
-  const total=el.children.length;
-  const next=Math.max(0,Math.min(total-1,albumPage+dir));
-  el.scrollTo({left:el.clientWidth*next,behavior:'smooth'});
+  bookGoTo(el, bookPageNow(el)+dir);
 }
 
 
@@ -3848,6 +4062,184 @@ async function migratePhotosOut(){
       이제 사진 장수 제한이 없어요. 화질도 그대로입니다.</p></div>`);
 }
 function usagePctOf(bytes){return Math.min(100,Math.round(bytes/DOC_SAFE*100));}
+
+/* ============================================================================
+   처음 오신 분께 보여 드리는 사용법 (4장)
+   · 널리 쓰이는 방식 그대로: 3~5장을 옆으로 넘기고, [건너뛰기]는 눈에 띄게 둡니다.
+   · 마지막 장에서 [시작하기]를 누르면 창이 확실히 닫히고 다시 뜨지 않습니다.
+   ============================================================================ */
+/* 안내에 넣을 '작은 실제 화면' — 사진이 아니라 앱 부품으로 직접 그립니다.
+   그래서 용량이 늘지 않고, 앱 디자인이 바뀌면 이 그림도 같이 바뀝니다. */
+function demoRow(cat,time,title){
+  return `<div class="drow"><span class="dic" style="background:${CAT_BG[cat]};color:${CAT[cat].color}">${svg(CAT[cat].icon)}</span>`
+    +`<b>${time}</b><span class="dtx">${esc(title)}</span></div>`;
+}
+function demoPlan(){
+  return `<div class="dph">
+    <div class="dhead">제주 가족여행</div>
+    <div class="dtag">DAY 1 · 8/19(수)</div>
+    ${demoRow('transport','08:20','김포–제주 KE1201')}
+    ${demoRow('stay','15:00','제주신라호텔 체크인')}
+    ${demoRow('plan','17:30','협재해수욕장 산책')}
+    <div class="dtag" style="margin-top:8px">DAY 2 · 8/20(목)</div>
+    ${demoRow('ticket','10:00','아쿠아플라넷 제주')}
+  </div>`;
+}
+function demoPaste(){
+  return `<div class="dph">
+    <div class="dmsg">[대한항공] 김광석님<br>8/19(수) 08:20 김포→제주<br>KE1201 예약이 확정되었습니다.</div>
+    <div class="dmid">${svg('i-spark')} 붙여넣으면 알아서 정리</div>
+    ${demoRow('transport','08:20','김포–제주 KE1201')}
+    <div class="dnote">날짜 · 시간 · 편명까지 자동으로</div>
+  </div>`;
+}
+function demoShare(){
+  return `<div class="dph">
+    <div class="dmem"><span class="dav" style="background:#C94B27">김</span>
+      <span class="dav" style="background:#0B6463">이</span>
+      <span class="dav" style="background:#6242C6">김</span>
+      <em>가족 · 3명</em></div>
+    <div class="dcode">초대코드 <b>a1b2c3d</b></div>
+    ${demoRow('plan','17:30','협재해수욕장 산책')}
+    <div class="dpics">
+      <span style="background:linear-gradient(140deg,#2F6E96,#7FB4C0)"><i>나</i></span>
+      <span style="background:linear-gradient(140deg,#0E7C7B,#5EAEB4)"><i>이수정</i></span>
+      <span style="background:linear-gradient(140deg,#A96C36,#D0995A)"><i>김하늘</i></span>
+    </div>
+    <div class="dnote">각자 올린 사진이 한자리에</div>
+  </div>`;
+}
+function demoBook(){
+  return `<div class="dph dbook">
+    <div class="dcover" style="background-image:${brandCover()}">
+      <div class="dcgrad"></div>
+      <div class="dctx"><b>제주 가족여행</b><span>4일 · 7곳 · 12장</span></div>
+    </div>
+    <div class="ddots"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+    <div class="dstamps">
+      <span style="--sink:#1F6E7A">${svg('i-wave')}</span>
+      <span style="--sink:#7A4A22">${svg('i-mount')}</span>
+      <span style="--sink:#A63B18">${svg('i-flag')}</span>
+      <span class="off">${svg('i-lock')}</span>
+    </div>
+    <div class="dnote">표지부터 한 장씩 넘겨 보세요</div>
+  </div>`;
+}
+const INTRO=[
+  {demo:demoPlan, t:'여행 하나에 전부 담아요',
+   b:'항공권·숙소·렌트카·입장권·할 일을<br>한 여행 안에 <b>날짜순으로</b> 모아 둡니다.'},
+  {demo:demoPaste, t:'예약 문자를 붙여넣기만',
+   b:'항공사·숙소에서 온 문자를 그대로 붙여넣으면<br>날짜·시간·장소를 <b>알아서 정리</b>해 드려요.'},
+  {demo:demoShare, t:'같이 가는 사람과 함께',
+   b:'<b>초대코드</b>를 알려 주면 같은 여행을 함께 봅니다.<br>각자 사진을 올리고 의견도 남길 수 있어요.'},
+  {demo:demoBook, t:'끝나면 여행책이 됩니다',
+   b:'다녀온 뒤에는 <b>추억</b>에서 한 장씩 넘겨 보세요.<br>다녀온 길 지도와 <b>스탬프</b>도 모입니다.'},
+];
+function introSeen(){
+  try{ return localStorage.getItem('gbj_intro_'+(ME.uid||'guest'))==='1'; }catch(e){ return true; }
+}
+function markIntroSeen(){
+  try{ localStorage.setItem('gbj_intro_'+(ME.uid||'guest'),'1'); }catch(e){}
+}
+let introPage=0;
+function openIntro(){
+  closeIntro();                                  // 혹시 열려 있으면 먼저 정리
+  introPage=0;
+  const el=document.createElement('div');
+  el.id='intro';
+  el.innerHTML=`
+    <button class="skip" onclick="closeIntro(true)">건너뛰기</button>
+    <div class="ipages" id="introPages">
+      ${INTRO.map(p=>`<section class="ipg">
+        <div class="idemo">${p.demo()}</div>
+        <h2>${p.t}</h2>
+        <p>${p.b}</p>
+      </section>`).join('')}
+    </div>
+    <div class="ifoot">
+      <div class="idots" id="introDots">${INTRO.map((_,i)=>`<i class="${i?'':'on'}"></i>`).join('')}</div>
+      <button class="btn brand" id="introBtn" onclick="introNext()">다음</button>
+    </div>`;
+  document.body.appendChild(el);
+  const pages=document.getElementById('introPages');
+  setupIntroSwipe(pages);
+  pages.addEventListener('scroll',introScrolled,{passive:true});
+}
+function introScrolled(){
+  const el=document.getElementById('introPages'); if(!el||el._go)return;   // 옮기는 중엔 끼어들지 않음
+  const i=Math.round(el.scrollLeft/(el.clientWidth||1));
+  if(i===introPage)return;
+  introPage=i; introPaint();
+}
+function introPaint(){
+  const d=document.getElementById('introDots');
+  if(d)[...d.children].forEach((c,k)=>c.className=(k===introPage?'on':''));
+  const b=document.getElementById('introBtn');
+  if(b)b.textContent=(introPage>=INTRO.length-1)?'시작하기':'다음';
+  const sk=document.querySelector('#intro .skip');
+  if(sk)sk.style.visibility=(introPage>=INTRO.length-1)?'hidden':'visible';
+}
+function introGo(n){
+  const el=document.getElementById('introPages'); if(!el)return;
+  const W=el.clientWidth||1, max=INTRO.length-1;
+  introPage=Math.max(0,Math.min(max,n));
+  const target=introPage*W;
+  el._go=1;                                    // 옮기는 중 표시
+  el.style.scrollBehavior='smooth';
+  try{ el.scrollTo({left:target,behavior:'smooth'}); }catch(_){ el.scrollLeft=target; }
+  setTimeout(function(){
+    el.style.scrollSnapType='';
+    if(Math.abs(el.scrollLeft-target)>2){ el.style.scrollBehavior='auto'; el.scrollLeft=target; }
+    el._go=0;
+    introPage=Math.round(el.scrollLeft/(el.clientWidth||1));   // 실제 위치로 맞춤
+    introPaint();
+  },320);
+  introPaint();
+}
+function introNext(){
+  if(introPage>=INTRO.length-1){ closeIntro(true); return; }   // 마지막 장 → 확실히 닫기
+  introGo(introPage+1);
+}
+/* 닫기 — 화면에서 완전히 걷어내고, 다시 뜨지 않게 표시해 둡니다 */
+function closeIntro(seen){
+  const el=document.getElementById('intro');
+  if(el&&el.parentNode)el.parentNode.removeChild(el);
+  if(seen)markIntroSeen();
+}
+/* 옆으로 넘기기 — 여행책과 같은 방식 */
+function setupIntroSwipe(el){
+  if(!el||el.dataset.swipe)return; el.dataset.swipe='1';
+  let x0=0,y0=0,lastX=0,left0=0,dragging=false,decided=false,active=false;
+  const W=()=>el.clientWidth||1;
+  el.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1)return;
+    x0=e.touches[0].clientX; y0=e.touches[0].clientY; lastX=x0;
+    left0=el.scrollLeft; dragging=true; decided=false; active=false;
+    el.style.scrollBehavior='auto'; el.style.scrollSnapType='none';
+  },{passive:true});
+  el.addEventListener('touchmove',function(e){
+    if(!dragging||e.touches.length!==1)return;
+    const dx=e.touches[0].clientX-x0, dy=e.touches[0].clientY-y0;
+    if(!decided){
+      if(Math.abs(dx)<6&&Math.abs(dy)<6)return;
+      decided=true; active=Math.abs(dx)>Math.abs(dy)*1.2;
+      if(!active){ el.style.scrollSnapType=''; dragging=false; return; }
+    }
+    if(!active)return;
+    e.preventDefault(); lastX=e.touches[0].clientX; el.scrollLeft=left0-dx;
+  },{passive:false});
+  function end(){
+    if(!dragging&&!active){ el.style.scrollSnapType=''; return; }
+    dragging=false;
+    if(active){
+      const dx=lastX-x0, from=Math.round(left0/W());
+      introGo(Math.abs(dx)>W()*0.18 ? from+(dx<0?1:-1) : from);
+    }else{ el.style.scrollSnapType=''; }
+    active=false;
+  }
+  el.addEventListener('touchend',end,{passive:true});
+  el.addEventListener('touchcancel',end,{passive:true});
+}
 function renderHistory(){
   if(!TRIPS_READY&&!TRIPS.length){$('history').innerHTML=loadingCard('추억을 불러오는 중…');return;}
   const done=doneTrips();
@@ -4165,7 +4557,7 @@ async function doClone(){
     return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);})());
   const nd=days.map((dt,i)=>({date:dt,items:((src.days&&src.days[i]&&src.days[i].items)||[]).map(x=>({
     _id:uid(),cat:x.cat,time:x.time,title:x.title,place:x.place,sub:'',by:ME.name,comments:[],map:x.map}))}));
-  const t={id:uid(),title,place:src.place,groupType:src.groupType,hasStudent:src.hasStudent,status:'active',
+  const t={id:tripId(),title,place:src.place,groupType:src.groupType,hasStudent:src.hasStudent,status:'active',
     start,end:days[days.length-1],members:[memberRec()],
     memberUids:[ME.uid],days:nd,pack:(src.pack||[]).map(p=>({title:p.title,sub:p.sub,done:false})),proposals:[],owner:ME.uid};
   try{await window.FB.saveTrip(t);
@@ -4624,7 +5016,9 @@ window.onAuthed=function(user,profile){
   const firstTime=(AUTHED_UID!==user.uid);
   AUTHED_UID=user.uid;
   if(firstTime||!document.querySelector('.screen.active')){stack=[];switchTab('today');}
-  else rerender();};
+  else rerender();
+  /* 처음 오신 분에게만 사용법을 보여 드립니다 (한 번 보면 다시 안 뜹니다) */
+  if(firstTime&&!introSeen())setTimeout(openIntro,450);};
 let AUTHED_UID=null;
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   $('splash').style.display='none';stack=[];show('login',{push:false});authMode('login');
@@ -4992,6 +5386,8 @@ window.FB={
   async logout(){ if(unsub){unsub();unsub=null;} await signOut(auth); },
   async resetPw(email){ await sendPasswordResetEmail(auth,email); },
   async sendVerify(){ await sendEmailVerification(auth.currentUser); },
+  /* 메일 링크를 누른 뒤 앱에서 '다시 확인'을 눌렀을 때 */
+  async refreshVerified(){ await auth.currentUser.reload(); return !!auth.currentUser.emailVerified; },
   async updateMyProfile(name,photo){
     await updateProfile(auth.currentUser,{displayName:name});
     await setDoc(doc(db,'users',auth.currentUser.uid),
