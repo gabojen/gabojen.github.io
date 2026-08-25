@@ -379,6 +379,48 @@
     stroke-linecap:round;stroke-linejoin:round;position:relative;}
   .stamp-big.off{color:var(--line-2);}
   .stamp-big.off .ring{border:3px dashed var(--line-2);box-shadow:none;}
+  /* ── 여행책의 '다녀온 길' 장 ── */
+  .pg.mapPg .dhd .dno{display:inline-flex;align-items:center;gap:5px;}
+  .pg.mapPg .dhd .dno svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.2;}
+  .rmwrap{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);
+    background:var(--paper);box-shadow:var(--shadow);}
+  #routeMap{width:100%;height:340px;position:relative;}
+  .rmempty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:8px;color:var(--muted);text-align:center;padding:20px;}
+  .rmempty b{font-size:14px;color:var(--ink);}
+  .rmempty span{font-size:12.5px;line-height:1.6;max-width:250px;}
+  .rmempty svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;opacity:.6;}
+  /* 지도 위 번호 표시 — 지나온 순서 */
+  .rmpin{width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;
+    border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);
+    font-family:var(--font-body);cursor:default;}
+  .rmpin.first{background:var(--teal);}
+  .rmpin.last{background:var(--ink);}
+  /* 다녀온 순서 목록 */
+  .rmlist{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;}
+  .rmrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);}
+  .rmrow:last-child{border-bottom:none;}
+  .rmrow .no{width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;}
+  .rmrow:first-child .no{background:var(--teal);}
+  .rmrow:last-child .no{background:var(--ink);}
+  .rmrow .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+  .rmrow .tx b{font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rmrow .tx i{font-style:normal;font-size:11.5px;color:var(--muted);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .rmrow .km{font-size:12px;font-weight:800;color:var(--muted);flex-shrink:0;
+    font-variant-numeric:tabular-nums;}
+  .rmrow.off{opacity:.5;}
+  .rmrow.off .no{background:var(--line-2);}
+  /* 지도 아래 숫자 요약 */
+  .rmstat{display:flex;gap:8px;margin-top:14px;}
+  .rmstat div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    padding:11px 8px;text-align:center;}
+  .rmstat b{display:block;font-family:var(--font-display);font-size:19px;font-weight:700;
+    color:var(--brand-ink);line-height:1.2;}
+  .rmstat span{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-top:3px;}
+  .endfig .dim{opacity:.45;}
   /* ── 여행책(추억 앨범) ─────────────────────────────────────
      한 장씩 옆으로 넘기는 책. 스크롤이 아니라 '넘김'이라 scroll-snap 을 씁니다. */
   #album{padding:0 0 8px;}
@@ -1522,6 +1564,7 @@ function rerender(){const cur=document.querySelector('.screen.active');if(!cur)r
 function afterRender(){setTimeout(()=>{
   if(typeof mountMaps==='function')mountMaps();
   if(typeof mountLegs==='function')mountLegs();
+  if(typeof mountRouteMap==='function')mountRouteMap();
   markScrollers();
   paintStaticCovers();},0);}
 /* 옆으로 더 있는 줄(DAY 탭·분류 칩)에 '더 있음' 표시를 켭니다.
@@ -1598,7 +1641,8 @@ async function mountMaps(){
     new kakao.maps.Marker({map,position:new kakao.maps.LatLng(p.lat,p.lng)});
   }
 }
-window.onKakaoReady=function(){kakaoReady=true;mountMaps();};
+window.onKakaoReady=function(){kakaoReady=true;mountMaps();
+  if(typeof mountRouteMap==='function')mountRouteMap();};
 
 /* ---- 홈 ---- */
 /* 여행 한 건의 요약값 계산 — 홈 카드에서 한눈에 보여줄 정보 */
@@ -3309,6 +3353,121 @@ function albumStats(t){
   return {days:(t.days||[]).length, spots, photos, people:memberCount(t)};
 }
 
+
+/* ============================================================================
+   여행 지도 — 다녀온 곳을 순서대로 잇고, 이동한 거리를 잽니다
+   · 방문한 곳(일정/장소·입장권·숙박)만 이어 그립니다. 준비물처럼 장소가 없는 건 뺍니다.
+   · 좌표는 카카오맵에서 찾아오고, 한 번 찾은 것은 다시 찾지 않습니다(geoCache).
+   ============================================================================ */
+const ROUTE_CATS=['transport','stay','rentcar','ticket','plan'];
+/* 여행 전체를 시간 순서대로 늘어놓습니다 */
+function tripRoute(t){
+  const out=[];
+  (t&&t.days||[]).forEach((d,di)=>{
+    (d.items||[]).slice().sort((a,b)=>a.time.localeCompare(b.time)).forEach(it=>{
+      const q=(it.place||'').trim(); if(!q)return;
+      if(ROUTE_CATS.indexOf(it.cat)<0)return;
+      const last=out[out.length-1];
+      if(last&&last.q===q)return;                 // 같은 곳이 이어지면 한 번만
+      out.push({q, title:it.title, cat:it.cat, date:d.date, di, time:it.time});
+    });
+  });
+  return out;
+}
+/* 좌표를 채워 넣습니다 (못 찾은 곳은 빼고 셉니다) */
+async function routePoints(t){
+  const list=tripRoute(t), pts=[];
+  for(const r of list){
+    const g=await geocodeSafe(r.q, 3000);
+    if(g&&g!=='timeout'&&g.lat)pts.push({...r, lat:g.lat, lng:g.lng});
+    else pts.push({...r, lat:null, lng:null});
+  }
+  return pts;
+}
+/* 이어진 좌표 사이 거리를 모두 더합니다 */
+function routeDistance(pts){
+  let km=0, legs=0;
+  const ok=pts.filter(p=>p.lat!=null);
+  for(let i=1;i<ok.length;i++){ km+=haversine(ok[i-1],ok[i]); legs++; }
+  return {km, legs, found:ok.length, total:pts.length};
+}
+function kmLabel(km){ return km<1 ? Math.round(km*1000)+'m' : (km<10?km.toFixed(1):Math.round(km))+'km'; }
+
+/* 화면에 그리기 — 앨범을 그린 뒤 afterRender 에서 불립니다 */
+async function mountRouteMap(){
+  const box=document.getElementById('routeMap'); if(!box)return;
+  /* 화면을 다시 그리면 지도 자리도 새로 생깁니다. 그래서 '이미 그렸는지'를
+     전역 변수가 아니라 그 자리(DOM)에 표시해 둡니다.
+     (예전에는 전역 변수로 판단해서, 다시 그려진 빈 자리에 지도가 안 채워졌습니다) */
+  if(box.getAttribute('data-drawn'))return;
+  box.setAttribute('data-drawn','1');
+  const tid=box.getAttribute('data-trip');
+  const t=trip(tid); if(!t){box.removeAttribute('data-drawn');return;}
+  const info=document.getElementById('routeInfo');
+  if(!kakaoReady){
+    box.innerHTML=`<div class="rmempty">${svg('i-pin')}<b>지도를 불러오지 못했어요</b>
+      <span>${esc(mapDiagText())}</span></div>`;
+    if(info)info.innerHTML='';
+    box.removeAttribute('data-drawn');            // 지도가 늦게 준비되면 다시 시도
+    return;
+  }
+  const pts=await routePoints(t);
+  const okPts=pts.filter(p=>p.lat!=null);
+  if(!okPts.length){
+    box.innerHTML=`<div class="rmempty">${svg('i-pin')}<b>지도에 표시할 장소가 없어요</b>
+      <span>일정에 장소를 적으면 여기에 지도가 그려집니다.</span></div>`;
+    if(info)info.innerHTML='';
+    return;
+  }
+  box.innerHTML='';
+  const map=new kakao.maps.Map(box,{center:new kakao.maps.LatLng(okPts[0].lat,okPts[0].lng),level:7});
+  const bounds=new kakao.maps.LatLngBounds();
+  const path=okPts.map(p=>{const ll=new kakao.maps.LatLng(p.lat,p.lng); bounds.extend(ll); return ll;});
+  /* 지나온 길 */
+  if(path.length>1){
+    new kakao.maps.Polyline({map,path,strokeWeight:4,strokeColor:'#D9552F',
+      strokeOpacity:0.85,strokeStyle:'solid'});
+  }
+  /* 번호가 붙은 동그란 표시 */
+  okPts.forEach((p,i)=>{
+    const el=document.createElement('div');
+    el.className='rmpin'+(i===0?' first':'')+(i===okPts.length-1?' last':'');
+    el.textContent=String(i+1);
+    el.title=p.title+' · '+p.q;
+    new kakao.maps.CustomOverlay({map,position:path[i],content:el,yAnchor:0.5,xAnchor:0.5,zIndex:3});
+  });
+  map.setBounds(bounds,40,40,40,40);
+  const d=routeDistance(pts);
+  if(info){
+    const miss=d.total-d.found;
+    /* 지도에서 가까운 점끼리는 겹쳐 보입니다. 다녀온 순서를 글로도 보여 줍니다. */
+    let prev=null, n=0;
+    const rows=pts.map(pp=>{
+      const has=pp.lat!=null;
+      let leg='';
+      if(has){ n++; if(prev)leg=kmLabel(haversine(prev,pp)); prev=pp; }
+      return `<div class="rmrow${has?'':' off'}">
+        <span class="no">${has?n:'–'}</span>
+        <span class="tx"><b>${esc(tidyTitle(pp.title,20))}</b>
+          <i>${esc(pp.q)}${has?'':' · 지도에서 못 찾음'}</i></span>
+        <span class="km">${leg||''}</span></div>`;
+    }).join('');
+    info.innerHTML=`<div class="rmstat">
+        <div><b>${kmLabel(d.km)}</b><span>이동했어요</span></div>
+        <div><b>${d.found}</b><span>곳을 다녀왔고</span></div>
+        <div><b>${(t.days||[]).length}</b><span>일 동안</span></div>
+      </div>
+      <div class="eyebrow" style="margin-top:16px">${svg('i-list','ic')} 다녀온 순서</div>
+      <div class="rmlist">${rows}</div>
+      <p class="muted small" style="margin:10px 2px 0;line-height:1.6">
+        오른쪽 숫자는 <b>앞 장소에서 여기까지</b>의 직선거리예요. 실제 이동거리와는 차이가 있어요.
+        ${miss?`<br>주소를 못 찾은 곳 ${miss}곳은 거리 계산에서 뺐어요.`:''}
+        <br>지도는 손가락으로 <b>확대·이동</b>할 수 있어요.</p>`;
+  }
+  /* 마무리 장의 '이동했어요' 칸도 같이 채웁니다 */
+  const ek=document.getElementById('endKm');
+  if(ek){ ek.classList.remove('dim'); ek.querySelector('b').textContent=kmLabel(d.km); }
+}
 function renderAlbum(){
   const t=trip(albumTrip); if(!t){switchTab('history');return;}
   const byDate=albumPhotosByDate(t), st=albumStats(t);
@@ -3327,7 +3486,19 @@ function renderAlbum(){
     <div class="turn">${svg('i-right')} 옆으로 넘겨 보세요</div>
   </section>`);
 
-  /* ── 2장~: 하루에 한 장 ── */
+  /* ── 2장: 다녀온 길 (지도) ── */
+  if(tripRoute(t).length){
+    pages.push(`<section class="pg mapPg">
+      <div class="dhd"><span class="dno">${svg('i-pin')} 다녀온 길</span>
+        <b>${esc(t.place||t.title)}</b></div>
+      <div class="rmwrap"><div id="routeMap" data-trip="${esc(t.id)}">
+        <div class="rmempty"><div class="spin"></div><span>지도를 그리는 중…</span></div>
+      </div></div>
+      <div id="routeInfo"></div>
+    </section>`);
+  }
+
+  /* ── 3장~: 하루에 한 장 ── */
   (t.days||[]).forEach((d,di)=>{
     const items=(d.items||[]).slice().sort((a,b)=>a.time.localeCompare(b.time));
     const shots=byDate[d.date]||[];
@@ -3360,6 +3531,7 @@ function renderAlbum(){
       <div><b>${st.days}</b><span>일 동안</span></div>
       <div><b>${st.spots}</b><span>곳을 다녀오고</span></div>
       <div><b>${st.photos}</b><span>장을 남겼어요</span></div>
+      <div id="endKm" class="dim"><b>–</b><span>이동했어요</span></div>
     </div>
     <div class="eyebrow">${svg('i-users','ic')} 함께한 사람</div>
     <div class="endppl">${(t.members||[]).map(m=>`<div class="pp">
@@ -3383,6 +3555,7 @@ function renderAlbum(){
       </div>
     </div>`;
   setTimeout(()=>{const el=$('bookPages'); if(el&&albumPage)el.scrollLeft=el.clientWidth*albumPage;},0);
+  afterRender();          // 지도 자리를 실제 지도로 채웁니다
 }
 /* 어느 장을 보고 있는지 점으로 표시 */
 function albumScrolled(){
