@@ -1130,7 +1130,7 @@
       <input class="input" id="aPw" type="password" placeholder="비밀번호 (8자 이상)" aria-label="비밀번호" autocomplete="current-password">
       <button class="btn brand" id="authBtn" onclick="doAuth()">로그인</button>
       <button class="lnk" id="resetLink" onclick="doReset()">비밀번호를 잊으셨나요?</button>
-      <p class="muted small" style="margin-top:10px;">처음이시면 위 <b>회원가입</b> 탭을 눌러 계정을 만들어 주세요.<br>비밀번호는 <b>Firebase가 암호화해 보관</b>하며, 앱이나 저희가 볼 수 없습니다.</p>
+      <p class="muted small" style="margin-top:10px;" id="authNote">처음이시면 위 <b>회원가입</b> 탭을 눌러 계정을 만들어 주세요.<br>비밀번호는 <b>Firebase가 암호화해 보관</b>하며, 앱이나 저희가 볼 수 없습니다.</p>
     </div>
   </div>
 
@@ -1382,6 +1382,9 @@ function paintStaticCovers(){
 /* 화면을 그리기 전이라도 키보드 대응은 미리 켜 둡니다 (로그인 화면이 첫 화면이므로) */
 window.addEventListener('DOMContentLoaded',function(){
   if(!window.__zoomReady){window.__zoomReady=1;setupZoomReset();setupKeyboardFix();}
+  /* 로그인 화면 표지는 [오늘] 화면을 그린 뒤에만 채워지고 있었습니다.
+     처음 오시는 분은 로그인 화면부터 보는데 그때는 아직 안 그려져 회색으로 보였습니다. */
+  paintStaticCovers();
 });
 
 let TRIPS=[];               // Firestore에서 실시간으로 받아오는 내 여행들
@@ -1429,7 +1432,16 @@ function initial(name){return (name||"?").trim().charAt(0)||"?";}
 function authMode(m){authTab=m;
   $('tabLogin').classList.toggle('on',m==='login');$('tabSignup').classList.toggle('on',m==='signup');
   $('nameWrap').style.display=m==='signup'?'block':'none';
-  $('authBtn').textContent=m==='signup'?'가입하고 시작하기':'로그인';$('authErr').innerHTML='';}
+  $('authBtn').textContent=m==='signup'?'가입하고 시작하기':'로그인';$('authErr').innerHTML='';
+  $('aPw').setAttribute('autocomplete',m==='signup'?'new-password':'current-password');
+  /* 회원가입 탭에서는 '비밀번호를 잊으셨나요?'와 '회원가입 탭을 누르세요' 안내가 맞지 않습니다 */
+  const rl=$('resetLink'); if(rl){rl.style.display=m==='signup'?'none':'';
+    rl.textContent='비밀번호를 잊으셨나요?';rl.style.fontSize='';}
+  const nt=$('authNote');
+  if(nt)nt.innerHTML = (m==='signup')
+    ? '가입하면 <b>인증 메일</b>이 갑니다. 메일의 링크를 한 번 눌러 주세요.<br>비밀번호는 <b>Firebase가 암호화해 보관</b>하며, 앱이나 저희가 볼 수 없습니다.'
+    : '처음이시면 위 <b>회원가입</b> 탭을 눌러 계정을 만들어 주세요.<br>비밀번호는 <b>Firebase가 암호화해 보관</b>하며, 앱이나 저희가 볼 수 없습니다.';
+}
 function authError(msg){$('authErr').innerHTML=`<div class="err">${esc(msg)}</div>`;}
 function fkey(e){return 'lf_'+(e||'').toLowerCase();}
 function getFails(e){try{return parseInt(localStorage.getItem(fkey(e))||'0');}catch(x){return 0;}}
@@ -5021,6 +5033,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(openIntro,450);};
 let AUTHED_UID=null;
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
+  paintStaticCovers();
   $('splash').style.display='none';stack=[];show('login',{push:false});authMode('login');
   $('aEmail').value='';$('aPw').value='';};
 let TRIPS_READY=false;
