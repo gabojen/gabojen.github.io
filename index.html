@@ -4075,9 +4075,9 @@ function renderAlbum(){
   pages.push(`<section class="pg end">
     <div class="eyebrow" style="margin-top:0">${svg('i-star','ic')} 이번 여행은</div>
     <div class="endfig">
-      <div><b data-num="${st.days}">0</b><span>일 동안</span></div>
-      <div><b data-num="${st.spots}">0</b><span>곳을 다녀오고</span></div>
-      <div><b data-num="${st.photos}">0</b><span>장을 남겼어요</span></div>
+      <div><b data-num="${st.days}">${st.days}</b><span>일 동안</span></div>
+      <div><b data-num="${st.spots}">${st.spots}</b><span>곳을 다녀오고</span></div>
+      <div><b data-num="${st.photos}">${st.photos}</b><span>장을 남겼어요</span></div>
       <div id="endKm" class="dim"><b>–</b><span>이동했어요</span></div>
     </div>
     <div class="eyebrow">${svg('i-users','ic')} 함께한 사람</div>
@@ -4130,6 +4130,7 @@ function bookGoTo(el,n){
     el._go=0;
     albumPage=Math.round(el.scrollLeft/(el.clientWidth||1));
     albumScrolled();
+    animateEndFigures();      // 마지막 장에 닿았는지 여기서 직접 확인합니다
   },340);
 }
 function setupBookSwipe(el){
@@ -4182,8 +4183,12 @@ function animateEndFigures(){
     if(idx>=0&&Math.round(pages.scrollLeft/(pages.clientWidth||1))!==idx)return;  // 아직 그 장이 아님
   }
   wrap.dataset.counted='1';
+  /* 움직임을 못 쓰는 상태면 이미 올바른 숫자가 적혀 있으므로 그대로 둡니다 */
+  if(!AX.on)return;
   wrap.querySelectorAll('b[data-num]').forEach(function(b,i){
-    axCountUp(b, parseFloat(b.getAttribute('data-num'))||0, {delay:i*120});
+    const to=parseFloat(b.getAttribute('data-num'))||0;
+    b.textContent='0';                       // 올리기 직전에만 0 으로
+    axCountUp(b, to, {delay:i*120});
   });
 }
 
@@ -5819,12 +5824,18 @@ const AX={
 function axCountUp(el,to,opt){
   if(!el)return;
   opt=opt||{};
-  const suffix=opt.suffix||'', dur=opt.duration||1100;
-  if(!AX.on){ el.textContent=(opt.format?opt.format(to):Math.round(to))+suffix; return; }
+  const suffix=opt.suffix||'', dur=opt.duration||1100, delay=opt.delay||0;
+  const fin=function(){ el.textContent=(opt.format?opt.format(to):Math.round(to))+suffix; };
+  if(!AX.on){ fin(); return; }
   const st={v:0};
-  AX.A.animate(st,{v:to,duration:dur,ease:'out(3)',delay:opt.delay||0,
-    onUpdate:function(){ el.textContent=(opt.format?opt.format(st.v):Math.round(st.v))+suffix; },
-    onComplete:function(){ el.textContent=(opt.format?opt.format(to):Math.round(to))+suffix; }});
+  /* ⚠ 숫자를 0 으로 두고 올리는 방식이라, 도중에 멈추면 0 이 그대로 보입니다.
+     그래서 끝날 시간이 지나면 무슨 일이 있어도 끝값을 적습니다. */
+  setTimeout(fin, delay+dur+300);
+  try{
+    AX.A.animate(st,{v:to,duration:dur,ease:'out(3)',delay:delay,
+      onUpdate:function(){ el.textContent=(opt.format?opt.format(st.v):Math.round(st.v))+suffix; },
+      onComplete:fin});
+  }catch(e){ fin(); }
 }
 /* 여러 개가 차례로 나타납니다 */
 function axStaggerIn(sel,root,opt){
