@@ -596,6 +596,22 @@
   .dots i{width:6px;height:6px;border-radius:50%;background:var(--line-2);transition:width .18s,background .18s;}
   .dots i.on{width:18px;background:var(--brand);border-radius:3px;}
   html.dark .bbtn{background:var(--card);border-color:var(--line-2);}
+  /* 운영 현황(관리자) */
+  .admgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .admgrid div{background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    padding:9px 4px;text-align:center;}
+  .admgrid b{display:block;font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--brand-ink);}
+  .admgrid span{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-top:2px;}
+  .admlist{max-height:230px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;}
+  .admrow{display:flex;align-items:center;gap:7px;padding:7px 10px;border-bottom:1px solid var(--line);
+    font-size:11.5px;}
+  .admrow:last-child{border-bottom:none;}
+  .admrow .em{flex:1;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .admrow .dt,.admrow .tp{color:var(--muted);font-weight:700;flex-shrink:0;}
+  .admrow .sn{flex-shrink:0;font-weight:800;color:var(--muted);min-width:44px;text-align:right;}
+  .admrow .sn.on{color:var(--teal);}
+  .admrow .sn.mid{color:#8A5D10;}
+  .admrow .sn.off{color:var(--line-2);}
   /* 약관·개인정보 처리방침 */
   .policy{max-height:52vh;overflow-y:auto;padding-right:4px;}
   .policy .pd{font-size:11.5px;color:var(--muted);margin:0 0 12px;}
@@ -1810,6 +1826,88 @@ async function doLeave(){
     fail('탈퇴하지 못했습니다: '+(window.FB.msg?window.FB.msg(e):(e&&e.message||e)));
   }
 }
+
+/* ============================================================================
+   관리자 화면 (관리자에게만 보입니다)
+   · 관리자 판정: Firestore 에 admins/{내uid} 문서가 있을 때만. 이 문서는 콘솔에서만 만들 수 있습니다.
+   · 개인정보보호법에 맞춘 원칙
+     ① 탈퇴한 회원의 개인정보는 남기지 않습니다. '언제 몇 명이 떠났는지'만 익명으로 셉니다.
+     ② 가입 회원은 운영에 필요한 최소한만 봅니다(가입일·최근 접속일·여행 수).
+        이메일은 화면에서 가려서 보여 줍니다.
+     ③ 개인별 상세 행동(무엇을 눌렀는지 등)은 아예 모으지 않습니다.
+   ============================================================================ */
+function maskEmail(e){
+  e=String(e||''); const i=e.indexOf('@'); if(i<1)return '(없음)';
+  const id=e.slice(0,i), dom=e.slice(i);
+  return (id.length<=2?id[0]+'*':id.slice(0,2)+'*'.repeat(Math.min(6,id.length-2)))+dom;
+}
+function daysAgo(ymd){
+  if(!ymd)return null;
+  const d=Math.round((new Date(new Date().toISOString().slice(0,10))-new Date(ymd))/86400000);
+  return isNaN(d)?null:d;
+}
+async function openAdmin(){
+  if(!IS_ADMIN){toast('관리자만 볼 수 있어요.');return;}
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <b style="font-size:16px">${svg('i-grid','ic')} 운영 현황</b>
+      <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
+    <div id="admBody">${aiBusy('불러오는 중…')}</div>`);
+  let d;
+  try{ d=await window.FB.adminStats(); }
+  catch(e){ const b=$('admBody'); if(b)b.innerHTML=`<div class="err">불러오지 못했습니다: ${esc((e&&e.code)||e)}</div>`; return; }
+  const su=d.summary||{};
+  const now=su.signups||0, out=su.leaves||0;
+  const active30=(d.members||[]).filter(m=>{const n=daysAgo(m.seen); return n!==null&&n<=30;}).length;
+  const active7 =(d.members||[]).filter(m=>{const n=daysAgo(m.seen); return n!==null&&n<=7;}).length;
+  /* 탈퇴 통계 — 월별로 묶습니다 */
+  const byMonth={};
+  (d.leaves||[]).forEach(x=>{const m=String(x.date||'').slice(0,7); if(m)byMonth[m]=(byMonth[m]||0)+1;});
+  const avgUsed=(function(){
+    const v=(d.leaves||[]).map(x=>x.daysUsed).filter(x=>typeof x==='number');
+    return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;})();
+  const box=$('admBody'); if(!box)return;
+  box.innerHTML=`
+    <div class="admgrid">
+      <div><b>${(d.members||[]).length}</b><span>현재 회원</span></div>
+      <div><b>${active7}</b><span>최근 7일 접속</span></div>
+      <div><b>${active30}</b><span>최근 30일 접속</span></div>
+      <div><b>${out}</b><span>누적 탈퇴</span></div>
+    </div>
+    <div class="admgrid" style="margin-top:8px">
+      <div><b>${su.trips||0}</b><span>만든 여행</span></div>
+      <div><b>${su.photos||0}</b><span>올린 사진</span></div>
+      <div><b>${su.aiCalls||0}</b><span>AI 호출</span></div>
+      <div><b>${now}</b><span>누적 가입</span></div>
+    </div>
+    <p class="muted small" style="margin:10px 2px 0;line-height:1.6">
+      AI 호출은 <b>돈이 나가는 유일한 기능</b>이에요. 이 숫자가 늘면 비용도 늘어납니다.</p>
+
+    <div class="eyebrow" style="margin-top:18px">${svg('i-users','ic')} 회원 ${(d.members||[]).length}명</div>
+    ${d.membersErr?`<div class="err">회원 목록을 볼 권한이 없습니다 (${esc(d.membersErr)}).<br>
+      보안 규칙에 관리자 조회 권한을 넣어 주세요.</div>`
+    :`<div class="admlist">${(d.members||[]).slice(0,60).map(m=>{
+        const n=daysAgo(m.seen);
+        const cls=n===null?'':(n<=7?'on':(n<=30?'mid':'off'));
+        return `<div class="admrow">
+          <span class="em">${esc(maskEmail(m.email))}</span>
+          <span class="dt">가입 ${esc(m.joined||'-')}</span>
+          <span class="tp">여행 ${m.trips||0}</span>
+          <span class="sn ${cls}">${n===null?'-':(n===0?'오늘':n+'일 전')}</span>
+        </div>`;}).join('')||'<p class="muted small" style="padding:10px 2px">아직 없습니다.</p>'}</div>`}
+
+    <div class="eyebrow" style="margin-top:18px">${svg('i-out','ic')} 탈퇴 통계 <span style="font-weight:700;color:var(--muted);text-transform:none">· 익명</span></div>
+    ${d.leavesErr?`<div class="err">탈퇴 기록을 볼 권한이 없습니다 (${esc(d.leavesErr)}).</div>`
+    :`<div class="admlist">${Object.keys(byMonth).sort().reverse().slice(0,12).map(m=>
+        `<div class="admrow"><span class="em">${esc(m)}</span><span class="sn">${byMonth[m]}명 탈퇴</span></div>`
+      ).join('')||'<p class="muted small" style="padding:10px 2px">아직 없습니다.</p>'}</div>
+      ${avgUsed!==null?`<p class="muted small" style="margin:8px 2px 0">평균 <b>${avgUsed}일</b> 쓰고 떠났어요.</p>`:''}`}
+
+    <div class="hint" style="margin-top:18px"><div class="ht">${svg('i-info')}</div>
+      <div class="hb"><b class="t">여기서 볼 수 없는 것</b>
+        <b>탈퇴한 분의 이메일·이름·기록</b>은 남기지 않습니다. 개인정보보호법상 탈퇴하면 파기해야 해서,
+        '언제 몇 명이 떠났는지'만 익명으로 셉니다.<br>
+        누가 무엇을 눌렀는지 같은 <b>개인별 행동 기록도 모으지 않습니다.</b></div></div>`;
+}
 function openAccount(){
   const v=ME.verified;
   openSheet(`<div class="grab"></div><h3>내 계정</h3>
@@ -2412,6 +2510,8 @@ function renderEmptyHome(){
     <button class="btn ghost sm" style="flex:1" onclick="openTerms()">${svg('i-file','ic')} 이용약관</button>
     <button class="btn ghost sm" style="flex:1" onclick="openPrivacy()">${svg('i-file','ic')} 개인정보</button>
   </div>
+  ${IS_ADMIN?`<div style="height:8px"></div>
+    <button class="btn ghost sm" onclick="closeOv();openAdmin()">${svg('i-grid','ic')} 운영 현황 보기</button>`:''}
   <div style="height:8px"></div>
   <button class="btn ghost sm" onclick="runStorageDiag()">${svg('i-info','ic')} 사진 보관소 점검하기</button>
     </div>`;
@@ -3674,7 +3774,7 @@ async function saveCreateTrip(){
     hasStudent:$('cStudent').checked,status:"active",start,end,   /* 표지는 저장하지 않고 coverArt()가 그때그때 그립니다 */
     members:[memberRec()],memberUids:[ME.uid],
     days:daysBetween(start,end).map(d=>({date:d,items:[]})),pack:[],proposals:[],owner:ME.uid};
-  try{await window.FB.saveTrip(t);
+  try{await window.FB.saveTrip(t,true);      // true = 새로 만든 여행(통계용)
     /* 서버에서 목록이 다시 내려오길 기다리지 않고 바로 엽니다.
        (인터넷이 느리면 0.2초 안에 안 내려와서 엉뚱하게 [내 여행] 목록으로 튕기던 문제) */
     if(!trip(t.id))TRIPS.push(t);
@@ -4989,7 +5089,7 @@ async function doClone(){
   const t={id:tripId(),title,place:src.place,groupType:src.groupType,hasStudent:src.hasStudent,status:'active',
     start,end:days[days.length-1],members:[memberRec()],
     memberUids:[ME.uid],days:nd,pack:(src.pack||[]).map(p=>({title:p.title,sub:p.sub,done:false})),proposals:[],owner:ME.uid};
-  try{await window.FB.saveTrip(t);
+  try{await window.FB.saveTrip(t,true);   // 복제도 새 여행이라 통계에 셉니다
     if(!trip(t.id))TRIPS.push(t);          /* 위와 같은 이유 — 바로 열 수 있게 */
     curTrip=t.id;curDay=0;viewAll=true;closeOv();toast('복제했어요!');routeTo('detail');}
   catch(e){toast('복제 실패: 잠시 후 다시 시도해 주세요.');}}
@@ -5791,6 +5891,8 @@ window.onAuthed=function(user,profile){
   ME={uid:user.uid,name:profile.name||user.displayName||(user.email||'').split('@')[0],
       email:user.email||'',photo:profile.photo||'',verified:!!user.emailVerified};
   healMyMember();                                   // 로그인 순서에 상관없이 내 멤버 정보를 채웁니다
+  if(window.FB.touch)window.FB.touch();             // 마지막 접속일만 기록(운영·휴면 판단용)
+  if(window.FB.isAdmin)window.FB.isAdmin().then(v=>{IS_ADMIN=v; if(v)rerender();});
   hideSplash();
   /* 앱을 잠깐 벗어났다 돌아오면 로그인 확인이 한 번 더 일어납니다.
      그때마다 [오늘] 화면으로 되돌리면 보고 있던 화면과 열어 둔 AI 결과가 닫혀 버립니다.
@@ -5802,6 +5904,7 @@ window.onAuthed=function(user,profile){
   /* 처음 오신 분에게만 사용법을 보여 드립니다 (한 번 보면 다시 안 뜹니다) */
   if(firstTime&&!introSeen())setTimeout(openIntro,450);};
 let AUTHED_UID=null;
+let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authMode('login');
@@ -5880,7 +5983,8 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
          collection, doc, setDoc, deleteDoc, getDoc, updateDoc,
-         query, where, onSnapshot, arrayUnion, addDoc, getDocs, writeBatch }
+         query, where, onSnapshot, arrayUnion, addDoc, getDocs, writeBatch,
+         increment, serverTimestamp, orderBy, limit }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppCheckToken }
   from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app-check.js";
@@ -6113,6 +6217,7 @@ window.FB={
   },
   /* images: 사진 data URL 배열 (없으면 글만 보냅니다) — 보고서에서 사진을 읽을 때 씁니다 */
   async askJson(prompt,images){
+    this.bump('aiCalls');                       // 비용이 드는 유일한 기능이라 횟수를 셉니다
     const log=[]; window.__aiDebug={tried:log,raw:'',ok:false,route:this.aiRoute()};
     const pics=(images||[]).map(u=>{
       const m=/^data:([^;]+);base64,(.*)$/.exec(String(u)||''); return m?{mime:m[1],b64:m[2]}:null;
@@ -6170,7 +6275,10 @@ window.FB={
   async signup(email,pw,name){
     const cred=await createUserWithEmailAndPassword(auth,email,pw);
     await updateProfile(cred.user,{displayName:name});
-    await setDoc(doc(db,'users',cred.user.uid),{name,email,createdAt:Date.now()});
+    /* 가입일은 '날짜'까지만 남깁니다 (시·분·초까지 남길 이유가 없습니다) */
+    const today=new Date().toISOString().slice(0,10);
+    await setDoc(doc(db,'users',cred.user.uid),{name,email,createdAt:today,lastSeen:today,tripCount:0});
+    this.bump('signups');
   },
   async login(email,pw){ await signInWithEmailAndPassword(auth,email,pw); },
   async logout(){ if(unsub){unsub();unsub=null;} await signOut(auth); },
@@ -6178,14 +6286,48 @@ window.FB={
   async sendVerify(){ await sendEmailVerification(auth.currentUser); },
   /* 메일 링크를 누른 뒤 앱에서 '다시 확인'을 눌렀을 때 */
   async refreshVerified(){ await auth.currentUser.reload(); return !!auth.currentUser.emailVerified; },
+  /* ── 운영 통계 ────────────────────────────────────────────
+     개인을 알아볼 수 있는 값은 넣지 않습니다. 숫자만 셉니다.
+     (개인정보보호법: 통계 목적은 '개인을 식별할 수 없게' 처리해야 합니다) */
+  async bump(field,by){
+    try{ await setDoc(doc(db,'stats','summary'),{[field]:increment(by||1)},{merge:true}); }catch(e){}
+  },
+  /* 관리자인지 — admins/{내uid} 문서가 있으면 관리자입니다(콘솔에서만 만들 수 있음) */
+  async isAdmin(){
+    try{ const u=auth.currentUser; if(!u)return false;
+      const d=await getDoc(doc(db,'admins',u.uid)); return d.exists(); }catch(e){ return false; }
+  },
+  async adminStats(){
+    const out={summary:{},members:[],leaves:[]};
+    try{ const d=await getDoc(doc(db,'stats','summary')); if(d.exists())out.summary=d.data(); }catch(e){}
+    try{
+      const snap=await getDocs(query(collection(db,'users'),orderBy('createdAt','desc'),limit(200)));
+      snap.forEach(x=>{const v=x.data();
+        out.members.push({joined:v.createdAt||'',seen:v.lastSeen||'',email:v.email||'',trips:v.tripCount||0});});
+    }catch(e){ out.membersErr=(e&&e.code)||String(e); }
+    try{
+      const snap=await getDocs(query(collection(db,'leaveLog'),orderBy('date','desc'),limit(200)));
+      snap.forEach(x=>out.leaves.push(x.data()));
+    }catch(e){ out.leavesErr=(e&&e.code)||String(e); }
+    return out;
+  },
+  /* 접속했음을 기록 — 마지막 접속일만 남깁니다(휴면·운영 판단용) */
+  async touch(){
+    try{ const u=auth.currentUser; if(!u)return;
+      await setDoc(doc(db,'users',u.uid),{lastSeen:new Date().toISOString().slice(0,10)},{merge:true});
+    }catch(e){}
+  },
   async updateMyProfile(name,photo){
     await updateProfile(auth.currentUser,{displayName:name});
     await setDoc(doc(db,'users',auth.currentUser.uid),
       {name,photo:photo||"",email:auth.currentUser.email,updatedAt:Date.now()},{merge:true});
   },
-  async saveTrip(t){
+  async saveTrip(t,isNew){
     const clean=JSON.parse(JSON.stringify(t));      // undefined 제거
     await setDoc(doc(db,'trips',t.id),clean);
+    if(isNew){ this.bump('trips');
+      try{ await setDoc(doc(db,'users',auth.currentUser.uid),{tripCount:increment(1)},{merge:true}); }catch(e){}
+    }
   },
   /* ── 사진 원본 보관소 ────────────────────────────────────────
      사진을 여행 데이터 안에 글자로 넣으면 한 여행이 1MB를 못 넘어
@@ -6257,6 +6399,17 @@ window.FB={
         await updateDoc(doc(db,'trips',d.id),{members,memberUids:uids});
       }
     }
+    /* 탈퇴 기록 — 개인정보보호법상 탈퇴하면 개인정보는 파기해야 합니다.
+       그래서 uid·이메일·이름은 남기지 않고, '언제 몇 명이 떠났는지'만 익명으로 남깁니다. */
+    let joined='';
+    try{ const me=await getDoc(doc(db,'users',uid)); if(me.exists())joined=me.data().createdAt||''; }catch(e){}
+    try{
+      const today=new Date().toISOString().slice(0,10);
+      let used=null;
+      if(joined){ const d=Math.round((new Date(today)-new Date(joined))/86400000); if(d>=0)used=d; }
+      await addDoc(collection(db,'leaveLog'),{date:today, daysUsed:used});   // 개인 식별 정보 없음
+      this.bump('leaves');
+    }catch(e){}
     try{ await deleteDoc(doc(db,'users',uid)); }catch(e){}
     if(unsub){unsub();unsub=null;}
     if(photoUnsub){photoUnsub();photoUnsub=null;}
@@ -6271,6 +6424,7 @@ window.FB={
   async savePhoto(tripId,rec){
     const r=await addDoc(collection(db,'photos'),{
       tripId, u:rec.u, by:rec.by||'', uid:auth.currentUser.uid, at:Date.now()});
+    this.bump('photos');
     return r.id;
   },
   async deletePhotoDoc(id){ if(id) await deleteDoc(doc(db,'photos',id)); },
