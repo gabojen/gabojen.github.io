@@ -334,6 +334,20 @@
   .hint.warn .ht{color:#8A5D10;}
   html.dark .hint.warn{background:rgba(212,165,74,.13);border-color:rgba(212,165,74,.32);}
   html.dark .hint.warn .ht{color:#D4A54A;}
+  /* ── 로딩 화면 (여행 느낌) ── */
+  .splash .sp-art{position:relative;width:200px;height:120px;}
+  .splash .sp-svg{width:200px;height:120px;overflow:visible;}
+  .splash .sp-pin{position:absolute;left:0;top:0;width:26px;height:26px;margin:-26px 0 0 -13px;
+    color:var(--brand);filter:drop-shadow(0 3px 5px rgba(0,0,0,.22));}
+  .splash .sp-pin svg{width:26px;height:26px;fill:var(--card);stroke:currentColor;stroke-width:1.8;
+    stroke-linejoin:round;}
+  .splash .sp-word{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--ink);
+    letter-spacing:-.01em;margin-top:2px;}
+  .splash #splashMsg{margin-top:2px;}
+  /* anime.js 를 못 불러온 경우엔 옛 방식(도는 원)으로 대신합니다 */
+  .splash.plain .sp-art{display:none;}
+  .splash.plain::before{content:"";width:34px;height:34px;border:3px solid var(--line);
+    border-top-color:var(--brand);border-radius:50%;animation:sp .8s linear infinite;}
   /* ── 처음 사용법 안내 ── */
   #intro{position:absolute;inset:0;z-index:120;background:var(--paper);
     display:flex;flex-direction:column;animation:rise .3s cubic-bezier(.2,.7,.3,1);}
@@ -1152,7 +1166,23 @@
   <!-- 화면을 확대했을 때만 나타나는 되돌리기 버튼 (평소에는 숨어 있습니다) -->
   <button class="zoomreset" id="zoomReset" onclick="resetZoom()">화면 원래 크기로</button>
   <div class="toast" id="toast"></div>
-  <div class="splash" id="splash"><div class="spin"></div><div class="muted small" id="splashMsg">연결 중…</div></div>
+  <!-- 로딩 화면 — 그냥 도는 원 대신, 여행 느낌이 나는 화면을 보여 줍니다 -->
+  <div class="splash" id="splash">
+    <div class="sp-art">
+      <svg viewBox="0 0 200 120" class="sp-svg" aria-hidden="true">
+        <path id="spPath" d="M22 92 C 60 92, 62 34, 100 34 S 148 78, 178 30"
+              fill="none" stroke="var(--line-2)" stroke-width="3"
+              stroke-linecap="round" stroke-dasharray="6 9"/>
+        <path id="spDraw" d="M22 92 C 60 92, 62 34, 100 34 S 148 78, 178 30"
+              fill="none" stroke="var(--brand)" stroke-width="3.4" stroke-linecap="round"/>
+      </svg>
+      <div class="sp-pin" id="spPin">
+        <svg viewBox="0 0 24 24"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+      </div>
+    </div>
+    <div class="sp-word" id="spWord">여행가보젠</div>
+    <div class="muted small" id="splashMsg">여행을 불러오는 중…</div>
+  </div>
 </div>
 
 <script>
@@ -1192,20 +1222,25 @@ const SCENE_FALLBACK=["sea","mount","city","forest","field"];
    지평선은 어느 계절이든 따뜻하게 남겨 '기록장' 인상을 지킵니다.
    봄=맑은 하늘·벚빛 / 여름=짙은 청록·한낮 해 / 가을=보랏빛 노을 / 겨울=차가운 하늘·복숭아빛 */
 const COVER_PAL={
-  spring:{sky:["#6BA5D6","#C1DBE8","#F8DAD2"],sun:"#F5926F",water:["#5EAEB4","#2F7A82"],
-          far:"#9CBE9E",mid:"#5C9068",near:"#2F5F46",bldg:["#5A6B7D","#313E4C"],snowc:"#FBF5EC"},
-  summer:{sky:["#2F6E96","#7FB4C0","#F6C87E"],sun:"#FFA23F",water:["#1F8A93","#0C4A56"],
-          far:"#5E9E8E",mid:"#2F7C6C",near:"#17564E",bldg:["#3E5468","#1F303E"],snowc:"#FBF5EC"},
-  autumn:{sky:["#42417C","#B0628C","#F2A164"],sun:"#E2542F",water:["#4A6E8E","#233F58"],
-          far:"#D0995A",mid:"#A96C36",near:"#6F4526",bldg:["#4E4458","#2A2432"],snowc:"#FBF5EC"},
-  /* 겨울은 색이 서로 비슷해 형태가 묻혔습니다 — 가까울수록 확실히 어둡게 벌려 둡니다 */
-  winter:{sky:["#5C7BA6","#A8BFD4","#F2DCC6"],sun:"#F0A579",water:["#54809C","#274B63"],
-          far:"#9FB4C8",mid:"#5F7288","near":"#2E3D50",bldg:["#4A5765",'#262E38'],snowc:"#FBF8F2"},
+  /* 파스텔 톤 — 채도를 낮추고 밝기를 올렸습니다.
+     다만 far > mid > near 순으로 '밝기 차이'는 확실히 남겨 둡니다.
+     그래야 색이 옅어도 언덕·나무 같은 형태가 뭉개지지 않습니다. */
+  spring:{sky:["#A9C9E8","#D7E7F1","#FBE6E1"],sun:"#F6B9A6",water:["#9DCACC","#74A9B0"],
+          far:"#C3DCC0",mid:"#98C1A0",near:"#6E9C7E",bldg:["#AFC0CE","#8496A8"],snowc:"#FDFAF5"},
+  summer:{sky:["#86B8D8","#BCDFEA","#FCEACD"],sun:"#F9C778",water:["#8CCBCC","#579FA8"],
+          far:"#A9D2C7",mid:"#7CB6A8",near:"#548F85",bldg:["#A6B8C6","#7A8C9C"],snowc:"#FDFAF5"},
+  autumn:{sky:["#9C93BE","#DDAFBD","#F9D7B4"],sun:"#F09B79",water:["#A6BACF","#7893AC"],
+          far:"#E4C6A0","mid":"#CBA37A",near:"#A17B58",bldg:["#B0A6BC","#847A94"],snowc:"#FDFAF5"},
+  winter:{sky:["#A6BCD8","#D3DFEA","#F7E9DA"],sun:"#F4BCA0",water:["#A3BCCF","#7593AC"],
+          far:"#D0DBE5",mid:"#AAB9C9",near:"#8291A4",bldg:["#B4C0CC","#8A97A6"],snowc:"#FEFCF9"},
 };
 function coverSeason(ds){const m=Number(String(ds||"").split("-")[1])||6;
   return (m===12||m<=2)?"winter":m<=5?"spring":m<=8?"summer":"autumn";}
 /* 글자를 숫자로 — 같은 여행은 항상 같은 그림이 나오도록 하는 씨앗값 */
-function coverHash(s){let h=0;s=String(s||"");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+function coverHash(s){let h=2166136261;s=String(s||"");
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
+  /* 마지막에 한 번 더 섞습니다 — 비슷한 제목끼리 값이 몰리지 않게 */
+  h^=h>>>15; h=Math.imul(h,2246822507)>>>0; h^=h>>>13; return h>>>0;}
 function coverScene(t){
   const hay=`${t.place||""} ${t.title||""}`;
   for(const [scene,words] of SCENE_WORDS){ if(words.some(w=>hay.includes(w))) return scene; }
@@ -1224,20 +1259,23 @@ function cvSun(p,x,y,r){return `<circle cx="${x}" cy="${y}" r="${r*3.1}" fill="u
 function cvClouds(h){
   const rows=[[46,42,92,11,.30],[214,28,110,9,.22],[126,76,74,8,.16],[292,98,96,10,.14]];
   return `<g fill="#fff">`+rows.map(([x,y,w,hh,o],i)=>{
-    const dx=x+((h>>(i*3))%5)*13, dy=y+((h>>(i*2+1))%4)*7;
+    const dx=x+((h>>>(i*3))%5)*13, dy=y+((h>>>(i*2+1))%4)*7;
     return `<g opacity="${o}"><ellipse cx="${dx}" cy="${dy}" rx="${(w/2).toFixed(1)}" ry="${hh}"/>`
       +`<ellipse cx="${(dx-w*.28).toFixed(1)}" cy="${dy+2}" rx="${(w*.26).toFixed(1)}" ry="${(hh*.72).toFixed(1)}"/>`
       +`<ellipse cx="${(dx+w*.30).toFixed(1)}" cy="${dy+3}" rx="${(w*.22).toFixed(1)}" ry="${(hh*.64).toFixed(1)}"/></g>`;
   }).join('')+`</g>`;}
 /* 능선에 닿은 빛 — 색 덩어리 위에 가는 밝은 선 하나를 얹으면 '그림'처럼 보입니다 */
 function cvRidge(d,col,o){return `<path d="${d}" fill="none" stroke="${col}" stroke-opacity="${o||.3}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;}
+/* 파스텔 색끼리는 경계가 흐려져 형태가 뭉개집니다.
+   층과 층 사이에 아주 옅은 그림자를 넣어 앞뒤를 구분해 줍니다. */
+function cvEdge(d){return `<path d="${d}" fill="none" stroke="#5A6470" stroke-opacity=".12" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;}
 /* 지평선 부근에 낀 옅은 안개 — 멀리 있는 것일수록 하늘색에 묻히는 원근감 */
 function cvHaze(y){return `<rect y="${y}" width="400" height="46" fill="url(#haze)"/>`;}
 function cvBirds(x,y){return `<g fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2" stroke-linecap="round">`
   +`<path d="M${x} ${y}q5 -5 10 0q5 -5 10 0"/><path d="M${x+28} ${y+15}q4 -4 8 0q4 -4 8 0"/></g>`;}
 function sceneSea(p,h){
   const sx=286+(h%3)*16;
-  return cvSky()+cvClouds(h)+cvSun(p,sx,78+((h>>3)%16),23+((h>>7)%8))
+  return cvSky()+cvClouds(h)+cvSun(p,sx,78+((h>>>3)%16),23+((h>>>7)%8))
     +cvHaze(HZ-40)
     /* 지평선에 걸친 섬 두 덩이 */
     +`<path d="M-6 ${HZ}q40 -26 72 -4q26 -17 52 4z" fill="${p.far}" opacity=".85"/>`
@@ -1255,7 +1293,7 @@ function sceneSea(p,h){
     +cvBirds(56,58);
 }
 function sceneMount(p,h){
-  return cvSky()+cvClouds(h)+cvSun(p,78+(h%4)*16,66+((h>>3)%16),22+((h>>7)%8))
+  return cvSky()+cvClouds(h)+cvSun(p,78+(h%4)*16,66+((h>>>3)%16),22+((h>>>7)%8))
     +`<path d="M-10 260L104 96l64 76 46-38 82 98z" fill="${p.far}" opacity=".8"/>`
     +cvHaze(150)
     +`<path d="M146 260L272 62l58 68 48-32 62 122z" fill="${p.mid}" opacity=".93"/>`
@@ -1271,21 +1309,21 @@ function sceneCity(p,h){
   /* 건물은 충분히 높게 — 카드의 납작한 띠에서는 그림의 중간만 보이므로
      낮은 건물만 세우면 스카이라인이 잘려 보이지 않습니다 */
   let back='';
-  for(let i=0;i<9;i++){const w=36+((h>>i)%3)*12, x=i*44-8, ht=118+((h>>(i+2))%5)*22;
+  for(let i=0;i<9;i++){const w=36+((h>>>i)%3)*12, x=i*44-8, ht=118+((h>>>(i+2))%5)*22;
     back+=`<rect x="${x}" y="${base-ht}" width="${w}" height="${ht}" rx="3" fill="${p.bldg[0]}" opacity=".5"/>`;}
   let front='';
-  for(let i=0;i<7;i++){const w=44+((h>>(i+1))%3)*12, x=i*58-14, ht=112+((h>>(i+3))%5)*28;
+  for(let i=0;i<7;i++){const w=44+((h>>>(i+1))%3)*12, x=i*58-14, ht=112+((h>>>(i+3))%5)*28;
     front+=`<rect x="${x}" y="${base-ht}" width="${w}" height="${ht}" rx="3" fill="${p.bldg[1]}"/>`;
     /* 불 켜진 창 */
     for(let r=0;r<Math.floor((ht-16)/19);r++)for(let c=0;c<2;c++)
-      if(((h>>(i+r*2+c))&3)!==0) front+=`<rect x="${x+10+c*18}" y="${base-ht+13+r*19}" width="7" height="10" rx="1.5" fill="${p.sun}" opacity=".72"/>`;}
-  return cvSky()+cvClouds(h)+cvSun(p,300+(h%3)*14,64+((h>>3)%16),21+((h>>7)%7))
+      if(((h>>>(i+r*2+c))&3)!==0) front+=`<rect x="${x+10+c*18}" y="${base-ht+13+r*19}" width="7" height="10" rx="1.5" fill="${p.sun}" opacity=".72"/>`;}
+  return cvSky()+cvClouds(h)+cvSun(p,300+(h%3)*14,64+((h>>>3)%16),21+((h>>>7)%7))
     +cvHaze(96)+back+front
     /* 길바닥에 번지는 불빛 — 아래쪽이 비면 스카이라인이 공중에 뜬 것처럼 보입니다 */
     +`<rect y="236" width="400" height="24" fill="${p.bldg[1]}"/>`;
 }
 function sceneSnow(p,h){
-  return cvSky()+cvClouds(h)+cvSun(p,286+(h%4)*14,72+((h>>3)%16),21+((h>>7)%7))
+  return cvSky()+cvClouds(h)+cvSun(p,286+(h%4)*14,72+((h>>>3)%16),21+((h>>>7)%7))
     +`<path d="M-10 208L92 96l70 66 62-40 190 86z" fill="${p.far}" opacity=".75"/>`
     +cvHaze(172)
     +`<path d="M-10 260q96 -56 202 -30t208 -18v48z" fill="${p.snowc}"/>`
@@ -1298,10 +1336,10 @@ function sceneSnow(p,h){
     /* 눈송이 */
     +`<g fill="#fff" opacity=".72">`
     +[[40,54],[112,86],[188,42],[240,104],[348,132],[72,132],[268,36],[164,150],[330,64],[204,196]]
-      .map(([x,y])=>`<circle cx="${x}" cy="${y}" r="${2+((h>>(x%7))%2)}"/>`).join('')+`</g>`;
+      .map(([x,y])=>`<circle cx="${x}" cy="${y}" r="${2+((h>>>(x%7))%2)}"/>`).join('')+`</g>`;
 }
 function sceneForest(p,h){
-  return cvSky()+cvClouds(h)+cvSun(p,74+(h%4)*18,64+((h>>3)%16),20+((h>>7)%8))
+  return cvSky()+cvClouds(h)+cvSun(p,74+(h%4)*18,64+((h>>>3)%16),20+((h>>>7)%8))
     +`<path d="M-10 260q84 -102 200 -66t210 -50v116z" fill="${p.far}" opacity=".8"/>`
     +cvRidge('M-10 260q84 -102 200 -66t210 -50','#fff',.2)
     /* 골짜기에 낀 안개 */
@@ -1311,16 +1349,16 @@ function sceneForest(p,h){
     /* 앞줄 나무들 — 카드의 납작한 띠에도 들어오도록 언덕 위쪽에 세웁니다 */
     /* 뒷줄 나무 — 옅게, 작게 */
     +`<g fill="${p.mid}" opacity=".8">`
-    +[0,1,2,3,4,5,6,7,8,9].map(i=>{const x=i*43+((h>>i)%3)*12, y=224-((h>>(i+1))%3)*8, s=1.5+((h>>(i+2))%3)*.2;
+    +[0,1,2,3,4,5,6,7,8,9].map(i=>{const x=i*43+((h>>>i)%3)*12, y=224-((h>>>(i+1))%3)*8, s=1.5+((h>>>(i+2))%3)*.2;
       return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 0l-15 0 15-32 15 32z"/><path d="M0 -17l-12 0 12-27 12 27z"/></g>`;}).join('')+`</g>`
     /* 앞줄 나무 — 크고 진하게. 이게 있어야 '숲'으로 보입니다 */
     +`<g fill="${p.near}">`
-    +[0,1,2,3,4,5,6].map(i=>{const x=i*62+((h>>i)%4)*14-10, y=258-((h>>(i+1))%3)*6, s=2.2+((h>>(i+2))%4)*.28;
+    +[0,1,2,3,4,5,6].map(i=>{const x=i*62+((h>>>i)%4)*14-10, y=258-((h>>>(i+1))%3)*6, s=2.2+((h>>>(i+2))%4)*.28;
       return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 0l-17 0 17-36 17 36z"/><path d="M0 -19l-14 0 14-30 14 30z"/></g>`;}).join('')
     +`</g>`;
 }
 function sceneField(p,h){
-  return cvSky()+cvClouds(h)+cvSun(p,288+(h%4)*16,72+((h>>3)%16),22+((h>>7)%8))
+  return cvSky()+cvClouds(h)+cvSun(p,288+(h%4)*16,72+((h>>>3)%16),22+((h>>>7)%8))
     +cvHaze(150)
     +`<path d="M-10 260q114 -120 208 -84t212 -62v146z" fill="${p.far}" opacity=".85"/>`
     +cvRidge('M-10 260q114 -120 208 -84t212 -62','#fff',.22)
@@ -1363,8 +1401,16 @@ function coverArt(t){
     /* 아래쪽 그늘 — 어떤 그림이 와도 그 위의 흰 글씨가 읽히도록 바닥을 눌러 줍니다 */
     +`<linearGradient id="vig" x1="0" y1="0" x2="0" y2="1">`
     +`<stop offset=".5" stop-color="#0D181F" stop-opacity="0"/>`
-    +`<stop offset="1" stop-color="#0D181F" stop-opacity=".30"/></linearGradient></defs>`
-    +body+`<rect width="400" height="260" fill="url(#vig)"/></svg>`;
+    +`<stop offset="1" stop-color="#0D181F" stop-opacity=".30"/></linearGradient>`
+    /* 여행마다 색을 조금씩 돌립니다.
+       같은 계절이면 팔레트가 같아서 여행이 여러 개일 때 표지가 다 비슷해 보였습니다.
+       계절 느낌은 유지하면서 여행별로 구분되도록 색조를 ±24도 안에서 바꿉니다. */
+    +`<filter id="tone" color-interpolation-filters="sRGB">`
+    +`<feColorMatrix type="hueRotate" values="${(h%7-3)*9}"/>`
+    +`<feColorMatrix type="saturate" values="${(0.90+((h>>>4)%5)*0.06).toFixed(2)}"/>`
+    +`</filter></defs>`
+    +`<g filter="url(#tone)">`+body+`</g>`
+    +`<rect width="400" height="260" fill="url(#vig)"/></svg>`;
   /* 작은따옴표로 감쌉니다 — style="…" 안에 들어가므로 큰따옴표를 쓰면 속성이 끊깁니다.
      위치는 CSS(.tcv / .cover / .hero .bg)에서 정합니다 — 납작한 띠는 지평선 부근만 잘라 씁니다. */
   const css=`url('data:image/svg+xml,${encodeURIComponent(svgStr)}')`;
@@ -1382,6 +1428,7 @@ function paintStaticCovers(){
 /* 화면을 그리기 전이라도 키보드 대응은 미리 켜 둡니다 (로그인 화면이 첫 화면이므로) */
 window.addEventListener('DOMContentLoaded',function(){
   if(!window.__zoomReady){window.__zoomReady=1;setupZoomReset();setupKeyboardFix();}
+  startSplashAnim();
   /* 로그인 화면 표지는 [오늘] 화면을 그린 뒤에만 채워지고 있었습니다.
      처음 오시는 분은 로그인 화면부터 보는데 그때는 아직 안 그려져 회색으로 보였습니다. */
   paintStaticCovers();
@@ -2315,6 +2362,7 @@ function renderDetail(){
     ${tl}
     <div class="stickycta"><button class="btn brand" onclick="openAddChoice(${curDay})">${svg('i-plus','ic')} 일정·예약 추가</button></div>
     ${curFilter==='all'?voteBlock:''}${packBlock}${reportHint}`;
+  axStaggerIn('.tl .node, .mday, .card.sugg', $('detail'), {step:38});   // 일정이 차례로 나타납니다
   afterRender();
 }
 /* 추가 방법 선택 — 버튼 2개를 1개로 합쳐 화면을 단순하게 */
@@ -3586,20 +3634,25 @@ async function mountRouteMap(){
   const map=new kakao.maps.Map(box,{center:new kakao.maps.LatLng(okPts[0].lat,okPts[0].lng),level:7});
   const bounds=new kakao.maps.LatLngBounds();
   const path=okPts.map(p=>{const ll=new kakao.maps.LatLng(p.lat,p.lng); bounds.extend(ll); return ll;});
-  /* 지나온 길 */
-  if(path.length>1){
-    new kakao.maps.Polyline({map,path,strokeWeight:4,strokeColor:'#D9552F',
-      strokeOpacity:0.85,strokeStyle:'solid'});
-  }
   /* 번호가 붙은 동그란 표시 */
+  const pinEls=[];
   okPts.forEach((p,i)=>{
     const el=document.createElement('div');
     el.className='rmpin'+(i===0?' first':'')+(i===okPts.length-1?' last':'');
     el.textContent=String(i+1);
     el.title=p.title+' · '+p.q;
+    pinEls.push(el);
     new kakao.maps.CustomOverlay({map,position:path[i],content:el,yAnchor:0.5,xAnchor:0.5,zIndex:3});
   });
   map.setBounds(bounds,40,40,40,40);
+  /* 지나온 길 — 출발지부터 순서대로 그려지고, 번호도 하나씩 찍힙니다 */
+  if(path.length>1){
+    const drawn=axDrawRoute(map,path,pinEls);
+    if(!drawn){                                   // 애니메이션을 못 쓰면 한 번에 그립니다
+      new kakao.maps.Polyline({map,path,strokeWeight:4,strokeColor:'#D9552F',
+        strokeOpacity:0.85,strokeStyle:'solid'});
+    }
+  }
   const d=routeDistance(pts);
   if(info){
     const miss=d.total-d.found;
@@ -3616,9 +3669,9 @@ async function mountRouteMap(){
         <span class="km">${leg||''}</span></div>`;
     }).join('');
     info.innerHTML=`<div class="rmstat">
-        <div><b>${kmLabel(d.km)}</b><span>이동했어요</span></div>
-        <div><b>${d.found}</b><span>곳을 다녀왔고</span></div>
-        <div><b>${(t.days||[]).length}</b><span>일 동안</span></div>
+        <div><b id="rmKm">0km</b><span>이동했어요</span></div>
+        <div><b id="rmSpot">0</b><span>곳을 다녀왔고</span></div>
+        <div><b id="rmDay">0</b><span>일 동안</span></div>
       </div>
       <div class="eyebrow" style="margin-top:16px">${svg('i-list','ic')} 다녀온 순서</div>
       <div class="rmlist">${rows}</div>
@@ -3627,6 +3680,10 @@ async function mountRouteMap(){
         ${miss?`<br>주소를 못 찾은 곳 ${miss}곳은 거리 계산에서 뺐어요.`:''}
         <br>지도는 손가락으로 <b>확대·이동</b>할 수 있어요.</p>`;
   }
+  /* 요약 숫자가 0에서 올라갑니다 */
+  axCountUp($('rmKm'), d.km, {delay:400, format:kmLabel});
+  axCountUp($('rmSpot'), d.found, {delay:520});
+  axCountUp($('rmDay'), (t.days||[]).length, {delay:640});
   /* 마무리 장의 '이동했어요' 칸도 같이 채웁니다 */
   const ek=document.getElementById('endKm');
   if(ek){ ek.classList.remove('dim'); ek.querySelector('b').textContent=kmLabel(d.km); }
@@ -3691,9 +3748,9 @@ function renderAlbum(){
   pages.push(`<section class="pg end">
     <div class="eyebrow" style="margin-top:0">${svg('i-star','ic')} 이번 여행은</div>
     <div class="endfig">
-      <div><b>${st.days}</b><span>일 동안</span></div>
-      <div><b>${st.spots}</b><span>곳을 다녀오고</span></div>
-      <div><b>${st.photos}</b><span>장을 남겼어요</span></div>
+      <div><b data-num="${st.days}">0</b><span>일 동안</span></div>
+      <div><b data-num="${st.spots}">0</b><span>곳을 다녀오고</span></div>
+      <div><b data-num="${st.photos}">0</b><span>장을 남겼어요</span></div>
       <div id="endKm" class="dim"><b>–</b><span>이동했어요</span></div>
     </div>
     <div class="eyebrow">${svg('i-users','ic')} 함께한 사람</div>
@@ -3718,7 +3775,8 @@ function renderAlbum(){
       </div>
     </div>`;
   setTimeout(()=>{const el=$('bookPages');
-    if(el){ setupBookSwipe(el); if(albumPage)el.scrollLeft=el.clientWidth*albumPage; }},0);
+    if(el){ setupBookSwipe(el); if(albumPage)el.scrollLeft=el.clientWidth*albumPage; }
+    animateEndFigures();},0);
   afterRender();          // 지도 자리를 실제 지도로 채웁니다
 }
 
@@ -3785,11 +3843,26 @@ function setupBookSwipe(el){
   el.addEventListener('touchend',end,{passive:true});
   el.addEventListener('touchcancel',end,{passive:true});
 }
+/* 여행책 마무리 장의 숫자가 0에서 올라갑니다 (그 장을 펼쳤을 때) */
+function animateEndFigures(){
+  const wrap=document.querySelector('#album .endfig'); if(!wrap)return;
+  if(wrap.dataset.counted)return;
+  const pg=wrap.closest('.pg'), pages=$('bookPages');
+  if(pages&&pg){
+    const idx=[...pages.children].indexOf(pg);
+    if(idx>=0&&Math.round(pages.scrollLeft/(pages.clientWidth||1))!==idx)return;  // 아직 그 장이 아님
+  }
+  wrap.dataset.counted='1';
+  wrap.querySelectorAll('b[data-num]').forEach(function(b,i){
+    axCountUp(b, parseFloat(b.getAttribute('data-num'))||0, {delay:i*120});
+  });
+}
 /* 어느 장을 보고 있는지 점으로 표시 */
 function albumScrolled(){
   const el=$('bookPages'); if(!el||el._go)return;   // 옮기는 중엔 끼어들지 않음
   const i=Math.round(el.scrollLeft/el.clientWidth);
   if(i===albumPage)return; albumPage=i;
+  animateEndFigures();                    // 마무리 장에 닿으면 숫자가 올라갑니다
   const d=$('bookDots'); if(!d)return;
   [...d.children].forEach((c,k)=>c.className=(k===i?'on':''));
 }
@@ -3936,7 +4009,11 @@ function openStamp(id){
 /* 스탬프 판 — 기본은 접혀 있고, 눌러야 펼쳐집니다 */
 let stampOpen=false;
 function toggleStamps(){stampOpen=!stampOpen;renderHistory();
-  if(stampOpen)setTimeout(()=>{const el=$('stampWrap'); if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});},60);}
+  if(stampOpen)setTimeout(()=>{
+    const el=$('stampWrap');
+    if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    axStampIn(el);                       // 도장이 하나씩 '쿵' 찍힙니다
+  },60);}
 function stampBoard(){
   const list=earnedStamps(), got=list.filter(x=>x.got).length;
   const recent=list.filter(x=>x.got).slice(-3).reverse();
@@ -5013,15 +5090,161 @@ function setupZoomReset(){
   }
   vv.addEventListener('resize',upd); vv.addEventListener('scroll',upd); upd();
 }
-let tt;function toast(m){const e=$('toast');e.textContent=m;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),1900);}
+let tt;function toast(m){const e=$('toast');e.textContent=m;e.classList.add('show');
+  axToast(e);
+  clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),1900);}
 
+
+/* ── 로딩 화면 애니메이션 ────────────────────────────────────
+   길이 그려지고, 그 위를 핀이 따라가고, 이름이 떠오릅니다.
+   anime.js 를 못 불러오면 조용히 예전 방식(도는 원)으로 돌아갑니다. */
+let splashAnim=null;
+function startSplashAnim(){
+  const sp=document.getElementById('splash'); if(!sp)return;
+  const A=window.anime;
+  if(window.__animeFailed||!A||!A.animate){ sp.classList.add('plain'); return; }
+  const draw=document.getElementById('spDraw');
+  const pin=document.getElementById('spPin');
+  const word=document.getElementById('spWord');
+  const msg=document.getElementById('splashMsg');
+  if(!draw||!pin){ sp.classList.add('plain'); return; }
+  let len=0;
+  try{ len=draw.getTotalLength(); }catch(e){}
+  if(!len){ sp.classList.add('plain'); return; }
+  draw.style.strokeDasharray=len;
+  draw.style.strokeDashoffset=len;
+  try{
+    /* 길이 그려지는 만큼 핀도 그 길 위를 따라갑니다 */
+    const st={t:0};
+    splashAnim=A.animate(st,{
+      t:1, duration:1600, ease:'inOutSine', loop:true, alternate:true,
+      onUpdate:function(){
+        const v=Math.max(0,Math.min(1,st.t));
+        draw.style.strokeDashoffset=len*(1-v);
+        try{ const pt=draw.getPointAtLength(len*v);
+             pin.style.left=pt.x+'px'; pin.style.top=pt.y+'px'; }catch(e){}
+      }
+    });
+    /* 핀이 살짝 위아래로 흔들려 '떠 있는' 느낌을 줍니다 */
+    A.animate(pin,{translateY:[0,-3,0],duration:1200,loop:true,ease:'inOutSine'});
+    /* 앱 이름은 글자 하나씩 떠오릅니다 */
+    let wordTargets=word;
+    try{ if(A.text&&A.text.split){ const sp2=A.text.split(word,{chars:true}); wordTargets=sp2.chars; } }catch(e){}
+    A.animate(wordTargets,{opacity:[0,1],translateY:[12,0],duration:640,
+      delay:(wordTargets===word?0:A.stagger(45)),ease:'out(3)'});
+    if(msg)A.animate(msg,{opacity:[0,1],duration:700,delay:420,ease:'out(3)'});
+  }catch(e){ sp.classList.add('plain'); }
+}
+function stopSplashAnim(){
+  try{ if(splashAnim&&splashAnim.pause)splashAnim.pause(); }catch(e){}
+  splashAnim=null;
+}
+/* 로딩 화면을 부드럽게 걷어냅니다.
+   ⚠ 애니메이션이 어떤 이유로든 끝나지 않아도 화면은 반드시 사라져야 합니다.
+      (안 사라지면 앱이 멈춘 것처럼 보입니다) 그래서 시간 제한을 함께 겁니다. */
+function hideSplash(){
+  const sp=document.getElementById('splash'); if(!sp)return;
+  if(sp.dataset.hiding)return; sp.dataset.hiding='1';
+  stopSplashAnim();
+  const done=function(){ sp.style.display='none'; sp.style.opacity=''; };
+  const A=window.anime;
+  setTimeout(done,600);                        // 무슨 일이 있어도 0.6초 뒤엔 사라집니다
+  if(window.__animeFailed||!A||!A.animate){ done(); return; }
+  try{ A.animate(sp,{opacity:[1,0],duration:340,ease:'out(2)',onComplete:done}); }
+  catch(e){ done(); }
+}
+
+/* ============================================================================
+   움직임 모음 (anime.js)
+   · anime.js 를 못 불러와도 앱은 그대로 동작합니다. 이 파일의 모든 함수는
+     엔진이 없으면 '아무것도 하지 않고' 조용히 빠져나옵니다.
+   · 기기 설정에서 '동작 줄이기'를 켠 분에게는 애니메이션을 넣지 않습니다(접근성).
+   ============================================================================ */
+const AX={
+  get on(){
+    if(window.__animeFailed||!window.anime||!window.anime.animate)return false;
+    try{ if(matchMedia('(prefers-reduced-motion: reduce)').matches)return false; }catch(e){}
+    return true;
+  },
+  get A(){ return window.anime; }
+};
+/* 숫자가 0에서 올라갑니다 (여행 통계) */
+function axCountUp(el,to,opt){
+  if(!el)return;
+  opt=opt||{};
+  const suffix=opt.suffix||'', dur=opt.duration||1100;
+  if(!AX.on){ el.textContent=(opt.format?opt.format(to):Math.round(to))+suffix; return; }
+  const st={v:0};
+  AX.A.animate(st,{v:to,duration:dur,ease:'out(3)',delay:opt.delay||0,
+    onUpdate:function(){ el.textContent=(opt.format?opt.format(st.v):Math.round(st.v))+suffix; },
+    onComplete:function(){ el.textContent=(opt.format?opt.format(to):Math.round(to))+suffix; }});
+}
+/* 여러 개가 차례로 나타납니다 */
+function axStaggerIn(sel,root,opt){
+  if(!AX.on)return;
+  const els=(root||document).querySelectorAll(sel);
+  if(!els.length)return;
+  opt=opt||{};
+  AX.A.animate(els,{
+    opacity:[0,1],
+    translateY:[opt.dy!=null?opt.dy:10,0],
+    duration:opt.duration||420,
+    delay:AX.A.stagger(opt.step||40,{start:opt.start||0}),
+    ease:'out(3)'
+  });
+}
+/* 도장이 '쿵' 찍힙니다 — 크게 들어와서 튕기며 자리를 잡습니다 */
+function axStampIn(root){
+  if(!AX.on)return;
+  const els=(root||document).querySelectorAll('.stamp-c:not(.off)');
+  if(!els.length)return;
+  AX.A.animate(els,{
+    scale:[{to:1.55,duration:0},{to:.88,duration:190,ease:'in(2)'},{to:1,duration:520,ease:'outElastic(1.1,.42)'}],
+    opacity:[{to:0,duration:0},{to:1,duration:150}],
+    delay:AX.A.stagger(55)
+  });
+  const off=(root||document).querySelectorAll('.stamp-c.off');
+  if(off.length)AX.A.animate(off,{opacity:[0,1],duration:400,delay:AX.A.stagger(30,{start:180}),ease:'out(2)'});
+}
+/* 알림 문구가 튀어 오릅니다 */
+function axToast(el){
+  if(!AX.on||!el)return;
+  AX.A.animate(el,{translateY:[26,0],opacity:[0,1],duration:520,
+    ease:AX.A.createSpring({stiffness:150,damping:12})});
+}
+/* 지도 위 길이 그려지고, 번호가 하나씩 찍힙니다 */
+function axDrawRoute(map,path,pins){
+  if(!AX.on||!path||path.length<2){
+    if(pins)pins.forEach(function(el){el.style.opacity='1';});
+    return null;
+  }
+  let line=null;
+  try{
+    line=new kakao.maps.Polyline({map,path:[path[0],path[0]],strokeWeight:4,
+      strokeColor:'#D9552F',strokeOpacity:.85,strokeStyle:'solid'});
+  }catch(e){ return null; }
+  if(pins)pins.forEach(function(el){el.style.opacity='0';el.style.transform='scale(.4)';});
+  const st={p:0};
+  AX.A.animate(st,{p:1,duration:1500,ease:'inOutSine',delay:220,
+    onUpdate:function(){
+      const n=Math.max(2,Math.round(st.p*(path.length-1))+1);
+      try{ line.setPath(path.slice(0,n)); }catch(e){}
+    },
+    onComplete:function(){ try{ line.setPath(path); }catch(e){} }});
+  if(pins&&pins.length){
+    AX.A.animate(pins,{opacity:[0,1],scale:[.4,1],duration:520,
+      delay:AX.A.stagger(1500/Math.max(1,pins.length),{start:260}),
+      ease:'outElastic(1,.55)'});
+  }
+  return line;
+}
 /* ---- Firebase가 호출하는 콜백들 ---- */
 window.onAuthed=function(user,profile){
   profile=profile||{};
   ME={uid:user.uid,name:profile.name||user.displayName||(user.email||'').split('@')[0],
       email:user.email||'',photo:profile.photo||'',verified:!!user.emailVerified};
   healMyMember();                                   // 로그인 순서에 상관없이 내 멤버 정보를 채웁니다
-  $('splash').style.display='none';
+  hideSplash();
   /* 앱을 잠깐 벗어났다 돌아오면 로그인 확인이 한 번 더 일어납니다.
      그때마다 [오늘] 화면으로 되돌리면 보고 있던 화면과 열어 둔 AI 결과가 닫혀 버립니다.
      그래서 '처음 로그인'일 때만 첫 화면으로 보내고, 이후에는 보던 화면을 그대로 둡니다. */
@@ -5034,7 +5257,7 @@ window.onAuthed=function(user,profile){
 let AUTHED_UID=null;
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
-  $('splash').style.display='none';stack=[];show('login',{push:false});authMode('login');
+  hideSplash();stack=[];show('login',{push:false});authMode('login');
   $('aEmail').value='';$('aPw').value='';};
 let TRIPS_READY=false;
 window.onTrips=function(list){TRIPS=list;TRIPS_READY=true;
@@ -5093,6 +5316,13 @@ window.onFbError=function(msg){$('splashMsg').textContent=msg;};
      · 파일이 없어도 앱은 정상 동작합니다(그 경우 기존 Firebase 방식으로 동작).
      · 이렇게 따로 두면 index.html 을 새로 올려도 키가 지워지지 않습니다.
      ============================================================================ -->
+<!-- 애니메이션 엔진 anime.js v4.1.4 (MIT).
+     integrity 해시를 걸어 두어, CDN 파일이 조금이라도 바뀌면 브라우저가 실행을 거부합니다.
+     못 불러와도 앱은 그대로 작동합니다(애니메이션만 생략). -->
+<script src="https://cdn.jsdelivr.net/npm/animejs@4.1.4/lib/anime.umd.min.js"
+        integrity="sha384-of9+7+NatETMGM6bD9jQR1JCZsMeu1PCmLrYwP8OFF0BmrhyO8nl6QW9NT1rQhHB"
+        crossorigin="anonymous" referrerpolicy="no-referrer"
+        onerror="window.__animeFailed=1"></script>
 <script src="ai-key.js" onerror="void 0"></script>
 
 <script type="module">
@@ -5521,7 +5751,7 @@ onAuthStateChanged(auth,async user=>{
 
 // 5초 안에 응답 없으면 안내
 setTimeout(()=>{const s=document.getElementById('splash');
-  if(s&&s.style.display!=='none')window.onFbError('연결이 느립니다. 인터넷 상태를 확인해 주세요.');},5000);
+  if(s&&s.style.display!=='none')window.onFbError('불러오는 데 시간이 걸리고 있어요. 잠시만 기다려 주세요.');},9000);
 </script>
 </body>
 </html>
