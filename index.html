@@ -5716,9 +5716,15 @@ function setupZoomReset(){
   }
   vv.addEventListener('resize',upd); vv.addEventListener('scroll',upd); upd();
 }
-let tt;function toast(m){const e=$('toast');e.textContent=m;e.classList.add('show');
-  axToast(e);
-  clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),1900);}
+let tt;function toast(m){const e=$('toast');e.textContent=m;
+  if(typeof axClear==='function')axClear(e);      // 이전 흔적부터 지우고 시작
+  e.classList.add('show');
+  if(typeof axToast==='function')axToast(e);
+  clearTimeout(tt);
+  tt=setTimeout(function(){
+    if(typeof axClear==='function')axClear(e);    // 흔적을 지워야 CSS 로 사라집니다
+    e.classList.remove('show');
+  },1900);}
 
 
 /* ── 로딩 중에 키보드가 혼자 올라오던 문제 ──────────────────────
@@ -5820,6 +5826,20 @@ const AX={
   },
   get A(){ return window.anime; }
 };
+/* ⚠ anime.js 는 화면에 '직접 쓴 스타일(inline style)'을 남깁니다.
+   이 값은 CSS 규칙보다 우선하기 때문에, 남아 있으면
+   ① 사라져야 할 것이 안 사라지고(안내 문구가 계속 떠 있음)
+   ② 보여야 할 것이 안 보입니다(opacity:0 인 채로 멈춤).
+   그래서 애니메이션이 끝나거나 실패해도 흔적을 반드시 지웁니다. */
+function axClear(els){
+  const list=(els&&els.length!==undefined&&!els.style)?els:[els];
+  for(let i=0;i<list.length;i++){
+    const el=list[i]; if(!el||!el.style)continue;
+    el.style.opacity=''; el.style.transform='';
+  }
+}
+/* 정해진 시간이 지나면 무조건 흔적을 지웁니다 */
+function axCleanAfter(els,ms){ setTimeout(function(){ axClear(els); }, ms||1200); }
 /* 숫자가 0에서 올라갑니다 (여행 통계) */
 function axCountUp(el,to,opt){
   if(!el)return;
@@ -5843,32 +5863,51 @@ function axStaggerIn(sel,root,opt){
   const els=(root||document).querySelectorAll(sel);
   if(!els.length)return;
   opt=opt||{};
-  AX.A.animate(els,{
-    opacity:[0,1],
-    translateY:[opt.dy!=null?opt.dy:10,0],
-    duration:opt.duration||420,
-    delay:AX.A.stagger(opt.step||40,{start:opt.start||0}),
-    ease:'out(3)'
-  });
+  const dur=opt.duration||420, step=opt.step||40, start=opt.start||0;
+  try{
+    AX.A.animate(els,{
+      opacity:[0,1],
+      translateY:[opt.dy!=null?opt.dy:10,0],
+      duration:dur,
+      delay:AX.A.stagger(step,{start:start}),
+      ease:'out(3)',
+      onComplete:function(){ axClear(els); }
+    });
+  }catch(e){ axClear(els); return; }
+  axCleanAfter(els, start+step*els.length+dur+400);
 }
 /* 도장이 '쿵' 찍힙니다 — 크게 들어와서 튕기며 자리를 잡습니다 */
 function axStampIn(root){
   if(!AX.on)return;
   const els=(root||document).querySelectorAll('.stamp-c:not(.off)');
   if(!els.length)return;
-  AX.A.animate(els,{
-    scale:[{to:1.55,duration:0},{to:.88,duration:190,ease:'in(2)'},{to:1,duration:520,ease:'outElastic(1.1,.42)'}],
-    opacity:[{to:0,duration:0},{to:1,duration:150}],
-    delay:AX.A.stagger(55)
-  });
+  try{
+    AX.A.animate(els,{
+      scale:[{to:1.55,duration:0},{to:.88,duration:190,ease:'in(2)'},{to:1,duration:520,ease:'outElastic(1.1,.42)'}],
+      opacity:[{to:0,duration:0},{to:1,duration:150}],
+      delay:AX.A.stagger(55),
+      onComplete:function(){ axClear(els); }
+    });
+  }catch(e){ axClear(els); return; }
+  axCleanAfter(els, 55*els.length+900);
   const off=(root||document).querySelectorAll('.stamp-c.off');
-  if(off.length)AX.A.animate(off,{opacity:[0,1],duration:400,delay:AX.A.stagger(30,{start:180}),ease:'out(2)'});
+  if(off.length){
+    try{ AX.A.animate(off,{opacity:[0,1],duration:400,delay:AX.A.stagger(30,{start:180}),ease:'out(2)',
+      onComplete:function(){ axClear(off); }}); }catch(e){ axClear(off); }
+    axCleanAfter(off, 30*off.length+800);
+  }
 }
 /* 알림 문구가 튀어 오릅니다 */
 function axToast(el){
   if(!AX.on||!el)return;
-  AX.A.animate(el,{translateY:[26,0],opacity:[0,1],duration:520,
-    ease:AX.A.createSpring({stiffness:150,damping:12})});
+  const done=function(){ axClear(el); };      // 흔적을 지워 CSS 가 다시 주도권을 갖게
+  try{
+    /* 보이고/사라지는 것(opacity)은 CSS 에 맡기고, 튀어 오르는 움직임만 맡깁니다.
+       그래야 애니메이션이 안 돌아도 문구는 정상적으로 보였다 사라집니다. */
+    AX.A.animate(el,{translateY:[26,0],duration:520,
+      ease:AX.A.createSpring({stiffness:150,damping:12}), onComplete:done});
+  }catch(e){ done(); return; }
+  axCleanAfter(el,900);
 }
 /* 지도 위 길이 그려지고, 번호가 하나씩 찍힙니다 */
 function axDrawRoute(map,path,pins){
