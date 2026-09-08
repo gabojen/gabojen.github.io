@@ -291,19 +291,27 @@
   /* 오른쪽 — 제목과 장소 */
   .tl .hd{grid-column:2;grid-row:1;min-width:0;}
   .tl .tt{font-size:16px;font-weight:700;line-height:1.35;color:var(--ink);
-    display:flex;align-items:baseline;gap:7px;}
+    display:flex;align-items:baseline;gap:7px;min-width:0;overflow:hidden;}
   .tl .tt span.nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* 장소·상세 줄.
+     ⚠ 예전에는 상세(em)에 '줄이지 말 것'이 걸려 있어, 예약번호처럼 긴 글이 오면
+       줄이 통째로 화면 밖으로 뻗어 나갔습니다.
+     → 줄 전체를 한 줄로 가두고(overflow:hidden), 자리가 모자라면
+       ① 상세부터 크게 줄이고 ② 그래도 모자라면 장소를 줄입니다. 둘 다 끝에 … 이 붙습니다. */
   .tl .pl{margin-top:4px;font-size:13.5px;color:var(--muted);font-weight:500;
-    display:flex;align-items:center;gap:5px;min-width:0;}
+    display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden;white-space:nowrap;}
   .tl .pl svg{width:14px;height:14px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;}
-  .tl .pl span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .tl .pl em{font-style:normal;opacity:.9;flex-shrink:0;}
+  .tl .pl span{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* 상세는 장소와 같은 칸 안에 들어갑니다 — 잘림은 줄 맨 끝에서 한 번만 일어납니다 */
+  .tl .pl em{font-style:normal;opacity:.85;}
   /* 펼쳤을 때 딸려 나오는 부분 (지도·사진·의견) — 여기도 상자를 두지 않습니다 */
   .tl .xd{grid-column:2;grid-row:2;margin-top:10px;}
   /* '다음' 일정 — 화면에서 액센트 색이 쓰이는 유일한 자리 */
   .tl .ent.next{background:linear-gradient(90deg,rgba(217,85,47,.055),rgba(217,85,47,0) 62%);}
-  .tl .ent.next::before{content:"";position:absolute;left:-18px;top:0;bottom:0;width:3px;
+  .tl .ent.next::before{content:"";position:absolute;left:-16px;top:0;bottom:0;width:3px;
     background:var(--brand);}
+  .tl .ent.next{margin:0 -16px;padding-left:16px;padding-right:16px;}
+  .tl .ent:active{margin:0 -16px;padding-left:16px;padding-right:16px;}
   .tl .tt .nx{flex-shrink:0;font-size:11px;font-weight:800;letter-spacing:-.01em;
     color:var(--brand-ink);background:var(--brand-bg);padding:3px 8px;border-radius:999px;}
   /* 지나간 일정 — 흐리게 (지웠다는 뜻이 아니라 '끝났다'는 뜻) */
@@ -331,7 +339,7 @@
   .donetag{display:inline-flex;align-items:center;gap:3px;background:var(--line);color:var(--muted);font-size:12px;
     font-weight:800;padding:3px 9px;border-radius:999px;flex-shrink:0;}
   /* 일정 사이 이동거리·시간 */
-  .leg{display:flex;align-items:center;gap:6px;margin:0;padding:0 0 14px 79px;
+  .leg{display:flex;align-items:center;gap:6px;margin:0;padding:0 0 14px 77px;
     font-size:12.5px;color:var(--muted);font-weight:700;}
   .leg svg{width:13px;height:13px;stroke-width:2;}
   .leg .warn{color:var(--brand-ink);font-weight:800;}
@@ -1115,6 +1123,11 @@
   /* 글자만 있는 링크(자세히·모두 펼치기)도 손가락이 닿는 넓이는 44px 을 지킵니다.
      보이는 크기는 그대로 두고 '누를 수 있는 범위'만 넓힙니다. */
   .lnk{min-height:44px;display:inline-flex;align-items:center;}
+  /* 내 UID 줄 — 글자가 길어 화면을 넘지 않도록 줄바꿈을 허용합니다 */
+  .uidrow{display:flex;align-items:center;gap:9px;padding:11px 12px;
+    background:var(--paper);border:1px solid var(--line);border-radius:12px;}
+  .uidrow code{flex:1;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12.5px;line-height:1.5;color:var(--ink-2);word-break:break-all;user-select:all;}
   .cbtn{min-height:34px;padding:4px 2px;}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 
@@ -1199,10 +1212,16 @@
   .allsum{display:flex;align-items:center;gap:7px;margin:-4px 2px 8px;font-size:13px;
     font-weight:800;color:var(--muted);}
   .allsum svg{width:15px;height:15px;}
-  /* DAY 구획 — 굵은 잉크선 하나. 이 선이 지면을 '날짜별 지면'으로 나눕니다 */
-  .dayhead{display:flex;align-items:baseline;gap:10px;margin:30px 0 0;padding-bottom:9px;
+  /* ── 날짜 하나 = 카드 한 장 ──────────────────────────────────
+     항목마다 카드를 두면 기계적으로 보이고, 카드를 아예 없애면 묶음이 사라져 허전합니다.
+     그래서 **날짜 단위로만** 면을 두고, 그 안은 가로선으로 나눕니다. */
+  .daycard{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--e1);padding:0 16px 4px;margin:0 0 14px;overflow:hidden;}
+  .daycard:first-of-type{margin-top:4px;}
+  /* DAY 구획 — 카드 안 첫 줄. 굵은 잉크선이 머리글과 일정을 가릅니다 */
+  .dayhead{display:flex;align-items:baseline;gap:10px;margin:0;padding:15px 0 11px;
     border-bottom:2px solid var(--ink);}
-  .dayhead:first-child{margin-top:14px;}
+  .dayhead:first-child{margin-top:0;}
   /* DAY 1 은 영문·숫자라 자간을 벌려도 됩니다 (한글에는 양수 자간을 쓰지 않습니다) */
   .dayhead .dnum{font-size:11.5px;font-weight:800;letter-spacing:.08em;color:var(--brand-ink);
     background:none;padding:0;border-radius:0;}
@@ -1220,8 +1239,14 @@
   .allsum{display:flex;align-items:center;}
 
   /* ── 안내 박스 (아이콘 + 본문 정렬) ── */
-  .hint{display:flex;align-items:flex-start;gap:11px;background:var(--paper);
+  .hint{display:grid;grid-template-columns:32px minmax(0,1fr);column-gap:11px;row-gap:12px;
+    align-items:start;background:var(--paper);
     border:1px dashed var(--line-2);border-radius:var(--r-lg);padding:13px 14px;margin-bottom:var(--s3);}
+  .hint .ht{grid-column:1;grid-row:1;}
+  .hint .hb{grid-column:2;grid-row:1;}
+  /* 버튼 줄 — 아이콘 칸까지 포함해 상자 폭 전체를 씁니다 */
+  .hint .ha{grid-column:1 / -1;grid-row:2;}
+  .hint .ha .btn{margin-top:0;}
   .hint .ht{width:32px;height:32px;border-radius:10px;flex-shrink:0;margin-top:1px;
     display:flex;align-items:center;justify-content:center;
     background:rgba(14,110,109,.12);color:var(--teal);}
@@ -2090,6 +2115,40 @@ async function openAdmin(){
         '언제 몇 명이 떠났는지'만 익명으로 셉니다.<br>
         누가 무엇을 눌렀는지 같은 <b>개인별 행동 기록도 모으지 않습니다.</b></div></div>`;
 }
+/* 내 UID — 관리자 등록(Firestore admins) 에 필요합니다.
+   내 것을 나에게만 보여 주는 것이라 개인정보 문제는 없습니다. */
+function uidRow(){
+  const uid=ME.uid||'';
+  if(!uid)return '';
+  const why=window.__adminWhy;
+  const note = (why==='denied')
+    ? `<div class="muted small" style="margin-top:6px;line-height:1.55">
+         관리자 확인을 못 했어요. <b>보안 규칙(4판)</b>을 아직 올리지 않으셨을 수 있습니다.</div>`
+    : '';
+  return `<div class="eyebrow" style="margin-top:4px">내 UID</div>
+    <div class="uidrow">
+      <code id="myUid">${esc(uid)}</code>
+      <button class="btn ghost sm" style="width:auto;flex-shrink:0" onclick="copyUid()">${svg('i-copy','ic')} 복사</button>
+    </div>${note}
+    <div style="height:14px"></div>`;
+}
+function copyUid(){
+  const t=(ME.uid||'');
+  const done=function(){ toast('UID를 복사했어요'); };
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done,fallback); }
+    else fallback();
+  }catch(e){ fallback(); }
+  function fallback(){
+    /* 복사가 막힌 환경(구형 브라우저·권한 거부)에서는 글자를 선택해 드립니다 */
+    try{
+      const el=document.getElementById('myUid'); if(!el)return;
+      const r=document.createRange(); r.selectNodeContents(el);
+      const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      toast('길게 눌러 복사해 주세요');
+    }catch(e2){ toast('복사가 안 되면 길게 눌러 주세요'); }
+  }
+}
 function openAccount(){
   const v=ME.verified;
   openSheet(`<div class="grab"></div><h3>내 계정</h3>
@@ -2102,6 +2161,7 @@ function openAccount(){
   </div>
   ${v?'':`<button class="btn ghost sm" style="margin:12px 0 0" onclick="sendVerify()">인증 메일 보내기</button>`}
   <div style="height:14px"></div>
+  ${uidRow()}
   <div class="eyebrow" style="margin-top:4px">화면 테마</div>
   <div class="tabs2" id="themeTabs">
     <button onclick="setTheme('light')">밝게</button>
@@ -2311,7 +2371,12 @@ function markScrollers(){
 }
 
 /* 안내 박스: 아이콘+본문 정렬을 한 곳에서 관리 (한글 어절 단위 줄바꿈) */
-function hintBox(icon,html){return '<div class="hint"><div class="ht">'+svg(icon)+'</div><div class="hb">'+html+'</div></div>';}
+/* 안내 상자.
+   action(버튼)은 글 칸 안이 아니라 **상자 폭 전체를 쓰는 별도 줄**에 놓습니다.
+   예전에는 버튼이 글 칸 안에 있어서 왼쪽만 아이콘 폭(43px)만큼 밀려 있었습니다. */
+function hintBox(icon,html,action){
+  return '<div class="hint"><div class="ht">'+svg(icon)+'</div><div class="hb">'+html+'</div>'
+    +(action?'<div class="ha">'+action+'</div>':'')+'</div>';}
 function catTile(cat,size=42){const c=CAT[cat];return `<div class="tile" style="width:${size}px;height:${size}px;background:${CAT_BG[cat]};color:${c.color}">${svg(c.icon)}</div>`;}
 
 /* ============ 카카오맵 ============
@@ -2556,7 +2621,7 @@ function timelineNode(i,dayIdx,dateStr,nextId,open){
     <div class="tm"><b>${esc(i.time)}</b><i style="color:${c.color}">${svg(c.icon)}</i></div>
     <div class="hd">
       <div class="tt"><span class="nm">${esc(i.title)}</span>${badge}</div>
-      <div class="pl">${svg('i-pin')}<span>${esc(i.place||c.name)}</span>${i.sub?`<em>· ${esc(i.sub)}</em>`:''}</div>
+      <div class="pl">${svg('i-pin')}<span>${esc(i.place||c.name)}${i.sub?`<em> · ${esc(i.sub)}</em>`:''}</span></div>
     </div>${extra}</div>`;
 }
 /* ============================================================================
@@ -2858,7 +2923,8 @@ function renderDetail(){
       let its=(t.days[di].items||[]).slice().sort((a,b)=>a.time.localeCompare(b.time));
       if(curFilter!=='all')its=its.filter(x=>x.cat===curFilter);
       total+=its.length;
-      out+=`<div class="dayhead"><span class="dnum">DAY ${di+1}</span>
+      /* 날짜 하나가 카드 한 장입니다 (머리글 + 그 날의 일정) */
+      out+=`<section class="daycard"><div class="dayhead"><span class="dnum">DAY ${di+1}</span>
         <span class="ddate">${mdLabel(t.days[di].date)}(${dowOf(t.days[di].date)})</span>
         <span class="dcnt">${its.length?its.length+'건':'없음'}</span>
         ${its.length?`<button class="lnk dtog" onclick="toggleDay(${di})">${openDays[di]?'접기':'자세히'}</button>`:''}</div>`;
@@ -2872,6 +2938,7 @@ function renderDetail(){
           return timelineNode(x,di,t.days[di].date,nxId,!!openRows[x._id]);
         }).join('')+'</div>';
       }
+      out+='</section>';
     }
     const anyOpen=Object.keys(openDays).some(function(k){return openDays[k];});
     /* 건수는 바로 위 [전체 N] 칩에 이미 있습니다 — 같은 말을 두 번 하지 않습니다 */
@@ -2921,13 +2988,13 @@ function renderDetail(){
     ? hintBox('i-file',
       '<span class="t">체험학습 신청서 · 가기 전에 내는 서류</span>'
       +'학교에 <b>여행 3일 전까지</b> 내야 해요. 날짜·장소는 이미 채워져 있고, '
-      +'<b>학습 목표와 계획</b>은 일정을 보고 만들어 드립니다.'
-      +`<button class="btn sm" style="background:var(--teal);margin-top:11px" onclick="openApply()">`
+      +'<b>학습 목표와 계획</b>은 일정을 보고 만들어 드립니다.',
+      `<button class="btn sm" style="background:var(--teal)" onclick="openApply()">`
       +`${svg('i-file','ic')} 신청서 만들기</button>`)
     : hintBox('i-file',
       '<span class="t">체험학습 결과 보고서</span>'
-      +'다녀온 뒤 <b>7일 이내</b>에 내야 해요. 방문한 곳을 고르면 초안을 만들어 드려요.'
-      +`<button class="btn sm" style="background:var(--teal);margin-top:11px" onclick="openReportPicker()">`
+      +'다녀온 뒤 <b>7일 이내</b>에 내야 해요. 방문한 곳을 고르면 초안을 만들어 드려요.',
+      `<button class="btn sm" style="background:var(--teal)" onclick="openReportPicker()">`
       +`${svg('i-file','ic')} 보고서 만들 곳 고르기</button>`)):'';
   /* 항공·숙소만 있고 할 일이 비어 있는 여행이면, 일정을 대신 짜 주겠다고 먼저 제안합니다 */
   /* 예전에는 화면 맨 위를 큰 카드가 통째로 차지해, 정작 일정을 보러 들어온 사람이
@@ -2940,10 +3007,9 @@ function renderDetail(){
   $('detail').innerHTML=`${memberBar}${planHelp}
     <div class="segrow"><div class="dayseg">${dayTabs}</div>${viewAll?(window.__allToggle||''):''}</div>
     ${showFilter?`<div class="filterbar">${chips}</div>`:'<div style="height:6px"></div>'}
-    ${viewAll?'':`<div class="dayhead"><span class="dnum">DAY ${curDay+1}</span>
+    ${viewAll?tl:`<section class="daycard"><div class="dayhead"><span class="dnum">DAY ${curDay+1}</span>
        <span class="ddate">${mdLabel(t.days[curDay].date)}(${dowOf(t.days[curDay].date)})</span>
-       <span class="dcnt">${items.length?items.length+'건':'없음'}</span></div>`}
-    ${tl}
+       <span class="dcnt">${items.length?items.length+'건':'없음'}</span></div>${tl}</section>`}
     ${curFilter==='all'?voteBlock:''}${packBlock}${reportHint}
     <div class="ctaroom"></div>
     <div class="stickycta"><button class="btn brand" onclick="openAddChoice(${curDay})">${svg('i-plus','ic')} 일정·예약 추가</button></div>`;
@@ -6735,8 +6801,18 @@ window.FB={
   },
   /* 관리자인지 — admins/{내uid} 문서가 있으면 관리자입니다(콘솔에서만 만들 수 있음) */
   async isAdmin(){
-    try{ const u=auth.currentUser; if(!u)return false;
-      const d=await getDoc(doc(db,'admins',u.uid)); return d.exists(); }catch(e){ return false; }
+    const u=auth.currentUser;
+    if(!u){ window.__adminWhy='로그인 안 됨'; return false; }
+    try{
+      const d=await getDoc(doc(db,'admins',u.uid));
+      window.__adminWhy = d.exists() ? '' : 'notfound';
+      return d.exists();
+    }catch(e){
+      /* 규칙이 옛날 것이면 여기서 permission-denied 가 납니다.
+         예전에는 그냥 false 로 넘겨 버려서 '왜 안 되는지'를 알 수 없었습니다. */
+      window.__adminWhy = ((e&&e.code)||String(e)).indexOf('permission')>=0 ? 'denied' : ((e&&e.code)||String(e));
+      return false;
+    }
   },
   async adminStats(){
     const out={summary:{},members:[],leaves:[]};
