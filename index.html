@@ -2173,11 +2173,38 @@ function openAccount(){
   <button class="btn ghost" onclick="changePw()">${svg('i-key','ic')} 비밀번호 변경 메일 받기</button>
   <div style="height:10px"></div>
   <button class="btn ghost" onclick="joinPrompt()">${svg('i-users','ic')} 초대코드로 여행 참여하기</button>
-  <div style="height:10px"></div>
+  <div style="height:8px"></div>
+  <button class="btn ghost sm" onclick="closeOv();openIntro()">${svg('i-info','ic')} 사용법 다시 보기</button>
+  <div style="height:8px"></div>
+  <div class="row" style="gap:8px">
+    <button class="btn ghost sm" style="flex:1" onclick="openTerms()">${svg('i-file','ic')} 이용약관</button>
+    <button class="btn ghost sm" style="flex:1" onclick="openPrivacy()">${svg('i-file','ic')} 개인정보</button>
+  </div>
+  <div id="adminSlot">${IS_ADMIN?`<div style="height:8px"></div>
+    <button class="btn ghost sm" onclick="closeOv();openAdmin()">${svg('i-grid','ic')} 운영 현황 보기</button>`:''}</div>
+  <div style="height:8px"></div>
+  <button class="btn ghost sm" onclick="runStorageDiag()">${svg('i-info','ic')} 사진 보관소 점검하기</button>
+  <div style="height:14px"></div>
   <button class="btn" onclick="window.FB.logout()">${svg('i-out','ic')} 로그아웃</button>
   <button class="lnk" style="display:block;margin:14px auto 0;color:var(--muted);font-size:12.5px"
     onclick="closeOv();openLeave()">회원 탈퇴</button>`);
-  setTimeout(markTheme,0);}
+  setTimeout(markTheme,0);
+  refreshAdminSlot();}
+
+/* 관리자 확인은 로그인 직후 서버에 물어봐서 정해집니다.
+   답이 늦게 오면 시트를 열었을 때 버튼이 없을 수 있어, 열 때 한 번 더 확인해 채워 넣습니다. */
+function refreshAdminSlot(){
+  if(IS_ADMIN||!window.FB||!window.FB.isAdmin)return;
+  window.FB.isAdmin().then(function(v){
+    if(!v)return;
+    IS_ADMIN=true;
+    const slot=document.getElementById('adminSlot');
+    if(!slot)return;
+    slot.innerHTML='<div style="height:8px"></div>'
+      +'<button class="btn ghost sm" onclick="closeOv();openAdmin()">'
+      +svg('i-grid','ic')+' 운영 현황 보기</button>';
+  }).catch(function(){});
+}
 
 /* ---- 프로필 수정 (이름 + 사진) ---- */
 function openProfile(){newPhoto=null;
@@ -2828,17 +2855,6 @@ function renderEmptyHome(){
       <button class="btn brand" onclick="openCreateTrip()">${svg('i-plus','ic')} 첫 여행 만들기</button>
       <div style="height:10px"></div>
       <button class="btn ghost" onclick="joinPrompt()">${svg('i-key','ic')} 초대코드로 참여하기</button>
-  <div style="height:8px"></div>
-  <button class="btn ghost sm" onclick="closeOv();openIntro()">${svg('i-info','ic')} 사용법 다시 보기</button>
-  <div style="height:8px"></div>
-  <div class="row" style="gap:8px">
-    <button class="btn ghost sm" style="flex:1" onclick="openTerms()">${svg('i-file','ic')} 이용약관</button>
-    <button class="btn ghost sm" style="flex:1" onclick="openPrivacy()">${svg('i-file','ic')} 개인정보</button>
-  </div>
-  ${IS_ADMIN?`<div style="height:8px"></div>
-    <button class="btn ghost sm" onclick="closeOv();openAdmin()">${svg('i-grid','ic')} 운영 현황 보기</button>`:''}
-  <div style="height:8px"></div>
-  <button class="btn ghost sm" onclick="runStorageDiag()">${svg('i-info','ic')} 사진 보관소 점검하기</button>
     </div>`;
 }
 
