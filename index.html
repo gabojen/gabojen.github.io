@@ -177,7 +177,8 @@
     transition:stroke-width .2s,transform .2s cubic-bezier(.2,.8,.2,1);}
   /* 활성 라벨은 --brand(#D9552F)로는 종이 위 대비가 3.62라 기준 미달 → 같은 계열의 짙은 값 사용(5.87) */
   .nav button.on{color:var(--brand-ink);} .nav button.on svg{stroke-width:2.2;}
-  svg.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  /* Lucide 아이콘은 굵기 2 기준으로 그려져 있어 그대로 씁니다 (1.8 이면 선이 가늘어 보입니다) */
+  svg.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--e1);padding:var(--s4);margin-bottom:var(--s3);}
   /* 누르면 살짝 눌리는 느낌 — 손가락이 닿았다는 신호 (내용은 그대로) */
   .card.trip,.album,.hero .cta,.btn,.ibtn,.stamphd{
@@ -240,8 +241,8 @@
     box-shadow:0 10px 26px rgba(18,33,46,.17);border:1px solid rgba(18,33,46,.10);}
   /* 표지 그림의 '가운데'를 그대로 쓰면 텅 빈 하늘과 해만 크게 잡혀 밋밋했습니다.
      지평선(능선·물가)이 보이는 아래쪽을 잘라 씁니다. */
-  .hero .bg{position:absolute;inset:0;background-color:#12414A;
-    background-size:auto 142%;background-position:center 78%;background-repeat:no-repeat;}
+  .hero .bg{position:absolute;inset:-60px 0 0 0;background-color:#12414A;will-change:transform;
+    background-size:cover;background-position:center 42%;background-repeat:no-repeat;}
   /* 글자가 어떤 그림 위에서도 읽히도록 아래로 갈수록 진해지는 막을 덮습니다 */
   .hero .bg::after{content:"";position:absolute;inset:0;
     background:linear-gradient(180deg,rgba(13,24,31,.16) 0%,rgba(13,24,31,.42) 40%,rgba(13,24,31,.84) 100%);}
@@ -1115,7 +1116,7 @@
   .btn{transition:transform .14s ease,opacity .14s ease,box-shadow .18s ease;}
   .btn:active{transform:scale(.975);}
   .sheet{animation:up .34s cubic-bezier(.22,.8,.28,1);}
-  .ov{transition:opacity .2s ease;}
+  .ov{transition:none;}   /* 배경 페이드는 anime.js 가 맡습니다 */
   /* ===== 접근성: 키보드 포커스 표시 · 터치 타깃 ===== */
   button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,label:focus-visible{
     outline:3px solid rgba(217,85,47,.45); outline-offset:2px;}
@@ -1332,55 +1333,55 @@
 <body>
 
 <svg id="sprite" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-  <!-- 스탬프용 그림들 -->
-  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 9c2.5-2.6 5-2.6 7.5 0S15 11.6 17.5 9 22.5 6.4 22 7M2 15c2.5-2.6 5-2.6 7.5 0s5.5 2.6 8 0 2.5-2.6 4.5 0"/></symbol>
-  <symbol id="i-mount" viewBox="0 0 24 24"><path d="M2 20h20L14.5 6l-4 7-2.5-3z"/><path d="M12.6 9.6l1.9-3.6 3 5.6"/></symbol>
-  <symbol id="i-city" viewBox="0 0 24 24"><path d="M3 21V9l6-3v15M9 21V4l7 3v14M16 21V11l5 2v8M2 21h20"/><path d="M12 10h.01M12 14h.01M6 12h.01M6 16h.01M19 16h.01"/></symbol>
-  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M12 3l-6 9h3.5L4 19h16l-5.5-7H18z"/><path d="M12 19v2.5"/></symbol>
-  <symbol id="i-field" viewBox="0 0 24 24"><path d="M2 19c5-5 9-5 12-2s6 3 8-1"/><path d="M6 19v-4M10 19v-6M14 19v-4M18 19v-5"/></symbol>
-  <symbol id="i-snow" viewBox="0 0 24 24"><path d="M12 2v20M4 6l16 12M20 6L4 18"/><path d="M12 6l-2.5-2.5M12 6l2.5-2.5M12 18l-2.5 2.5M12 18l2.5 2.5"/></symbol>
-  <symbol id="i-sunrise" viewBox="0 0 24 24"><path d="M2 18h20M6.5 18a5.5 5.5 0 0 1 11 0"/><path d="M12 3v4M5 8L6.8 9.8M19 8l-1.8 1.8"/></symbol>
-  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.2 8.2 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/></symbol>
-  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></symbol>
-  <symbol id="i-medal" viewBox="0 0 24 24"><circle cx="12" cy="15" r="6"/><path d="M9 9.5L7 3M15 9.5L17 3M12 13l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2L9 15.2l2-.3z"/></symbol>
-  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
-  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z"/></symbol>
-  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="10.5" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
-  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.2l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.7l6.1-.9z"/></symbol>
-  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
-  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.2 10.2 12 3.4l8.8 6.8V19.4a1.6 1.6 0 0 1-1.6 1.6H4.8a1.6 1.6 0 0 1-1.6-1.6z"/><path d="M9.4 21v-6.2h5.2V21"/></symbol>
-  <symbol id="i-suitcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></symbol>
-  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.4"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
-  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
-  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
-  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.6"/></symbol>
-  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3.4"/><path d="M22 21v-2a4 4 0 0 0-3-3.85M16 3.15a4 4 0 0 1 0 7.7"/></symbol>
-  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L12 15l-4 1 1-4z"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13M9 7V4h6v3"/></symbol>
-  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.7 4.8L18.5 9.5l-4.8 1.7L12 16l-1.7-4.8L5.5 9.5l4.8-1.7z"/><path d="M19 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></symbol>
-  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
-  <symbol id="i-plane" viewBox="0 0 24 24"><path d="M21.5 3.5 3 11l6 2.2M21.5 3.5 16 21l-4-6.2M21.5 3.5 9 13.2v5.3l3-3.7"/></symbol>
-  <symbol id="i-bed" viewBox="0 0 24 24"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 14h18M7 10V8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2M3 20v-2M21 20v-2"/></symbol>
-  <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 13l1.6-4.2A2 2 0 0 1 8.5 7.5h7a2 2 0 0 1 1.9 1.3L19 13M4 13h16v4a1 1 0 0 1-1 1h-1.5M4 13v4a1 1 0 0 0 1 1h1.5"/><circle cx="7.5" cy="17.5" r="1.4"/><circle cx="16.5" cy="17.5" r="1.4"/></symbol>
-  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 9.5a2 2 0 0 0 0 5V17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5a2 2 0 0 1 0-5V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"/><path d="M13 5v14" stroke-dasharray="2 2.5"/></symbol>
-  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M9 9V7a3 3 0 0 1 6 0v2M6 14h12"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"/></symbol>
-  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></symbol>
-  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
-  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
-  <symbol id="i-clip" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 9h6M9 13h6M9 17h4"/></symbol>
-  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
-  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4 4z"/></symbol>
-  <symbol id="i-vote" viewBox="0 0 24 24"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM7 11l4.5-8a2 2 0 0 1 2 2v3h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.5 20H7"/></symbol>
-  <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
-  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
-  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8.5 8.5M18 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></symbol>
-  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="5"/><path d="m11.5 11.5 8-8M17 6l2.5 2.5M14.5 8.5 17 11"/></symbol>
-  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></symbol>
+  <!-- 아이콘: Lucide (ISC 라이선스, https://lucide.dev) — 24px 격자·굵기 2 기준. 앱 전체가 <use href="#i-…"> 로 이 그림을 씁니다 -->
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 12q2.5 2 5 0t5 0 5 0 5 0" /> <path d="M2 19q2.5 2 5 0t5 0 5 0 5 0" /> <path d="M2 5q2.5 2 5 0t5 0 5 0 5 0" /></symbol>
+  <symbol id="i-mount" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z" /></symbol>
+  <symbol id="i-city" viewBox="0 0 24 24"><path d="M10 12h4" /> <path d="M10 8h4" /> <path d="M14 21v-3a2 2 0 0 0-4 0v3" /> <path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" /> <path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" /></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="m17 14 3 3.3a1 1 0 0 1-.7 1.7H4.7a1 1 0 0 1-.7-1.7L7 14h-.3a1 1 0 0 1-.7-1.7L9 9h-.2A1 1 0 0 1 8 7.3L12 3l4 4.3a1 1 0 0 1-.8 1.7H15l3 3.3a1 1 0 0 1-.7 1.7H17Z" /> <path d="M12 22v-3" /></symbol>
+  <symbol id="i-field" viewBox="0 0 24 24"><path d="M2 22 16 8" /> <path d="M3.47 12.53 5 11l1.53 1.53a3.5 3.5 0 0 1 0 4.94L5 19l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z" /> <path d="M7.47 8.53 9 7l1.53 1.53a3.5 3.5 0 0 1 0 4.94L9 15l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z" /> <path d="M11.47 4.53 13 3l1.53 1.53a3.5 3.5 0 0 1 0 4.94L13 11l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z" /> <path d="M20 2h2v2a4 4 0 0 1-4 4h-2V6a4 4 0 0 1 4-4Z" /> <path d="M11.47 17.47 13 19l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L5 19l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z" /> <path d="M15.47 13.47 17 15l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L9 15l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z" /> <path d="M19.47 9.47 21 11l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L13 11l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z" /></symbol>
+  <symbol id="i-snow" viewBox="0 0 24 24"><path d="m10 20-1.25-2.5L6 18" /> <path d="M10 4 8.75 6.5 6 6" /> <path d="m14 20 1.25-2.5L18 18" /> <path d="m14 4 1.25 2.5L18 6" /> <path d="m17 21-3-6h-4" /> <path d="m17 3-3 6 1.5 3" /> <path d="M2 12h6.5L10 9" /> <path d="m20 10-1.5 2 1.5 2" /> <path d="M22 12h-6.5L14 15" /> <path d="m4 10 1.5 2L4 14" /> <path d="m7 21 3-6-1.5-3" /> <path d="m7 3 3 6h4" /></symbol>
+  <symbol id="i-sunrise" viewBox="0 0 24 24"><path d="M12 2v8" /> <path d="m4.93 10.93 1.41 1.41" /> <path d="M2 18h2" /> <path d="M20 18h2" /> <path d="m19.07 10.93-1.41 1.41" /> <path d="M22 22H2" /> <path d="m8 6 4-4 4 4" /> <path d="M16 18a4 4 0 0 0-8 0" /></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" /></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" /></symbol>
+  <symbol id="i-medal" viewBox="0 0 24 24"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15" /> <path d="M11 12 5.12 2.2" /> <path d="m13 12 5.88-9.8" /> <path d="M8 7h8" /> <circle cx="12" cy="17" r="5" /> <path d="M12 18v-2h-.5" /></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" /></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" /></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 5h.01" /> <path d="M3 12h.01" /> <path d="M3 19h.01" /> <path d="M8 5h13" /> <path d="M8 12h13" /> <path d="M8 19h13" /></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></symbol>
+  <symbol id="i-suitcase" viewBox="0 0 24 24"><path d="M6 20a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2" /> <path d="M8 18V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14" /> <path d="M10 20h4" /> <circle cx="16" cy="20" r="2" /> <circle cx="8" cy="20" r="2" /></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /> <circle cx="12" cy="13" r="3" /></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14" /> <path d="M12 5v14" /></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <path d="M12 6v6l4 2" /></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /> <circle cx="12" cy="10" r="3" /></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /> <path d="M16 3.128a4 4 0 0 1 0 7.744" /> <path d="M22 21v-2a4 4 0 0 0-3-3.87" /> <circle cx="9" cy="7" r="4" /></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /> <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /> <path d="M20 2v4" /> <path d="M22 4h-4" /> <circle cx="4" cy="20" r="2" /></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" /> <path d="M14 2v5a1 1 0 0 0 1 1h5" /> <path d="M10 9H8" /> <path d="M16 13H8" /> <path d="M16 17H8" /></symbol>
+  <symbol id="i-plane" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" /></symbol>
+  <symbol id="i-bed" viewBox="0 0 24 24"><path d="M2 20v-8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8" /> <path d="M4 10V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4" /> <path d="M12 4v6" /> <path d="M2 18h20" /></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" /> <circle cx="7" cy="17" r="2" /> <path d="M9 17h6" /> <circle cx="17" cy="17" r="2" /></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" /> <path d="M13 5v2" /> <path d="M13 17v2" /> <path d="M13 11v2" /></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" /> <path d="M8 10h8" /> <path d="M8 18h8" /> <path d="M8 22v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6" /> <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <path d="M12 16v-4" /> <path d="M12 8h.01" /></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><path d="M8 2v3" /> <path d="M16 2v3" /> <rect x="3" y="3" width="18" height="18" rx="2" /> <path d="M3 9h18" /></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1" /> <rect width="7" height="7" x="14" y="3" rx="1" /> <rect width="7" height="7" x="14" y="14" rx="1" /> <rect width="7" height="7" x="3" y="14" rx="1" /></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3" /> <circle cx="6" cy="12" r="3" /> <circle cx="18" cy="19" r="3" /> <line x1="8.59" x2="15.42" y1="13.51" y2="17.49" /> <line x1="15.41" x2="8.59" y1="6.51" y2="10.49" /></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /> <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></symbol>
+  <symbol id="i-vote" viewBox="0 0 24 24"><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" /> <path d="M7 10v12" /></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="m16 17 5-5-5-5" /> <path d="M21 12H9" /> <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M15 3h6v6" /> <path d="M10 14 21 3" /> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" /> <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /> <circle cx="12" cy="5" r="1" /> <circle cx="12" cy="19" r="1" /></symbol>
 </defs></svg>
 
 <div class="phone">
@@ -1661,6 +1662,14 @@ function sceneField(p,h){
     +cvBirds(248,52);
 }
 const SCENE_FN={sea:sceneSea,mount:sceneMount,city:sceneCity,snow:sceneSnow,forest:sceneForest,field:sceneField};
+/* ── 표지 사진 ──────────────────────────────────────────────
+   covers/ 폴더의 실제 사진(Unsplash License — 상업 사용·수정 허용, 출처 표기 불필요)을
+   풍경(바다·산·도시·설경·숲·들판)마다 3장씩 두고, 여행마다 다른 장을 고릅니다.
+   ⚠ 사진 파일을 못 불러오는 경우(폴더를 안 올렸거나 오프라인)에는
+      아래 코드로 그린 그림(SVG)이 자동으로 대신 보입니다 — CSS 배경을 두 겹으로 겹치기 때문. */
+const COVER_PHOTO_N=3;
+const COVER_PHOTO_DIR='covers/';
+function coverPhoto(scene,h){ return COVER_PHOTO_DIR+scene+((h>>>9)%COVER_PHOTO_N+1)+'.webp'; }
 const _coverCache=new Map();
 /* 여행 한 건의 표지 그림을 CSS background 값으로 돌려줍니다 */
 function coverArt(t){
@@ -1710,7 +1719,8 @@ function coverArt(t){
     +`<rect width="400" height="260" fill="url(#vig)"/></svg>`;
   /* 작은따옴표로 감쌉니다 — style="…" 안에 들어가므로 큰따옴표를 쓰면 속성이 끊깁니다.
      위치는 CSS(.tcv / .cover / .hero .bg)에서 정합니다 — 납작한 띠는 지평선 부근만 잘라 씁니다. */
-  const css=`url('data:image/svg+xml,${encodeURIComponent(svgStr)}')`;
+  /* 앞 겹 = 사진, 뒷 겹 = 코드로 그린 그림(사진을 못 불러올 때 대신 보임) */
+  const css=`url('${coverPhoto(scene,h)}'), url('data:image/svg+xml,${encodeURIComponent(svgStr)}')`;
   _coverCache.set(key,css);
   return css;
 }
@@ -1939,7 +1949,8 @@ function openTerms(){
       <h4>8. 문의</h4>
       <p>앱 안 [내 계정] 화면의 연락처로 문의해 주세요.</p>
     </div>
-    <button class="btn ghost sm" style="margin-top:12px" onclick="closeOv()">닫기</button>`);
+    <button class="btn ghost sm" style="margin-top:12px" onclick="closeOv()">닫기</button>
+      <p class="pd" style="margin-top:14px;opacity:.85">표지 사진: <b>Unsplash</b> (Unsplash License) · 아이콘: <b>Lucide</b> (ISC) · 움직임: <b>anime.js</b> (MIT)</p>`);
 }
 function openPrivacy(){
   openModal(`<div class="row" style="justify-content:space-between;margin-bottom:6px">
@@ -2273,9 +2284,13 @@ function show(id,{title,kicker,back=false,nav=true,push=true}={}){
   /* 화면이 바뀌면 열려 있던 시트·팝업은 반드시 닫습니다.
      (예: [내 계정]에서 로그아웃하면 로그인 화면 위에 계정 시트가 남아 있던 문제) */
   closeOv();
-  if(push){const c=document.querySelector('.screen.active');if(c)stack.push(c.id);}
+  const prev=document.querySelector('.screen.active');
+  if(push){if(prev)stack.push(prev.id);}
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $(id).classList.add('active');$(id).scrollTop=0;
+  /* 앞으로 가면(push) 오른쪽에서, 뒤로 가면(back) 왼쪽에서 들어옵니다.
+     탭끼리 옮길 때(push=false·back=false)는 방향 없이 살짝 떠오릅니다. */
+  if(typeof axScreenIn==='function'&&prev&&prev.id!==id)axScreenIn($(id), push?1:(back?-1:0));
   const isLogin=id==='login';
   $('topbar').classList.toggle('hidden',isLogin);
   $('nav').classList.toggle('hidden',isLogin||!nav);
@@ -2565,6 +2580,7 @@ function renderToday(){
     <button class="btn ghost" onclick="openCreateTrip()">${svg('i-plus','ic')} 새 여행 만들기</button>`;
   afterRender();
   if(typeof axStaggerIn==='function')axStaggerIn('.hero, .card.trip',$('today'),{step:64,dy:14,start:40});
+  if(typeof mountParallax==='function')mountParallax($('today'));
 }
 /* 일정의 상태: 지난 일정 / 다음 일정 / 예정 */
 function itemState(dateStr,item,nextId){
@@ -5891,10 +5907,26 @@ function copyReportText(){
 function openSheet(html){
   const x=`<button class="sheetX" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button>`;
   $('ovc').outerHTML='<div id="ovc" class="sheet">'+x+html+'</div>';$('ov').className='ov bottom on';
-  if(typeof axPop==='function')axPop($('ovc'),'sheet');}
+  axOvIn(); if(typeof axPop==='function')axPop($('ovc'),'sheet');}
 function openModal(html){$('ovc').outerHTML='<div id="ovc" class="modal">'+html+'</div>';$('ov').className='ov center on';
-  if(typeof axPop==='function')axPop($('ovc'),'modal');}
-function closeOv(){$('ov').className='ov';}
+  axOvIn(); if(typeof axPop==='function')axPop($('ovc'),'modal');}
+function closeOv(){
+  const ov=$('ov');
+  if(!ov.classList.contains('on')){ov.className='ov';return;}
+  /* 배경이 사라질 때도 스르륵 — 다만 무슨 일이 있어도 260ms 뒤엔 반드시 닫힙니다 */
+  const done=function(){ov.className='ov';ov.style.opacity='';};
+  if(typeof AX==='undefined'||!AX.on){done();return;}
+  setTimeout(done,260);
+  try{AX.A.animate(ov,{opacity:[1,0],duration:180,ease:'out(2)',onComplete:done});}catch(e){done();}
+}
+/* 시트·팝업이 열릴 때 뒤 배경이 스르륵 어두워집니다 */
+function axOvIn(){
+  const ov=$('ov'); if(!ov)return;
+  if(typeof AX==='undefined'||!AX.on){ov.style.opacity='';return;}
+  const done=function(){ov.style.opacity='';};
+  setTimeout(done,500);
+  try{AX.A.animate(ov,{opacity:[0,1],duration:220,ease:'out(2)',onComplete:done});}catch(e){done();}
+}
 document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')closeOv();});
 function openQR(title){openModal(`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b style="font-size:16px">${esc(title)}</b>
   <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>${qrSvg()}
@@ -6298,6 +6330,34 @@ function axSheetIn(){
       window.__justOpened=null;
     }
   }catch(e){ clearAll(); }
+}
+/* 화면이 바뀔 때 — 앞으로 가면 오른쪽에서, 뒤로 가면 왼쪽에서 밀려 들어옵니다.
+   (dir: 1 앞으로 / -1 뒤로 / 0 탭 이동) 움직임이 멈춰도 화면은 반드시 제자리에 보입니다. */
+function axScreenIn(el,dir){
+  if(!el)return;
+  if(typeof AX==='undefined'||!AX.on)return;
+  el.style.animation='none';                     /* CSS 기본 연출과 겹치지 않게 */
+  const fin=function(){ el.style.opacity=''; el.style.transform=''; };
+  setTimeout(fin,700);
+  try{
+    AX.A.animate(el,{opacity:[0,1],translateX:[dir*26,0],translateY:[dir?0:8,0],
+      duration:dir?340:260,ease:'out(3)',onComplete:fin});
+  }catch(e){fin();}
+}
+/* 홈의 큰 표지 사진 — 스크롤을 따라 사진이 글자보다 천천히 움직여 깊이감이 납니다 */
+function mountParallax(screen){
+  if(!screen||screen.dataset.plx)return;
+  screen.dataset.plx='1';
+  let tick=false;
+  screen.addEventListener('scroll',function(){
+    if(tick)return; tick=true;
+    requestAnimationFrame(function(){
+      tick=false;
+      const bg=screen.querySelector('.hero .bg'); if(!bg)return;
+      const y=Math.min(screen.scrollTop,150);          /* 최대 57px — 위에 깔아 둔 여유(60px) 안에서만 */
+      bg.style.transform='translateY('+(y*0.38).toFixed(1)+'px)';
+    });
+  },{passive:true});
 }
 /* 바닥에서 올라오는 시트 — CSS 로 밀어 올리던 것을 스프링으로 바꿉니다.
    motion.dev 문서가 말하는 '시각적 길이(visualDuration)' 개념대로,
