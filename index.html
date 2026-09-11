@@ -1516,9 +1516,16 @@ const SCENE_WORDS=[
   ["sea",   ["제주","부산","강릉","속초","여수","통영","거제","포항","태안","남해","동해","서해","해운대","경포","월정","협재","바다","해변","해수욕","섬","등대","요트","크루즈","몰디브","괌","사이판","하와이","다낭","나트랑","푸켓","발리","보라카이","세부","코타키나발루","오키나와","니스","산토리니"]],
   ["mount", ["산","설악","지리","한라","오름","백두","태백","계룡","북한","등산","트레킹","암벽","네팔","안나푸르나","히말라야","돌로미티"]],
   ["forest",["숲","계곡","캠핑","글램핑","차박","수목원","휴양림","자연","가평","양평","포천","인제","정선","펜션","힐링","치유"]],
-  ["city",  ["서울","도쿄","동경","오사카","교토","후쿠오카","나고야","상하이","베이징","홍콩","마카오","타이베이","대만","싱가포르","방콕","호치민","하노이","파리","런던","로마","밀라노","프라하","비엔나","베를린","바르셀로나","뉴욕","시애틀","시드니","워크숍","출장","시내","야경"]],
-  ["field", ["들","시골","농장","목장","유채","코스모스","보성","순천","담양","안동","경주","전주","남원","고창"]],
+  /* 2026-09-12 추가한 풍경 4종 — 앞에 둘수록 먼저 잡힙니다 (도쿄는 '도시'보다 '일본'이 먼저) */
+  ["palace",["궁궐","경복궁","창덕궁","덕수궁","창경궁","한옥","북촌","전주","경주","안동","하회","수원","화성","불국사","사찰","템플스테이","유적","고궁","서원"]],
+  ["japan", ["일본","도쿄","동경","오사카","교토","후쿠오카","나고야","하코네","후지","가마쿠라","도톤보리","유니버셜","벳푸","유후인","가나자와","다카야마","시라카와","고베","히로시마","오사카성"]],
+  ["asia",  ["동남아","방콕","치앙마이","태국","호치민","하노이","베트남","하롱","싱가포르","대만","타이베이","말레이시아","쿠알라룸푸르","코타키나발루","캄보디아","앙코르","씨엠립","라오스","루앙프라방","인도네시아","마닐라"]],
+  ["europe",["유럽","파리","런던","로마","밀라노","피렌체","베네치아","베니스","이탈리아","프랑스","스페인","바르셀로나","마드리드","독일","베를린","뮌헨","체코","프라하","오스트리아","비엔나","암스테르담","네덜란드","리스본","포르투갈","크로아티아","두브로브니크","그리스","아테네","영국","에든버러","북유럽","노르웨이","스톡홀름"]],
+  ["city",  ["서울","상하이","베이징","홍콩","마카오","뉴욕","시애틀","샌프란시스코","시드니","멜버른","두바이","워크숍","출장","시내","야경"]],
+  ["field", ["들","시골","농장","목장","유채","코스모스","보성","순천","담양","남원","고창"]],
 ];
+/* 새 풍경 4종은 코드로 그린 그림이 따로 없어, 사진을 못 불러올 때 비슷한 그림으로 대신합니다 */
+const SCENE_ART_ALIAS={palace:'field', japan:'mount', asia:'sea', europe:'city'};
 const SCENE_FALLBACK=["sea","mount","city","forest","field"];
 /* 계절별 색 — 네 계절이 한눈에 구분되도록 확실히 벌려 두되,
    지평선은 어느 계절이든 따뜻하게 남겨 '기록장' 인상을 지킵니다.
@@ -1694,10 +1701,11 @@ const _coverCache=new Map();
 /* 여행 한 건의 표지 그림을 CSS background 값으로 돌려줍니다 */
 function coverArt(t){
   if(!t)return "";
-  const key=`${t.id}|${t.place}|${t.title}|${t.start}`;
+  const own=(t.cover&&t.cover.u)?t.cover.u:'';                 /* 여행 사진으로 만든 표지 */
+  const key=`${t.id}|${t.place}|${t.title}|${t.start}|${own?(t.cover.key||own.length):''}`;
   if(_coverCache.has(key))return _coverCache.get(key);
   const p=COVER_PAL[coverSeason(t.start)], scene=coverScene(t), h=coverHash(key);
-  const body=(SCENE_FN[scene]||sceneSea)(p,h);
+  const body=(SCENE_FN[scene]||SCENE_FN[SCENE_ART_ALIAS[scene]]||sceneSea)(p,h);
   const svgStr=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice">`
     +`<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">`
     +`<stop offset="0" stop-color="${p.sky[0]}"/><stop offset=".54" stop-color="${p.sky[1]}"/><stop offset=".9" stop-color="${p.sky[2]}"/></linearGradient>`
@@ -1739,8 +1747,8 @@ function coverArt(t){
     +`<rect width="400" height="260" fill="url(#vig)"/></svg>`;
   /* 작은따옴표로 감쌉니다 — style="…" 안에 들어가므로 큰따옴표를 쓰면 속성이 끊깁니다.
      위치는 CSS(.tcv / .cover / .hero .bg)에서 정합니다 — 납작한 띠는 지평선 부근만 잘라 씁니다. */
-  /* 앞 겹 = 사진, 뒷 겹 = 코드로 그린 그림(사진을 못 불러올 때 대신 보임) */
-  const css=`url('${coverPhoto(scene,h)}'), url('data:image/svg+xml,${encodeURIComponent(svgStr)}')`;
+  /* 앞 겹 = 사진(여행에서 찍은 사진이 있으면 그것, 없으면 풍경 사진), 뒷 겹 = 코드로 그린 그림(못 불러올 때) */
+  const css=`url('${own||coverPhoto(scene,h)}'), url('data:image/svg+xml,${encodeURIComponent(svgStr)}')`;
   _coverCache.set(key,css);
   return css;
 }
@@ -2730,6 +2738,7 @@ async function addItemPhotos(ev,id){
     catch(e){ it.photos.splice(it.photos.length-added,added); rerender();
       toast('저장 실패: 인터넷 연결을 확인해 주세요.'); return; }
     rerender();
+    autoCover(t);                          /* 첫 사진이면 표지로 */
   }
   toast(full
     ? (added?`${added}장 저장했어요. 저장공간이 꽉 차 나머지는 못 올렸어요.`:'저장공간이 꽉 찼어요. 사진을 좀 지우고 올려 주세요.')
@@ -2747,13 +2756,23 @@ function openItemPhoto(id,k){
     <img src="${photoSrc(p)}" style="width:100%;border-radius:14px">
     <div class="muted small" style="margin-top:8px">${mdLabel(f.d.date)}(${dowOf(f.d.date)}) ${esc(f.it.time)}${f.it.place?' · '+esc(f.it.place):''}</div>
     ${p.by?`<div class="muted small" style="margin-top:3px">${svg('i-users')} ${canDeletePhoto(p)?'내가':esc(p.by)+' 님이'} 올린 사진</div>`:''}
+    ${coverBtn(trip(curTrip),p,`setCoverFromItem('${id}',${k})`)}
     ${mine?`<button class="btn ghost sm" style="margin-top:10px;color:#B23B3B" onclick="delItemPhoto('${id}',${k})">${svg('i-trash','ic')} 이 사진 삭제</button>`
           :`<p class="muted small" style="margin:10px 0 0">다른 사람이 올린 사진은 지울 수 없어요.</p>`}`);}
+/* [이 사진을 표지로] / [표지 해제] 버튼 — 사진을 크게 볼 때 */
+function coverBtn(t,p,onSet){
+  if(!t||!p||!photoSrc(p))return '';
+  return isCoverPhoto(t,p)
+    ? `<button class="btn ghost sm" style="margin-top:10px" onclick="closeOv();clearTripCover(trip('${t.id}'))">${svg('i-camera','ic')} 지금 표지예요 · 풍경 사진으로 되돌리기</button>`
+    : `<button class="btn ghost sm" style="margin-top:10px" onclick="closeOv();${onSet}">${svg('i-camera','ic')} 이 사진을 표지로</button>`;
+}
+function setCoverFromItem(id,k){const f=itemById(id); if(!f)return; setTripCover(trip(curTrip),photoList(f.it)[k]);}
+function setCoverFromMem(i){const t=memTrip(); if(!t)return; setTripCover(t,photoList(t)[i]);}
 function delItemPhoto(id,k){
   const t=trip(curTrip), f=itemById(id); if(!t||!f||!f.it.photos)return;
   const p=photoList(f.it)[k]; if(!p||!canDeletePhoto(p)){toast('내가 올린 사진만 지울 수 있어요.');return;}
   if(p.ref){window.FB.deletePhotoDoc(p.ref); delete PHOTOS[p.ref];}
-  f.it.photos.splice(k,1); closeOv(); toast('삭제했어요'); rerender(); save();}
+  f.it.photos.splice(k,1); closeOv(); toast('삭제했어요'); rerender(); save(); autoCover(t);}
 
 /* 일정 항목 메뉴 — 수정·삭제·보고서를 한 곳에 모아 화면을 단순하게 */
 /* ── 예약처 바로가기: 항공사·숙소·렌터카 앱/사이트로 원탭 연결 ── */
@@ -5344,6 +5363,58 @@ function shrinkPhoto(file,maxPx,q){return new Promise(function(res,rej){
   r.onerror=function(){rej(new Error('파일을 읽지 못했습니다'));};
   r.readAsDataURL(file);});}
 
+/* ══ 여행 사진을 표지로 ══════════════════════════════════════
+   · 사진을 처음 올리면 그 사진이 자동으로 그 여행의 표지가 됩니다.
+   · 사진을 크게 볼 때 [이 사진을 표지로] 로 바꿀 수 있습니다.
+   · 표지는 작은 그림(640px, 약 20KB)으로 여행 데이터에 같이 저장됩니다.
+     → 목록 화면처럼 그 여행의 사진을 아직 안 불러온 곳에서도 표지가 바로 보입니다. */
+const COVER_PX=640, COVER_Q=0.62;
+function shrinkDataUrl(src,maxPx,q){return new Promise(function(res,rej){
+  const im=new Image();
+  im.onload=function(){const sc=Math.min(1,maxPx/Math.max(im.width,im.height));
+    const c=document.createElement('canvas');
+    c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    res(c.toDataURL('image/jpeg',q));};
+  im.onerror=function(){rej(new Error('이미지를 열 수 없습니다'));};
+  im.src=src;});}
+/* 여행 안의 모든 사진을 올린 순서대로 (추억 사진 → 날짜순 일정 사진) */
+function allTripPhotos(t){
+  const out=[];
+  photoList(t).forEach(function(p){ if(photoSrc(p))out.push(p); });
+  (t.days||[]).forEach(function(d){ (d.items||[]).forEach(function(i){
+    photoList(i).forEach(function(p){ if(photoSrc(p))out.push(p); }); }); });
+  return out;
+}
+function photoKey(p){ const src=photoSrc(p)||''; return p&&p.ref ? 'r:'+p.ref : 'h:'+coverHash(src).toString(36)+':'+src.length; }
+function isCoverPhoto(t,p){ return !!(t&&t.cover&&p&&t.cover.key===photoKey(p)); }
+async function setTripCover(t,p,quiet){
+  if(!t||!p||!photoSrc(p))return false;
+  try{
+    const u=await shrinkDataUrl(photoSrc(p),COVER_PX,COVER_Q);
+    t.cover={key:photoKey(p),ref:p.ref||'',u:u};
+    _coverCache.clear();
+    await window.FB.saveTrip(t);
+    if(!quiet)toast('이 사진이 표지가 됐어요');
+    rerender(); return true;
+  }catch(e){ if(!quiet)toast('표지로 만들지 못했어요'); return false; }
+}
+async function clearTripCover(t){
+  if(!t||!t.cover)return;
+  delete t.cover; _coverCache.clear();
+  await window.FB.saveTrip(t); toast('풍경 사진 표지로 돌아갔어요'); rerender();
+}
+/* 표지가 없으면 첫 사진을, 표지 사진이 지워졌으면 다음 사진을 자동으로 표지로 */
+async function autoCover(t){
+  if(!t)return;
+  const list=allTripPhotos(t);
+  if(t.cover){
+    const still=list.some(function(p){return isCoverPhoto(t,p);});
+    if(still)return;
+    if(!list.length){ delete t.cover; _coverCache.clear(); await window.FB.saveTrip(t); rerender(); return; }
+  } else if(!list.length) return;
+  await setTripCover(t,list[0],true);
+}
 /* 사진 한 장을 저장할 수 있는 형태로 만듭니다.
    ① 보관소가 켜져 있으면 → 원본(1600px)은 보관소로 올리고, 작은 그림(320px)만 데이터에 남깁니다.
       이러면 여행 1건에 사진 수백 장을 넣어도 데이터가 거의 늘지 않습니다.
@@ -5427,6 +5498,7 @@ function openPhotoView(i){const t=memTrip();
     <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
     <img src="${photoSrc(p)}" style="width:100%;border-radius:14px">
     ${p.by?`<p class="muted small" style="margin:8px 2px 0">${canDeletePhoto(p)?'내가':esc(p.by)+' 님이'} 올린 사진</p>`:''}
+    ${coverBtn(t,p,`setCoverFromMem(${i})`)}
     ${canDeletePhoto(p)
       ?`<button class="btn ghost sm" style="margin-top:10px;color:#B23B3B" onclick="delMemPhoto(${i})">${svg('i-trash','ic')} 이 사진 삭제</button>`
       :`<p class="muted small" style="margin:10px 2px 0">다른 사람이 올린 사진은 지울 수 없어요.</p>`}`);}
@@ -5435,7 +5507,7 @@ function delMemPhoto(i){const t=memTrip();
   if(!canDeletePhoto(photoList(t)[i]||{})){toast('다른 사람이 올린 사진은 지울 수 없어요.');return;}
   const gone=photoList(t)[i]||{};
   if(gone.ref){window.FB.deletePhotoDoc(gone.ref); delete PHOTOS[gone.ref];}
-  t.photos.splice(i,1); closeOv(); toast('삭제했어요'); rerender(); window.FB.saveTrip(t);}
+  t.photos.splice(i,1); closeOv(); toast('삭제했어요'); rerender(); window.FB.saveTrip(t); autoCover(t);}
 async function addMemPhotos(ev){
   const t=memTrip();
   const files=[...(ev.target.files||[])];
@@ -5457,7 +5529,7 @@ async function addMemPhotos(ev){
     added++;
   }
   if(added){
-    try{ await window.FB.saveTrip(t); }
+    try{ await window.FB.saveTrip(t); autoCover(t); }
     catch(e){ t.photos.splice(t.photos.length-added,added); rerender();
       toast('저장 실패: 인터넷 연결을 확인해 주세요.'); return; }
     rerender();
@@ -5934,20 +6006,32 @@ function openSheet(html){
   axOvIn(); if(typeof axPop==='function')axPop($('ovc'),'sheet');}
 function openModal(html){$('ovc').outerHTML='<div id="ovc" class="modal">'+html+'</div>';$('ov').className='ov center on';
   axOvIn(); if(typeof axPop==='function')axPop($('ovc'),'modal');}
+/* ⚠ 2026-09-12 사고: 닫힘을 '스르륵'으로 바꾸며 260ms 뒤에 닫는 예약을 걸었는데,
+   [삭제] 처럼 "닫고 → 곧바로 확인 팝업 열기"(closeOv();delItem()) 를 하는 곳이 15군데 있어
+   새로 연 확인 팝업이 그 예약에 의해 260ms 뒤 저절로 닫혀 버렸습니다.
+   → 열 때마다 번호(_ovGen)를 올리고, 닫기 예약은 "내가 닫으려던 그 화면이 아직 열려 있을 때만" 닫습니다. */
+let _ovGen=0;
 function closeOv(){
   const ov=$('ov');
-  if(!ov.classList.contains('on')){ov.className='ov';return;}
-  /* 배경이 사라질 때도 스르륵 — 다만 무슨 일이 있어도 260ms 뒤엔 반드시 닫힙니다 */
-  const done=function(){ov.className='ov';ov.style.opacity='';};
+  if(!ov.classList.contains('on')){ov.className='ov';ov.style.opacity='';return;}
+  const gen=_ovGen;                                   /* 지금 닫으려는 화면의 번호 */
+  const done=function(){
+    if(_ovGen!==gen)return;                           /* 그 사이 새 화면이 열렸으면 손대지 않음 */
+    ov.className='ov'; ov.style.opacity='';
+  };
   if(typeof AX==='undefined'||!AX.on){done();return;}
   setTimeout(done,260);
   try{AX.A.animate(ov,{opacity:[1,0],duration:180,ease:'out(2)',onComplete:done});}catch(e){done();}
 }
-/* 시트·팝업이 열릴 때 뒤 배경이 스르륵 어두워집니다 */
+/* 시트·팝업이 열릴 때 — 번호를 올려 이전 닫기 예약을 무효화하고, 배경을 스르륵 어둡게 */
 function axOvIn(){
   const ov=$('ov'); if(!ov)return;
-  if(typeof AX==='undefined'||!AX.on){ov.style.opacity='';return;}
-  const done=function(){ov.style.opacity='';};
+  _ovGen++;
+  const gen=_ovGen;
+  try{ if(typeof AX!=='undefined'&&AX.on&&AX.A.utils&&AX.A.utils.remove)AX.A.utils.remove(ov); }catch(e){}  /* 진행 중이던 닫힘 애니메이션 중단 */
+  ov.style.opacity='';
+  if(typeof AX==='undefined'||!AX.on)return;
+  const done=function(){ if(_ovGen===gen)ov.style.opacity=''; };
   setTimeout(done,500);
   try{AX.A.animate(ov,{opacity:[0,1],duration:220,ease:'out(2)',onComplete:done});}catch(e){done();}
 }
