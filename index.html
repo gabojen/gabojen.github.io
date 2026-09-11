@@ -462,15 +462,35 @@
     display:flex;flex-direction:column;gap:6px;}
   .dph .dhead{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--ink);
     margin-bottom:2px;}
-  .dph .dtag{display:inline-block;align-self:flex-start;font-size:9.5px;font-weight:800;
-    color:var(--brand-ink);background:var(--brand-bg);padding:3px 7px;border-radius:999px;}
-  .drow{display:flex;align-items:center;gap:7px;background:var(--paper);border-radius:9px;padding:6px 8px;}
-  .drow .dic{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;
-    justify-content:center;flex-shrink:0;}
-  .drow .dic svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;}
-  .drow b{font-size:10px;font-weight:800;color:var(--ink);flex-shrink:0;font-variant-numeric:tabular-nums;}
-  .drow .dtx{font-size:10.5px;font-weight:600;color:var(--ink-2);overflow:hidden;
-    text-overflow:ellipsis;white-space:nowrap;}
+  /* 안내 속 작은 화면은 실제 일정 화면(.dayhead / .tl .ent)의 축소판입니다.
+     실제 화면을 바꾸면 여기도 같이 바꿔야 합니다(2026-09-11: 옛 알약 모양이 남아 있던 것을 고침). */
+  .dph .dcv{height:64px;border-radius:10px;overflow:hidden;position:relative;margin:-2px 0 4px;
+    background-size:cover;background-position:center 45%;display:flex;flex-direction:column;
+    justify-content:flex-end;padding:6px 8px;color:#fff;}
+  /* 글자 그늘은 별도 층으로 — 사진(inline background)에 덮이지 않게 */
+  .dph .dcv::before{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(13,24,31,0) 30%,rgba(13,24,31,.74));}
+  .dph .dcv b{font-family:var(--font-display);font-size:11.5px;font-weight:700;position:relative;}
+  .dph .dcv span{font-size:8.5px;font-weight:700;opacity:.9;position:relative;}
+  .dph .dtag{display:flex;align-items:baseline;gap:6px;margin-top:4px;padding-bottom:4px;
+    border-bottom:1.5px solid var(--ink);background:none;border-radius:0;}
+  .dph .dtag span{font-size:8px;font-weight:800;letter-spacing:.06em;color:var(--brand-ink);}
+  .dph .dtag b{font-size:11px;font-weight:800;color:var(--ink);letter-spacing:-.02em;}
+  .drow{display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:8px;padding:6px 0 7px;
+    border-top:1px solid var(--line);background:none;border-radius:0;}
+  .dtag+.drow{border-top:none;}
+  .drow .dtm{text-align:right;}
+  .drow .dtm b{display:block;font-size:11px;font-weight:800;color:var(--ink);letter-spacing:-.04em;
+    line-height:1;font-variant-numeric:tabular-nums;}
+  .drow .dtm i{display:inline-flex;margin-top:3px;}
+  .drow .dtm i svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round;}
+  .drow .dtx{min-width:0;}
+  .drow .dtx b{display:block;font-size:10.5px;font-weight:700;color:var(--ink);line-height:1.3;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .drow .dtx em{display:flex;align-items:center;gap:3px;margin-top:2px;font-style:normal;
+    font-size:8.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .drow .dtx em svg{width:9px;height:9px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;}
   .dph .dmsg{font-size:9.5px;line-height:1.6;color:var(--ink-2);background:var(--paper);
     border:1px dashed var(--line-2);border-radius:9px;padding:8px 9px;}
   .dph .dmid{display:flex;align-items:center;justify-content:center;gap:4px;font-size:9.5px;
@@ -4968,26 +4988,30 @@ function usagePctOf(bytes){return Math.min(100,Math.round(bytes/DOC_SAFE*100));}
    ============================================================================ */
 /* 안내에 넣을 '작은 실제 화면' — 사진이 아니라 앱 부품으로 직접 그립니다.
    그래서 용량이 늘지 않고, 앱 디자인이 바뀌면 이 그림도 같이 바뀝니다. */
-function demoRow(cat,time,title){
-  return `<div class="drow"><span class="dic" style="background:${CAT_BG[cat]};color:${CAT[cat].color}">${svg(CAT[cat].icon)}</span>`
-    +`<b>${time}</b><span class="dtx">${esc(title)}</span></div>`;
+/* 일정 한 줄 — 실제 화면(.tl .ent)과 같은 구조: 왼쪽에 시각, 그 아래 분류 아이콘, 오른쪽에 제목 */
+function demoRow(cat,time,title,place){
+  return `<div class="drow"><span class="dtm"><b>${time}</b><i style="color:${CAT[cat].color}">${svg(CAT[cat].icon)}</i></span>`
+    +`<span class="dtx"><b>${esc(title)}</b>${place?`<em>${svg('i-pin')}${esc(place)}</em>`:''}</span></div>`;
 }
+/* DAY 머리글 — 실제 화면(.dayhead)처럼 굵은 잉크선 */
+function demoDay(n,date){ return `<div class="dtag"><span>DAY ${n}</span><b>${date}</b></div>`; }
 function demoPlan(){
   return `<div class="dph">
-    <div class="dhead">제주 가족여행</div>
-    <div class="dtag">DAY 1 · 8/19(수)</div>
-    ${demoRow('transport','08:20','김포–제주 KE1201')}
-    ${demoRow('stay','15:00','제주신라호텔 체크인')}
-    ${demoRow('plan','17:30','협재해수욕장 산책')}
-    <div class="dtag" style="margin-top:8px">DAY 2 · 8/20(목)</div>
-    ${demoRow('ticket','10:00','아쿠아플라넷 제주')}
+    <div class="dcv" style="background-image:${coverArt({id:'intro-jeju',title:'제주 가족여행',place:'제주',start:'2026-08-19'})}">
+      <b>제주 가족여행</b><span>제주 · 8/19–8/20 · 2일</span></div>
+    ${demoDay(1,'8/19(수)')}
+    ${demoRow('transport','08:20','김포–제주 KE1201','김포공항')}
+    ${demoRow('stay','15:00','제주신라호텔 체크인','제주신라호텔')}
+    ${demoRow('plan','17:30','협재해수욕장 산책','협재해수욕장')}
+    ${demoDay(2,'8/20(목)')}
+    ${demoRow('ticket','10:00','아쿠아플라넷 제주','아쿠아플라넷')}
   </div>`;
 }
 function demoPaste(){
   return `<div class="dph">
     <div class="dmsg">[대한항공] 김광석님<br>8/19(수) 08:20 김포→제주<br>KE1201 예약이 확정되었습니다.</div>
     <div class="dmid">${svg('i-spark')} 붙여넣으면 알아서 정리</div>
-    ${demoRow('transport','08:20','김포–제주 KE1201')}
+    ${demoRow('transport','08:20','김포–제주 KE1201','김포공항 · 좌석 12A')}
     <div class="dnote">날짜 · 시간 · 편명까지 자동으로</div>
   </div>`;
 }
@@ -4998,7 +5022,7 @@ function demoShare(){
       <span class="dav" style="background:#6242C6">김</span>
       <em>가족 · 3명</em></div>
     <div class="dcode">초대코드 <b>a1b2c3d</b></div>
-    ${demoRow('plan','17:30','협재해수욕장 산책')}
+    ${demoRow('plan','17:30','협재해수욕장 산책','협재해수욕장')}
     <div class="dpics">
       <span style="background:linear-gradient(140deg,#2F6E96,#7FB4C0)"><i>나</i></span>
       <span style="background:linear-gradient(140deg,#0E7C7B,#5EAEB4)"><i>이수정</i></span>
