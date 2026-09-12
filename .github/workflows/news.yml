@@ -1,7 +1,7 @@
 # 여행 소식지 자동 만들기  (이 파일 하나면 됩니다)
 #  · 매달 2일 새벽에 저절로 돌아 news/YYYY-MM.json 을 만들어 올립니다.
 #  · [Actions] 탭 → [Run workflow] 로 지금 바로 돌릴 수도 있습니다.
-#  · 인증키는 저장소 Secret(TOUR_API_KEY)에서만 읽습니다 — 코드에 남지 않습니다.
+#  · 인증키는 저장소 Secret(TOUR_API_KEY)에서만 읽습니다 — 코드·기록 어디에도 남지 않습니다.
 name: 여행 소식지 만들기
 
 on:
@@ -24,26 +24,22 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
-      # 인증키가 들어 있는지 먼저 확인합니다 (키 자체는 절대 찍지 않습니다)
       - name: 인증키 들어 있는지 확인
         env:
           TOUR_API_KEY: ${{ secrets.TOUR_API_KEY }}
         run: |
           if [ -z "$TOUR_API_KEY" ]; then
             echo "::error::인증키가 비어 있습니다."
-            echo ""
-            echo "  저장소 → Settings → Secrets and variables → Actions 로 가서"
-            echo "  [New repository secret] 을 누르고"
-            echo "     Name   : TOUR_API_KEY     ← 철자가 정확해야 합니다"
-            echo "     Secret : 공공데이터포털 일반 인증키"
-            echo "  를 넣은 뒤 다시 돌려 주세요."
+            echo "  저장소 → Settings → Secrets and variables → Actions 에서"
+            echo "     Name : TOUR_API_KEY  (철자 정확히)"
+            echo "  로 인증키를 넣은 뒤 다시 돌려 주세요."
             exit 1
           fi
           echo "인증키 확인됨 (${#TOUR_API_KEY}자)"
 
       - name: 소식지 만드는 프로그램 준비
         run: |
-          mkdir -p tools
+          mkdir -p tools news
           cat > tools/make-news.mjs <<'GABOJEN_EOF'
           /* ============================================================================
              여행 소식지 만들기 (한국관광공사 TourAPI → news/YYYY-MM.json)
@@ -71,7 +67,12 @@ jobs:
              Encoding 키는 % 가 섞여 있어 그대로 쓰면 두 번 인코딩되어 '등록되지 않은 키'가 됩니다.
              → % 가 보이면 원래 글자로 되돌려 씁니다. 어느 쪽을 넣어도 동작합니다. */
           const KEY = RAW.includes('%') ? decodeURIComponent(RAW) : RAW;
-          console.log(`🔑 인증키 확인: ${KEY.length}자 (${RAW.includes('%') ? 'Encoding 키를 자동 변환' : 'Decoding 키'})`);
+          /* 실행 기록이 저장소에 올라가므로, 어떤 글에도 인증키가 남지 않도록 지웁니다 */
+          const redact = v => String(v).split(RAW).join('***').split(KEY).join('***')
+            .split(encodeURIComponent(KEY)).join('***');
+          const say = (...a) => console.log(a.map(redact).join(' '));
+          const cry = (...a) => console.error(a.map(redact).join(' '));
+          say(`🔑 인증키: ${KEY.length}자 (${RAW.includes('%') ? 'Encoding 키 → 자동 변환' : 'Decoding 키'})`);
 
           const BASE = 'https://apis.data.go.kr/B551011/KorService2';
           const APP  = 'gabojen';
@@ -109,7 +110,9 @@ jobs:
             const url = `${BASE}/${op}?${q}`;
             for (let attempt = 1; attempt <= 3; attempt++) {
               try {
-                const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+                const res = await fetch(url, { signal: AbortSignal.timeout(25000),
+                  headers: { 'User-Agent': 'gabojen-news/1.0', 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
                 const text = await res.text();
                 if (text.includes('SERVICE_KEY_IS_NOT_REGISTERED'))
                   throw new Error('인증키를 관광공사가 모른다고 합니다.\n   · 공공데이터포털의 "일반 인증키"를 그대로 넣으셨는지\n   · 활용신청 승인 뒤 10분쯤 지났는지\n   · 앞뒤에 빈칸이나 줄바꿈이 섞이지 않았는지 확인해 주세요.');
@@ -125,6 +128,10 @@ jobs:
                 const item = body.items?.item;
                 return Array.isArray(item) ? item : (item ? [item] : []);
               } catch (e) {
+                const why = e.name === 'TimeoutError' || /abort/i.test(e.message||'')
+                  ? '응답이 20초 안에 오지 않음(관광공사 서버가 느리거나 막힘)'
+                  : (e.message || String(e));
+                cry(`   · ${op} ${attempt}번째 시도 실패: ${why}`);
                 if (attempt === 3) throw e;
                 await new Promise(r => setTimeout(r, 800 * attempt));
               }
@@ -161,7 +168,7 @@ jobs:
             const first = new Date(y, m, 1), last = new Date(y, m+1, 0);
             const month = `${y}-${String(m+1).padStart(2,'0')}`;
 
-            console.log(`📅 ${month} 소식지를 만듭니다`);
+            say(`📅 ${month} 소식지를 만듭니다  (오늘 ${new Date().toISOString().slice(0,10)})`);
 
             /* ① 이번 달 축제 — 대표 이미지가 있는 것만(arrange=Q: 수정일순 + 이미지 필수) */
             const fests = [];
@@ -171,7 +178,7 @@ jobs:
                 eventStartDate: ymd(first), eventEndDate: ymd(last),
               });
               fests.push(...rows);
-              console.log(`   축제 ${page}쪽: ${rows.length}건`);
+              say(`   축제 ${page}쪽: ${rows.length}건`);
               if (rows.length < 100) break;
             }
 
@@ -195,8 +202,8 @@ jobs:
                   img:pickImg(x), thumb:pickThumb(x), rights:x.cpyrhtDivCd||'',
                   lat:x.mapy?+x.mapy:null, lng:x.mapx?+x.mapx:null,
                 }));
-                console.log(`   ${name}: ${spots[name].length}곳`);
-              } catch (e) { console.warn(`   ${name} 건너뜀: ${e.message}`); spots[name] = []; }
+                say(`   ${name}: ${spots[name].length}곳`);
+              } catch (e) { cry(`   ${name} 건너뜀: ${e.message}`); spots[name] = []; }
               await new Promise(r => setTimeout(r, 120));
             }
 
@@ -212,24 +219,38 @@ jobs:
             await writeFile(`news/${month}.json`, JSON.stringify(out), 'utf8');
             await writeFile('news/latest.json', JSON.stringify(out), 'utf8');
             const kb = Math.round(JSON.stringify(out).length/1024);
-            console.log(`✅ news/${month}.json · 축제 ${festivals.length}개 · ${kb}KB`);
+            say(`✅ news/${month}.json · 축제 ${festivals.length}개 · ${kb}KB`);
           }
 
           main().catch(e => {
-            console.error('');
-            console.error('❌ 소식지를 만들지 못했습니다.');
-            console.error('   ' + e.message);
+            cry('');
+            cry('❌ 소식지를 만들지 못했습니다.');
+            cry('   ' + (e.message || e));
+            cry('');
+            cry('자주 있는 원인');
+            cry('  1) 인증키가 아직 승인 대기 중 → 승인 10분 뒤 다시');
+            cry('  2) 공공데이터포털에서 "국문 관광정보 서비스" 활용신청이 안 됨');
+            cry('  3) 관광공사 서버가 해외(깃허브) 요청에 느리게 응답 → 잠시 뒤 다시');
             process.exit(1);
           });
 
           GABOJEN_EOF
 
+      # 실패해도 멈추지 않고, 무슨 일이 있었는지 news/실행기록.txt 에 남깁니다
       - name: 소식지 만들기
+        id: build
+        continue-on-error: true
         env:
           TOUR_API_KEY: ${{ secrets.TOUR_API_KEY }}
-        run: node tools/make-news.mjs ${{ github.event.inputs.month }}
+        run: |
+          set -o pipefail
+          {
+            echo "실행 시각(UTC): $(date -u '+%Y-%m-%d %H:%M')"
+            echo "----------------------------------------"
+          } > news/실행기록.txt
+          node tools/make-news.mjs ${{ github.event.inputs.month }} 2>&1 | tee -a news/실행기록.txt
 
-      - name: 저장소에 올리기
+      - name: 기록·결과 올리기
         run: |
           git config user.name  "gabojen-bot"
           git config user.email "bot@users.noreply.github.com"
@@ -237,6 +258,12 @@ jobs:
           if git diff --staged --quiet; then
             echo "바뀐 내용이 없습니다."
           else
-            git commit -m "여행 소식지 갱신 ($(date +%Y-%m))"
+            git commit -m "여행 소식지 ($(date +%Y-%m))"
             git push
           fi
+
+      - name: 결과 판정
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "::error::소식지 만들기에 실패했습니다. news/실행기록.txt 를 확인하세요."
+          exit 1
