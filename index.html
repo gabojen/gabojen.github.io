@@ -1699,10 +1699,13 @@ const COVER_PHOTO_DIR='covers/';
 function coverPhoto(scene,h){ return COVER_PHOTO_DIR+scene+((h>>>9)%COVER_PHOTO_N+1)+'.webp'; }
 const _coverCache=new Map();
 /* 여행 한 건의 표지 그림을 CSS background 값으로 돌려줍니다 */
-function coverArt(t){
+/* opt.scenic=true 면 내 사진 표지가 있어도 풍경 사진을 씁니다.
+   홈 맨 위 '다음 일정' 카드는 여행 카드와 구분되도록 늘 풍경 사진으로 둡니다(2026-09-12 요청). */
+function coverArt(t,opt){
   if(!t)return "";
-  const own=(t.cover&&t.cover.u)?t.cover.u:'';                 /* 여행 사진으로 만든 표지 */
-  const key=`${t.id}|${t.place}|${t.title}|${t.start}|${own?(t.cover.key||own.length):''}`;
+  const scenic=!!(opt&&opt.scenic);
+  const own=(!scenic&&t.cover&&t.cover.u)?t.cover.u:'';        /* 여행 사진으로 만든 표지 */
+  const key=`${t.id}|${t.place}|${t.title}|${t.start}|${own?(t.cover.key||own.length):''}|${scenic?'s':''}`;
   if(_coverCache.has(key))return _coverCache.get(key);
   const p=COVER_PAL[coverSeason(t.start)], scene=coverScene(t), h=coverHash(key);
   const body=(SCENE_FN[scene]||SCENE_FN[SCENE_ART_ALIAS[scene]]||sceneSea)(p,h);
@@ -2226,7 +2229,8 @@ function openAccount(){
   <div style="height:14px"></div>
   <button class="btn" onclick="window.FB.logout()">${svg('i-out','ic')} 로그아웃</button>
   <button class="lnk" style="display:block;margin:14px auto 0;color:var(--muted);font-size:12.5px"
-    onclick="closeOv();openLeave()">회원 탈퇴</button>`);
+    onclick="closeOv();openLeave()">회원 탈퇴</button>
+  <div class="muted" style="text-align:center;font-size:11px;margin-top:10px;opacity:.7">${APP_VERSION}</div>`);
   setTimeout(markTheme,0);
   refreshAdminSlot();}
 
@@ -2597,7 +2601,7 @@ function renderToday(){
     }
   }
   $('today').innerHTML=`
-    <div class="hero"><div class="bg" style="background-image:${coverArt(t)}"></div><div class="grain"></div><div class="in">
+    <div class="hero"><div class="bg" style="background-image:${coverArt(t,{scenic:true})}"></div><div class="grain"></div><div class="in">
       <div class="top"><span class="badge">${svg('i-suitcase')} ${esc(t.title)}</span>
         <span class="now">${s.state==='now'&&day?mdLabel(day.date)+'('+dowOf(day.date)+')':s.dday}</span></div>
       ${heroBody}<div class="track">${dots}</div>
@@ -2678,7 +2682,7 @@ function timelineNode(i,dayIdx,dateStr,nextId,open){
   const st=dateStr?itemState(dateStr,i,nextId):'';
   const badge= st==='next'?'<span class="nx">다음</span>'
              : st==='past'?'<span class="dn">지남</span>':'';
-  const extra = open?`<div class="xd">
+  const extra = open?`<div class="xd" onclick="event.stopPropagation()">
       ${i.map?mapThumb(i.place):''}
       ${voucherButton(i)}
       ${i.qr?`<button class="btn ghost sm" style="margin-top:10px" onclick="openQR('${esc(i.title)}')">${svg('i-ticket','ic')} 입장권 QR 열기</button>`:''}
@@ -6596,6 +6600,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(openIntro,450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
+const APP_VERSION='v10.0.2 (2026-09-12)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authMode('login');
