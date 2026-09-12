@@ -242,10 +242,10 @@
   /* 표지 그림의 '가운데'를 그대로 쓰면 텅 빈 하늘과 해만 크게 잡혀 밋밋했습니다.
      지평선(능선·물가)이 보이는 아래쪽을 잘라 씁니다. */
   .hero .bg{position:absolute;inset:-60px 0 0 0;background-color:#12414A;will-change:transform;
-    background-size:cover;background-position:center 42%;background-repeat:no-repeat;}
+    background-size:cover;background-position:center 50%;background-repeat:no-repeat;}
   /* 글자가 어떤 그림 위에서도 읽히도록 아래로 갈수록 진해지는 막을 덮습니다 */
   .hero .bg::after{content:"";position:absolute;inset:0;
-    background:linear-gradient(180deg,rgba(13,24,31,.16) 0%,rgba(13,24,31,.42) 40%,rgba(13,24,31,.84) 100%);}
+    background:linear-gradient(180deg,rgba(13,24,31,.30) 0%,rgba(13,24,31,.50) 34%,rgba(13,24,31,.84) 100%);}
   .hero .grain{position:absolute;inset:0;background-image:var(--grain);background-size:150px 150px;
     opacity:.13;mix-blend-mode:overlay;pointer-events:none;}
   .hero .in{position:relative;padding:16px 18px 18px;}
@@ -259,7 +259,9 @@
     background:rgba(13,24,31,.34);backdrop-filter:blur(3px);
     border:1.5px solid rgba(255,255,255,.72);border-radius:7px;padding:4px 9px;
     box-shadow:inset 0 0 0 3px rgba(255,255,255,.16);transform:rotate(-2.5deg);font-variant-numeric:tabular-nums;}
-  .hero .cap{font-size:13px;color:#F3E4D4;font-weight:800;letter-spacing:.01em;}
+  .hero .cap{display:inline-block;font-size:13px;color:#FFF3E6;font-weight:800;letter-spacing:.01em;
+    background:rgba(13,24,31,.62);padding:3px 9px;border-radius:7px;   /* design.md 규칙: 밝기 모를 배경 위 글자는 .62 이상 */
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);}
   .hero h2{margin:4px 0 6px;font-weight:800;}
   .hero .meta{color:#E8DCCE;font-size:13.5px;display:flex;align-items:center;gap:6px;}
   /* 예전 그림자(0 2px 0)는 도장처럼 딱딱해 보였습니다 — 부드럽게 떠 있는 느낌으로 */
@@ -733,9 +735,12 @@
   html.dark .bbtn{background:var(--card);border-color:var(--line-2);}
   /* 운영 현황(관리자) */
   .admgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .admgrid.six{grid-template-columns:repeat(3,1fr);}
+  .admgrid .cost b{color:var(--brand);}
+  .admlist.tall{max-height:min(60vh,420px);}
   .admgrid div{background:var(--paper);border:1px solid var(--line);border-radius:10px;
     padding:9px 4px;text-align:center;}
-  .admgrid b{display:block;font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--brand-ink);}
+  .admgrid b{display:block;font-size:19px;font-weight:800;color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
   .admgrid span{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-top:2px;}
   .admlist{max-height:230px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;}
   .admrow{display:flex;align-items:center;gap:7px;padding:7px 10px;border-bottom:1px solid var(--line);
@@ -1145,6 +1150,21 @@
      보이는 크기는 그대로 두고 '누를 수 있는 범위'만 넓힙니다. */
   .lnk{min-height:44px;display:inline-flex;align-items:center;}
   /* 내 UID 줄 — 글자가 길어 화면을 넘지 않도록 줄바꿈을 허용합니다 */
+  /* ── 내 계정 목록 ── 큰 테두리 버튼 8개를 세로로 쌓던 것을 조용한 목록으로 */
+  .menu{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+  .mrow{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:10px 12px 10px 14px;
+    background:none;border:none;border-top:1px solid var(--line);text-align:left;cursor:pointer;
+    font-family:inherit;color:var(--ink);-webkit-tap-highlight-color:transparent;}
+  .mrow:first-child{border-top:none;}
+  .mrow:active{background:var(--paper);}
+  .mrow>svg:first-child{width:19px;height:19px;flex-shrink:0;color:var(--ink-2);fill:none;stroke:currentColor;
+    stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .mrow .mtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+  .mrow .mtx b{font-size:15px;font-weight:700;}
+  .mrow .mtx em{font-style:normal;font-size:12.5px;color:var(--muted);}
+  .mrow .mch{width:16px;height:16px;flex-shrink:0;color:var(--line-2);fill:none;stroke:currentColor;stroke-width:2.2;
+    stroke-linecap:round;stroke-linejoin:round;}
+  html.dark .mrow:active{background:rgba(255,255,255,.05);}
   .uidrow{display:flex;align-items:center;gap:9px;padding:11px 12px;
     background:var(--paper);border:1px solid var(--line);border-radius:12px;}
   .uidrow code{flex:1;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -1755,6 +1775,19 @@ function coverArt(t,opt){
   _coverCache.set(key,css);
   return css;
 }
+/* ── 홈 맨 위 '다음 일정' 카드 전용 배경 ──────────────────────
+   여행 카드의 표지(covers/)와는 완전히 다른 묶음(hero/)입니다. 장소 사진이 아니라
+   '떠나고 싶어지는' 장면 — 떠나기 전엔 비행기 창·열기구, 여행 중에는 열린 길.
+   여행마다 다른 장이 고정으로 배정되며, 파일을 못 불러오면 풍경 사진 → 그림 순으로 대신합니다. */
+const HERO_SKY=['sky1','sky2','sky3','sky4','sky5'], HERO_ROAD=['road1','road2','road3'];
+function heroArt(t){
+  if(!t)return "";
+  const st=(typeof tripSummary==='function')?tripSummary(t).state:'';
+  const pool=(st==='now')?HERO_ROAD:HERO_SKY;
+  const h=coverHash(`${t.id}|hero`);
+  const pick=pool[h%pool.length];
+  return `url('hero/${pick}.webp'), `+coverArt(t,{scenic:true});
+}
 /* 여행 데이터가 없는 화면(로그인·빈 홈)에서 쓸 대표 표지 — 늘 같은 바다 그림 */
 function brandCover(){return coverArt({id:'gabojen',title:'',place:'바다',start:'2026-07-15'});}
 /* 표지 그림은 코드로 그리므로, 고정 화면(로그인)에는 시작할 때 한 번 채워 둡니다 */
@@ -1981,7 +2014,8 @@ function openTerms(){
       <p>앱 안 [내 계정] 화면의 연락처로 문의해 주세요.</p>
     </div>
     <button class="btn ghost sm" style="margin-top:12px" onclick="closeOv()">닫기</button>
-      <p class="pd" style="margin-top:14px;opacity:.85">표지 사진: <b>Unsplash</b> (Unsplash License) · 아이콘: <b>Lucide</b> (ISC) · 움직임: <b>anime.js</b> (MIT)</p>`);
+      <p class="pd" style="margin-top:14px;opacity:.85">표지 사진: <b>Unsplash</b> (Unsplash License) · 아이콘: <b>Lucide</b> (ISC) · 움직임: <b>anime.js</b> (MIT)</p>
+      <button class="btn ghost sm" style="margin-top:12px" onclick="openPrivacy()">${svg('i-file','ic')} 개인정보 처리방침 보기</button>`);
 }
 function openPrivacy(){
   openModal(`<div class="row" style="justify-content:space-between;margin-bottom:6px">
@@ -2019,7 +2053,8 @@ function openPrivacy(){
       <p>비밀번호 암호화 보관, 서버 접근 규칙, 앱 인증(App Check), 전송 구간 암호화(HTTPS).</p>
     </div>
     <button class="btn ghost sm" style="margin-top:12px" onclick="clearLocalData()">${svg('i-trash','ic')} 기기에 저장된 정보 지우기</button>
-    <button class="btn ghost sm" style="margin-top:8px" onclick="closeOv()">닫기</button>`);
+    <button class="btn ghost sm" style="margin-top:8px" onclick="closeOv()">닫기</button>
+      <button class="btn ghost sm" style="margin-top:12px" onclick="openTerms()">${svg('i-file','ic')} 이용약관 보기</button>`);
 }
 /* 이 기기에만 저장해 둔 것(학생 정보·본 안내·AI 결과)을 지웁니다 */
 function clearLocalData(){
@@ -2090,10 +2125,46 @@ function maskEmail(e){
   const id=e.slice(0,i), dom=e.slice(i);
   return (id.length<=2?id[0]+'*':id.slice(0,2)+'*'.repeat(Math.min(6,id.length-2)))+dom;
 }
-function daysAgo(ymd){
-  if(!ymd)return null;
+/* 가입일·접속일은 판에 따라 'YYYY-MM-DD' 글자, 숫자(밀리초), Firestore Timestamp 로 섞여 저장돼 있습니다.
+   (예전 판 회원은 숫자 → 화면에 1787622835481 처럼 보이던 문제) → 전부 날짜 글자로 통일 */
+function fmtDay(v){
+  if(!v)return '';
+  if(typeof v==='string')return v.slice(0,10);
+  if(typeof v==='number')return new Date(v).toISOString().slice(0,10);
+  if(v&&typeof v.seconds==='number')return new Date(v.seconds*1000).toISOString().slice(0,10);
+  if(v&&typeof v.toDate==='function')return v.toDate().toISOString().slice(0,10);
+  return '';
+}
+function daysAgo(v){
+  const ymd=fmtDay(v); if(!ymd)return null;
   const d=Math.round((new Date(new Date().toISOString().slice(0,10))-new Date(ymd))/86400000);
   return isNaN(d)?null:d;
+}
+/* 운영 현황 → [회원 N명] 을 누르면 여는 두 번째 단계 */
+function openAdminMembers(){
+  const members=window.__admMembers||[];
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <b style="font-size:16px">${svg('i-users','ic')} 회원 ${members.length}명</b>
+      <button class="ibtn" onclick="closeOv();openAdmin()" aria-label="뒤로">${svg('i-left','ic')}</button></div>
+    <div class="admlist tall">${members.slice(0,200).map(m=>{
+      const n=daysAgo(m.seen); const cls=n===null?'':(n<=7?'on':(n<=30?'mid':'off'));
+      return `<div class="admrow">
+        <span class="em">${esc(maskEmail(m.email))}</span>
+        <span class="dt">${esc(fmtDay(m.joined)||'-')}</span>
+        <span class="tp">여행 ${m.trips||0}</span>
+        <span class="sn ${cls}">${n===null?'-':(n===0?'오늘':n+'일 전')}</span></div>`;}).join('')
+      ||'<p class="muted small" style="padding:10px 2px">아직 없습니다.</p>'}</div>
+    <p class="muted small" style="margin:8px 2px 0">이메일은 앞 두 글자만 보입니다 · 가입일 · 마지막 접속</p>`);
+}
+function openAdminLeaves(){
+  const {byMonth,avgUsed}=window.__admLeaves||{byMonth:{},avgUsed:null};
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <b style="font-size:16px">${svg('i-out','ic')} 탈퇴 통계 <span style="font-size:12px;color:var(--muted)">· 익명</span></b>
+      <button class="ibtn" onclick="closeOv();openAdmin()" aria-label="뒤로">${svg('i-left','ic')}</button></div>
+    <div class="admlist">${Object.keys(byMonth).sort().reverse().slice(0,12).map(m=>
+      `<div class="admrow"><span class="em">${esc(m)}</span><span class="sn">${byMonth[m]}명</span></div>`).join('')
+      ||'<p class="muted small" style="padding:10px 2px">아직 없습니다.</p>'}</div>
+    ${avgUsed!==null?`<p class="muted small" style="margin:8px 2px 0">평균 <b>${avgUsed}일</b> 쓰고 떠났어요.</p>`:''}`);
 }
 async function openAdmin(){
   if(!IS_ADMIN){toast('관리자만 볼 수 있어요.');return;}
@@ -2115,47 +2186,39 @@ async function openAdmin(){
     const v=(d.leaves||[]).map(x=>x.daysUsed).filter(x=>typeof x==='number');
     return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;})();
   const box=$('admBody'); if(!box)return;
+  const members=d.members||[]; const total=members.length;
+  const rate=total?active7/total:0;
+  window.__admMembers=members;                    /* 회원 목록 팝업(두 번째 단계)이 씁니다 */
   box.innerHTML=`
-    <div class="admgrid">
-      <div><b>${(d.members||[]).length}</b><span>현재 회원</span></div>
-      <div><b>${active7}</b><span>최근 7일 접속</span></div>
-      <div><b>${active30}</b><span>최근 30일 접속</span></div>
-      <div><b>${out}</b><span>누적 탈퇴</span></div>
+    <div class="card statrow" style="margin:0 0 10px">
+      <div class="stat"><span class="sic">${svg('i-users')}</span><b id="admTotal">${total}</b><em>현재 회원</em></div>
+      <span class="sdiv"></span>
+      <div class="stat">${dialSvg(rate,'i-heart')}<b id="admA7">${active7}</b><em>최근 7일 접속</em></div>
     </div>
-    <div class="admgrid" style="margin-top:8px">
+    <div class="admgrid six">
+      <div><b>${active30}</b><span>30일 접속</span></div>
+      <div><b>${now}</b><span>누적 가입</span></div>
+      <div><b>${out}</b><span>누적 탈퇴</span></div>
       <div><b>${su.trips||0}</b><span>만든 여행</span></div>
       <div><b>${su.photos||0}</b><span>올린 사진</span></div>
-      <div><b>${su.aiCalls||0}</b><span>AI 호출</span></div>
-      <div><b>${now}</b><span>누적 가입</span></div>
+      <div class="cost"><b>${su.aiCalls||0}</b><span>AI 호출</span></div>
     </div>
-    <p class="muted small" style="margin:10px 2px 0;line-height:1.6">
-      AI 호출은 <b>돈이 나가는 유일한 기능</b>이에요. 이 숫자가 늘면 비용도 늘어납니다.</p>
+    <p class="muted small" style="margin:8px 2px 0;line-height:1.55">AI 호출만 <b>비용</b>이 듭니다. 나머지는 무료 범위예요.</p>
 
-    <div class="eyebrow" style="margin-top:18px">${svg('i-users','ic')} 회원 ${(d.members||[]).length}명</div>
-    ${d.membersErr?`<div class="err">회원 목록을 볼 권한이 없습니다 (${esc(d.membersErr)}).<br>
-      보안 규칙에 관리자 조회 권한을 넣어 주세요.</div>`
-    :`<div class="admlist">${(d.members||[]).slice(0,60).map(m=>{
-        const n=daysAgo(m.seen);
-        const cls=n===null?'':(n<=7?'on':(n<=30?'mid':'off'));
-        return `<div class="admrow">
-          <span class="em">${esc(maskEmail(m.email))}</span>
-          <span class="dt">가입 ${esc(m.joined||'-')}</span>
-          <span class="tp">여행 ${m.trips||0}</span>
-          <span class="sn ${cls}">${n===null?'-':(n===0?'오늘':n+'일 전')}</span>
-        </div>`;}).join('')||'<p class="muted small" style="padding:10px 2px">아직 없습니다.</p>'}</div>`}
+    <div class="menu" style="margin-top:14px">
+      ${d.membersErr
+        ?`<div class="err" style="margin:0">회원 목록을 볼 권한이 없습니다 (${esc(d.membersErr)}). 보안 규칙에 관리자 조회 권한을 넣어 주세요.</div>`
+        :menuRow('i-users',`회원 ${total}명`,'가입일 · 여행 수 · 마지막 접속','openAdminMembers()')}
+      ${d.leavesErr?'':menuRow('i-out',`탈퇴 통계`, (Object.keys(byMonth).length?`최근 ${Object.keys(byMonth).length}개월 · 익명`:'아직 없음'),'openAdminLeaves()')}
+    </div>
 
-    <div class="eyebrow" style="margin-top:18px">${svg('i-out','ic')} 탈퇴 통계 <span style="font-weight:700;color:var(--muted);text-transform:none">· 익명</span></div>
-    ${d.leavesErr?`<div class="err">탈퇴 기록을 볼 권한이 없습니다 (${esc(d.leavesErr)}).</div>`
-    :`<div class="admlist">${Object.keys(byMonth).sort().reverse().slice(0,12).map(m=>
-        `<div class="admrow"><span class="em">${esc(m)}</span><span class="sn">${byMonth[m]}명 탈퇴</span></div>`
-      ).join('')||'<p class="muted small" style="padding:10px 2px">아직 없습니다.</p>'}</div>
-      ${avgUsed!==null?`<p class="muted small" style="margin:8px 2px 0">평균 <b>${avgUsed}일</b> 쓰고 떠났어요.</p>`:''}`}
-
-    <div class="hint" style="margin-top:18px"><div class="ht">${svg('i-info')}</div>
+    <div class="hint" style="margin-top:14px"><div class="ht">${svg('i-info')}</div>
       <div class="hb"><b class="t">여기서 볼 수 없는 것</b>
         <b>탈퇴한 분의 이메일·이름·기록</b>은 남기지 않습니다. 개인정보보호법상 탈퇴하면 파기해야 해서,
-        '언제 몇 명이 떠났는지'만 익명으로 셉니다.<br>
-        누가 무엇을 눌렀는지 같은 <b>개인별 행동 기록도 모으지 않습니다.</b></div></div>`;
+        '언제 몇 명이 떠났는지'만 익명으로 셉니다. 누가 무엇을 눌렀는지 같은 <b>개인별 행동 기록도 모으지 않습니다.</b></div></div>`;
+  window.__admLeaves={byMonth,avgUsed};
+  if(typeof axRing==='function')axRing(box);
+  if(typeof axCountUp==='function'){axCountUp($('admTotal'),total,{delay:80,duration:800});axCountUp($('admA7'),active7,{delay:180,duration:800});}
 }
 /* 내 UID — 관리자 등록(Firestore admins) 에 필요합니다.
    내 것을 나에게만 보여 주는 것이라 개인정보 문제는 없습니다. */
@@ -2202,50 +2265,52 @@ function openAccount(){
       ${v?svg('i-check')+' 이메일 인증 완료':svg('i-key')+' 이메일 미인증'}</span>
   </div>
   ${v?'':`<button class="btn ghost sm" style="margin:12px 0 0" onclick="sendVerify()">인증 메일 보내기</button>`}
-  <div style="height:14px"></div>
-  ${uidRow()}
+  <div style="height:12px"></div>
   <div class="eyebrow" style="margin-top:4px">화면 테마</div>
   <div class="tabs2" id="themeTabs">
     <button onclick="setTheme('light')">밝게</button>
     <button onclick="setTheme('dark')">어둡게</button>
     <button onclick="setTheme('auto')">자동</button>
   </div>
-  <button class="btn ghost" onclick="openProfile()">${svg('i-edit','ic')} 프로필 수정 (이름·사진)</button>
-  <div style="height:10px"></div>
-  <button class="btn ghost" onclick="changePw()">${svg('i-key','ic')} 비밀번호 변경 메일 받기</button>
-  <div style="height:10px"></div>
-  <button class="btn ghost" onclick="joinPrompt()">${svg('i-users','ic')} 초대코드로 여행 참여하기</button>
-  <div style="height:8px"></div>
-  <button class="btn ghost sm" onclick="closeOv();openIntro()">${svg('i-info','ic')} 사용법 다시 보기</button>
-  <div style="height:8px"></div>
-  <div class="row" style="gap:8px">
-    <button class="btn ghost sm" style="flex:1" onclick="openTerms()">${svg('i-file','ic')} 이용약관</button>
-    <button class="btn ghost sm" style="flex:1" onclick="openPrivacy()">${svg('i-file','ic')} 개인정보</button>
+  <div class="eyebrow">계정</div>
+  <div class="menu">
+    ${menuRow('i-edit','프로필 수정','이름 · 사진','openProfile()')}
+    ${menuRow('i-key','비밀번호 변경','메일로 재설정 링크 받기','changePw()')}
+    ${menuRow('i-users','초대코드로 여행 참여','','joinPrompt()')}
   </div>
-  <div id="adminSlot">${IS_ADMIN?`<div style="height:8px"></div>
-    <button class="btn ghost sm" onclick="closeOv();openAdmin()">${svg('i-grid','ic')} 운영 현황 보기</button>`:''}</div>
-  <div style="height:8px"></div>
-  <button class="btn ghost sm" onclick="runStorageDiag()">${svg('i-info','ic')} 사진 보관소 점검하기</button>
-  <div style="height:14px"></div>
+  <div class="eyebrow">앱</div>
+  <div class="menu">
+    ${menuRow('i-info','사용법 다시 보기','','closeOv();openIntro()')}
+    ${menuRow('i-file','이용약관 · 개인정보 처리방침','','openTerms()')}
+    ${menuRow('i-camera','사진 보관소 점검','','runStorageDiag()')}
+  </div>
+  <div id="adminSlot">${IS_ADMIN?adminMenuHtml():''}</div>
+  <div style="height:16px"></div>
   <button class="btn" onclick="window.FB.logout()">${svg('i-out','ic')} 로그아웃</button>
-  <button class="lnk" style="display:block;margin:14px auto 0;color:var(--muted);font-size:12.5px"
-    onclick="closeOv();openLeave()">회원 탈퇴</button>
-  <div class="muted" style="text-align:center;font-size:11px;margin-top:10px;opacity:.7">${APP_VERSION}</div>`);
+  <div class="row" style="justify-content:center;gap:10px;margin-top:12px">
+    <button class="lnk" style="color:var(--muted);font-size:12.5px;min-height:32px" onclick="closeOv();openLeave()">회원 탈퇴</button>
+    <span class="muted" style="font-size:11px;opacity:.7">${APP_VERSION}</span>
+  </div>`);
   setTimeout(markTheme,0);
   refreshAdminSlot();}
 
 /* 관리자 확인은 로그인 직후 서버에 물어봐서 정해집니다.
    답이 늦게 오면 시트를 열었을 때 버튼이 없을 수 있어, 열 때 한 번 더 확인해 채워 넣습니다. */
+function adminMenuHtml(){
+  return `<div class="eyebrow">운영 <span style="font-weight:700;color:var(--muted)">· 관리자만 보입니다</span></div>
+    <div class="menu">${menuRow('i-grid','운영 현황','회원 · 사용량 · 탈퇴 통계','closeOv();openAdmin()')}</div>`;
+}
+/* 목록 한 줄 — 아이콘 · 이름 · (설명) · › */
+function menuRow(icon,label,sub,onclick){
+  return `<button class="mrow" onclick="${onclick}">${svg(icon)}<span class="mtx"><b>${esc(label)}</b>${sub?`<em>${esc(sub)}</em>`:''}</span>${svg('i-right','mch')}</button>`;
+}
 function refreshAdminSlot(){
   if(IS_ADMIN||!window.FB||!window.FB.isAdmin)return;
   window.FB.isAdmin().then(function(v){
     if(!v)return;
     IS_ADMIN=true;
     const slot=document.getElementById('adminSlot');
-    if(!slot)return;
-    slot.innerHTML='<div style="height:8px"></div>'
-      +'<button class="btn ghost sm" onclick="closeOv();openAdmin()">'
-      +svg('i-grid','ic')+' 운영 현황 보기</button>';
+    if(slot)slot.innerHTML=adminMenuHtml();
   }).catch(function(){});
 }
 
@@ -2601,7 +2666,7 @@ function renderToday(){
     }
   }
   $('today').innerHTML=`
-    <div class="hero"><div class="bg" style="background-image:${coverArt(t,{scenic:true})}"></div><div class="grain"></div><div class="in">
+    <div class="hero"><div class="bg" style="background-image:${heroArt(t)}"></div><div class="grain"></div><div class="in">
       <div class="top"><span class="badge">${svg('i-suitcase')} ${esc(t.title)}</span>
         <span class="now">${s.state==='now'&&day?mdLabel(day.date)+'('+dowOf(day.date)+')':s.dday}</span></div>
       ${heroBody}<div class="track">${dots}</div>
@@ -6600,7 +6665,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(openIntro,450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v10.0.2 (2026-09-12)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v10.1 (2026-09-12)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authMode('login');
