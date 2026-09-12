@@ -1281,7 +1281,7 @@
 
   /* ── 안내 박스 (아이콘 + 본문 정렬) ── */
   .hint{display:grid;grid-template-columns:32px minmax(0,1fr);column-gap:11px;row-gap:12px;
-    align-items:start;background:var(--paper);
+    align-items:start;text-align:left;background:var(--paper);
     border:1px dashed var(--line-2);border-radius:var(--r-lg);padding:13px 14px;margin-bottom:var(--s3);}
   .hint .ht{grid-column:1;grid-row:1;}
   .hint .hb{grid-column:2;grid-row:1;}
@@ -2213,9 +2213,10 @@ async function openAdmin(){
     </div>
 
     <div class="hint" style="margin-top:14px"><div class="ht">${svg('i-info')}</div>
-      <div class="hb"><b class="t">여기서 볼 수 없는 것</b>
-        <b>탈퇴한 분의 이메일·이름·기록</b>은 남기지 않습니다. 개인정보보호법상 탈퇴하면 파기해야 해서,
-        '언제 몇 명이 떠났는지'만 익명으로 셉니다. 누가 무엇을 눌렀는지 같은 <b>개인별 행동 기록도 모으지 않습니다.</b></div></div>`;
+      <div class="hb"><span class="t">여기에 없는 것</span>
+        탈퇴한 분의 이메일·이름·기록은 남기지 않습니다. 개인정보보호법에 따라 탈퇴 즉시 파기하고,
+        언제 몇 명이 떠났는지만 익명으로 셉니다.<br>
+        누가 무엇을 눌렀는지 같은 개인별 행동 기록도 모으지 않습니다.</div></div>`;
   window.__admLeaves={byMonth,avgUsed};
   if(typeof axRing==='function')axRing(box);
   if(typeof axCountUp==='function'){axCountUp($('admTotal'),total,{delay:80,duration:800});axCountUp($('admA7'),active7,{delay:180,duration:800});}
@@ -4335,6 +4336,16 @@ function savePaste(){const t=trip(curTrip);const di=parseInt($('pday').value)||0
 let albumTrip=null, albumPage=0;
 function openAlbum(id){albumTrip=id;albumPage=0;watchTripPhotos(id);routeTo('album');}
 
+/* 여행책에서 '여행 전체(추억) 사진'을 크게 봅니다 */
+function openAlbumTripPhoto(i){
+  const t=trip(albumTrip); if(!t)return;
+  const p=photoList(t)[i]; if(!p||!photoSrc(p))return;
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>${esc(t.title)}</b>
+    <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
+    <img src="${photoSrc(p)}" style="width:100%;border-radius:14px">
+    ${p.by?`<p class="muted small" style="margin:8px 2px 0">${esc(photoWho(p)||p.by)} 올린 사진</p>`:''}
+    ${coverBtn(t,p,`setTripCover(trip('${t.id}'),photoList(trip('${t.id}'))[${i}])`)}`);
+}
 /* 이 여행의 사진을 날짜별로 모읍니다 (일정에 붙인 사진 + 여행 전체 사진) */
 function albumPhotosByDate(t){
   const by={};
@@ -4537,7 +4548,11 @@ function renderAlbum(){
   });
 
   /* ── 마지막 장: 마무리 ── */
+  /* 날짜별 일정 사진 + 여행 전체(추억) 사진. 예전에는 12장까지만 자르고 추억 사진은 빠져 있어
+     '장수'와 보이는 사진이 달랐습니다. 이제 전부 보입니다. */
   const trailAll=[]; Object.keys(byDate).sort().forEach(k=>byDate[k].forEach(x=>trailAll.push(x)));
+  const tripShots=photoList(t).map((ph,pi)=>({ph,pi,it:null}));
+  const wallAll=trailAll.concat(tripShots).filter(x=>photoThumb(x.ph));
   pages.push(`<section class="pg end">
     <div class="eyebrow" style="margin-top:0">${svg('i-star','ic')} 이번 여행은</div>
     <div class="endfig">
@@ -4550,9 +4565,9 @@ function renderAlbum(){
     <div class="endppl">${(t.members||[]).map(m=>`<div class="pp">
         <div class="mav" style="${avatarStyle(m)}">${m.photo?'':esc(m.n||'?')}</div>
         <span>${esc(memberName(m))}</span></div>`).join('')}</div>
-    ${trailAll.length?`<div class="eyebrow">${svg('i-camera','ic')} 사진 모아보기</div>
-      <div class="mosaic">${trailAll.slice(0,12).map(x=>
-        `<div onclick="openTrailPhoto('${esc(x.it._id)}',${x.pi})"
+    ${wallAll.length?`<div class="eyebrow">${svg('i-camera','ic')} 사진 모아보기 <span style="font-weight:700;color:var(--muted)">· ${wallAll.length}장</span></div>
+      <div class="mosaic">${wallAll.map(x=>
+        `<div onclick="${x.it?`openTrailPhoto('${esc(x.it._id)}',${x.pi})`:`openAlbumTripPhoto(${x.pi})`}"
            style="background-image:url('${photoThumb(x.ph)}')"></div>`).join('')}</div>`:''}
     <button class="btn brand sm" style="margin-top:16px" onclick="exportTripBook()">
       ${svg('i-file','ic')} 여행책 PDF로 저장하기</button>
@@ -4679,11 +4694,26 @@ function bookPhotosByDate(t){
 async function exportTripBook(){
   const t=trip(albumTrip)||trip(curTrip);
   if(!t){toast('여행을 먼저 골라 주세요.');return;}
+  /* ⚠ 홈 화면에 추가한 앱(독립 실행)에서는 아이폰이 인쇄 창을 열지 않습니다 → 브라우저로 안내 */
+  if(isStandaloneApp()){
+    openModal(`<b style="font-size:16px">PDF 저장은 브라우저에서</b>
+      <p class="muted small" style="margin:8px 0 14px;line-height:1.6;text-align:left">
+        홈 화면에 추가한 앱 안에서는 휴대폰이 <b>인쇄·PDF 창을 열어 주지 않습니다.</b><br>
+        아래 버튼으로 Safari/Chrome 에서 열고, 같은 자리에서 [PDF로 저장하기]를 누르세요.</p>
+      <a class="btn brand" href="${location.href.split('#')[0]}?open=album&trip=${encodeURIComponent(t.id)}" target="_blank" rel="noopener"
+         onclick="closeOv()">${svg('i-ext','ic')} 브라우저에서 열기</a>
+      <button class="btn ghost sm" style="margin-top:8px" onclick="closeOv()">닫기</button>`);
+    return;
+  }
   toast('책을 만드는 중…');
   watchTripPhotos(t.id);
   await new Promise(r=>setTimeout(r,400));          // 사진이 도착할 틈을 줍니다
   const st=albumStats(t), byDate=bookPhotosByDate(t);
-  const pts=(typeof routePoints==='function')?await routePoints(t).catch(()=>[]):[];
+  /* 거리 계산은 '덤'입니다. 지도가 느리거나 안 되면 예전엔 장소마다 3초씩 기다려 24초까지 멈춰 있었습니다
+     → 전체 2.5초만 기다리고, 못 구하면 거리 없이 책을 만듭니다. */
+  const pts=(typeof routePoints==='function')
+    ? await Promise.race([routePoints(t).catch(()=>[]), new Promise(r=>setTimeout(()=>r([]),2500))])
+    : [];
   const okPts=(pts||[]).filter(p=>p.lat!=null);
   const dist=(typeof routeDistance==='function'&&pts.length)?routeDistance(pts):null;
 
@@ -4722,7 +4752,7 @@ async function exportTripBook(){
     html+=`<section class="bp">
       <h2 class="bp-h"><span class="bp-day">DAY ${di+1}</span> ${mdLabel(d.date)}(${dowOf(d.date)})</h2>
       ${shots.length?`<div class="bp-pics${shots.length===1?' one':''}">${
-        shots.slice(0,6).map(x=>`<figure><img src="${photoSrc(x.ph)}" alt="">
+        shots.map(x=>`<figure><img src="${photoSrc(x.ph)}" alt="">
           <figcaption>${esc(tidyTitle(x.it.title,20))}${photoWho(x.ph)?' · '+esc(photoWho(x.ph)):''}</figcaption>
         </figure>`).join('')}</div>`:''}
       ${items.length?`<ul class="bp-list">${items.map(it=>`<li>
@@ -4735,6 +4765,9 @@ async function exportTripBook(){
   /* 마무리 */
   const stamps=(typeof earnedStamps==='function')?earnedStamps().filter(x=>x.got):[];
   html+=`<section class="bp">
+      ${(function(){ const tp=photoList(t).filter(p=>photoSrc(p)); if(!tp.length)return '';
+        return `<h2 class="bp-h">여행 사진</h2><div class="bp-pics">${tp.map(p=>`<figure><img src="${photoSrc(p)}" alt="">`
+          +(photoWho(p)?`<figcaption>${esc(photoWho(p))}</figcaption>`:'')+`</figure>`).join('')}</div>`; })()}
       <h2 class="bp-h">이번 여행은</h2>
       <div class="bp-end">
         <div><b>${st.days}</b><span>일 동안</span></div>
@@ -4759,8 +4792,15 @@ async function exportTripBook(){
     window.removeEventListener('afterprint',cleanup);
   };
   window.addEventListener('afterprint',cleanup);
+  toast('인쇄 창에서 "PDF로 저장"을 고르세요');
   setTimeout(function(){ try{window.print();}catch(e){ cleanup(); toast('인쇄를 열지 못했어요.'); } },250);
   setTimeout(cleanup,60000);            // 인쇄창을 그냥 닫아도 정리되게
+}
+/* 홈 화면에 추가해 독립 실행 중인지 (아이폰 Safari 는 navigator.standalone, 그 외는 display-mode) */
+function isStandaloneApp(){
+  try{ if(window.navigator.standalone===true)return true;
+       if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)return true; }catch(e){}
+  return false;
 }
 /* 어느 장을 보고 있는지 점으로 표시 */
 function albumScrolled(){
@@ -6661,11 +6701,17 @@ window.onAuthed=function(user,profile){
   AUTHED_UID=user.uid;
   if(firstTime||!document.querySelector('.screen.active')){stack=[];switchTab('today');}
   else rerender();
+  /* 홈 화면 앱에서 [브라우저에서 열기]로 넘어온 경우 — 그 여행책을 바로 엽니다 */
+  try{ const q=new URLSearchParams(location.search);
+    if(q.get('open')==='album'&&q.get('trip')){ const id=q.get('trip');
+      /* 여행 목록이 아직 안 왔을 수 있어 최대 6초까지 기다립니다 */
+      let tries=0; (function go(){ if(trip(id)){openAlbum(id);return;} if(++tries<12)setTimeout(go,500); })();
+      history.replaceState(null,'',location.pathname); } }catch(e){}
   /* 처음 오신 분에게만 사용법을 보여 드립니다 (한 번 보면 다시 안 뜹니다) */
   if(firstTime&&!introSeen())setTimeout(openIntro,450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v10.1 (2026-09-12)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v10.2 (2026-09-12)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authMode('login');
