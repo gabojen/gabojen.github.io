@@ -1150,6 +1150,21 @@
      보이는 크기는 그대로 두고 '누를 수 있는 범위'만 넓힙니다. */
   .lnk{min-height:44px;display:inline-flex;align-items:center;}
   /* 내 UID 줄 — 글자가 길어 화면을 넘지 않도록 줄바꿈을 허용합니다 */
+  /* ── 장소 후보 목록 (입력칸 바로 아래) ── */
+  .psugg{display:none;margin:-4px 0 8px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card);}
+  .psugg.on{display:block;}
+  .psugg .ps{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:8px 12px;text-align:left;
+    background:none;border:none;border-top:1px solid var(--line);cursor:pointer;font-family:inherit;color:var(--ink);}
+  .psugg .ps:first-child{border-top:none;}
+  .psugg .ps:active{background:var(--paper);}
+  .psugg .ps>svg{width:16px;height:16px;flex-shrink:0;color:var(--brand-ink);fill:none;stroke:currentColor;stroke-width:2;}
+  .psugg .pn{min-width:0;display:flex;flex-direction:column;gap:1px;}
+  .psugg .pn b{font-size:14.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .psugg .pn em{font-style:normal;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pnote{display:flex;align-items:center;gap:6px;margin:-4px 2px 10px;font-size:12.5px;color:var(--muted);min-height:18px;}
+  .pnote:empty{display:none;}
+  .pnote svg{width:14px;height:14px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;}
+  .pnote b{color:var(--teal);font-weight:700;}
   /* ── 내 계정 목록 ── 큰 테두리 버튼 8개를 세로로 쌓던 것을 조용한 목록으로 */
   .menu{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
   .mrow{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:10px 12px 10px 14px;
@@ -2541,6 +2556,65 @@ function mapDiagText(){
 function mapThumb(place){const id='km'+(++mapSeq);
   return `<div class="map" id="${id}" data-place="${esc(place)}" onclick="event.stopPropagation();openMap('${esc(place)}')">
     ${mapPlaceholder(place)}<div class="lbl">${svg('i-pin')} ${esc(place)}</div></div>`;}
+/* ══ 장소 고르기 ══════════════════════════════════════════
+   예전에는 입력한 글자로 카카오 검색 '1등'을 몰래 썼습니다. "강원도 봉평"의 1등이 휘닉스 평창이면
+   지도·거리가 그리로 갑니다. 이제 입력하는 동안 후보를 보여 주고, 고른 장소의 좌표를
+   일정에 함께 저장(it.geo)해서 다시 검색하지 않습니다. */
+function searchPlaces(q){return new Promise(res=>{
+  if(!q||q.length<2||!kakaoReady)return res([]);
+  try{
+    new kakao.maps.services.Places().keywordSearch(q,(data,status)=>{
+      if(status!==kakao.maps.services.Status.OK||!data)return res([]);
+      res(data.slice(0,6).map(d=>({name:d.place_name,addr:d.road_address_name||d.address_name||'',
+        cat:(d.category_name||'').split('>').pop().trim(),lat:+d.y,lng:+d.x})));
+    },{size:6});
+  }catch(e){res([]);}
+});}
+/* 입력칸 아래에 후보 목록을 붙입니다. inputId 의 칸에 data-geo 로 고른 좌표를 남깁니다 */
+function attachPlacePicker(inputId){
+  const inp=document.getElementById(inputId); if(!inp||inp.dataset.picker)return;
+  inp.dataset.picker='1';
+  const box=document.createElement('div'); box.className='psugg'; inp.insertAdjacentElement('afterend',box);
+  const note=document.createElement('div'); note.className='pnote'; box.insertAdjacentElement('afterend',note);
+  let timer=null, seq=0;
+  const showNote=function(){
+    const g=inp.dataset.geo?JSON.parse(inp.dataset.geo):null;
+    note.innerHTML=g?`${svg('i-pin')}<span><b>${esc(g.name)}</b>${g.addr?' · '+esc(g.addr):''}</span>`
+                    :(inp.value.trim()?`${svg('i-info')}<span>목록에서 고르면 지도 위치가 정확해져요</span>`:'');
+  };
+  const render=function(list){
+    if(!list.length){box.innerHTML='';box.classList.remove('on');return;}
+    box.innerHTML=list.map((r,i)=>`<button type="button" class="ps" data-i="${i}">${svg('i-pin')}
+      <span class="pn"><b>${esc(r.name)}</b><em>${esc(r.addr)}${r.cat?' · '+esc(r.cat):''}</em></span></button>`).join('');
+    box.classList.add('on');
+    box.querySelectorAll('.ps').forEach(b=>b.addEventListener('click',function(){
+      const r=list[+this.dataset.i];
+      inp.value=r.name; inp.dataset.geo=JSON.stringify(r);
+      geoCache[r.name]=r;                       /* 지도·거리 계산이 바로 이 좌표를 쓰게 */
+      box.innerHTML=''; box.classList.remove('on'); showNote();
+    }));
+  };
+  inp.addEventListener('input',function(){
+    delete inp.dataset.geo;                     /* 글자를 바꾸면 고른 좌표는 무효 */
+    showNote();
+    clearTimeout(timer); const q=inp.value.trim(); const my=++seq;
+    if(q.length<2){render([]);return;}
+    timer=setTimeout(function(){ searchPlaces(q).then(list=>{ if(my===seq)render(list); }); },320);
+  });
+  showNote();
+}
+/* 저장할 때: 고른 좌표가 있으면 일정에 붙이고, 없으면(직접 쓴 글자) 예전처럼 둡니다 */
+function takeGeo(inputId,it){
+  const inp=document.getElementById(inputId); if(!inp)return;
+  const g=inp.dataset.geo?JSON.parse(inp.dataset.geo):null;
+  if(g&&g.lat)it.geo={name:g.name,addr:g.addr||'',lat:g.lat,lng:g.lng}; else delete it.geo;
+}
+/* 여행을 불러오면 저장된 좌표를 캐시에 미리 넣어 둡니다 — 다시 검색하지 않도록 */
+function seedGeoCache(trips){
+  (trips||[]).forEach(t=>(t.days||[]).forEach(d=>(d.items||[]).forEach(i=>{
+    if(i.geo&&i.geo.lat&&i.place)geoCache[i.place]={lat:i.geo.lat,lng:i.geo.lng,name:i.geo.name||i.place,addr:i.geo.addr||''};
+  })));
+}
 // 장소 이름 → 좌표 (키워드 검색 → 실패 시 주소 검색)
 function geocode(place){return new Promise(res=>{
   if(!place)return res(null);
@@ -4127,12 +4201,14 @@ function openAddItem(dayIdx){const t=trip(curTrip);if(!t||!t.days.length){toast(
     <label class="fld">날짜(Day)</label><select class="input" id="aDay">${dayOpts}</select>
     <label class="fld">시간</label><input class="input" id="aTime" type="time" value="09:00">
     <label class="fld">제목</label><input class="input" id="aTitle" placeholder="예: 성산일출봉 트레킹">
-    <label class="fld">장소</label><input class="input" id="aPlace" placeholder="예: 서귀포시 성산읍">
+    <label class="fld">장소</label><input class="input" id="aPlace" placeholder="예: 봉평 오일장" autocomplete="off">
     <label class="fld">메모(선택)</label><input class="input" id="aSub" placeholder="예약번호·인원 등">
-    <button class="btn brand" onclick="saveAddItem()">${svg('i-check','ic')} 추가하기</button>`);}
+    <button class="btn brand" onclick="saveAddItem()">${svg('i-check','ic')} 추가하기</button>`);
+  attachPlacePicker('aPlace');}
 function saveAddItem(){const t=trip(curTrip);const title=$('aTitle').value.trim();if(!title){toast('제목을 입력해 주세요.');return;}
   const di=parseInt($('aDay').value)||0;const place=$('aPlace').value.trim();
   const obj={_id:uid(),cat:$('aCat').value,time:$('aTime').value||"09:00",title,place,sub:$('aSub').value.trim(),by:ME.name,comments:[],map:!!place};
+  takeGeo('aPlace',obj);
   const f=findDup(t,obj.cat,t.days[di].date,obj.time,obj.title,'',obj);
   if(f){confirmDupOne(t,di,obj,f);return;}
   pushItem(t,di,obj);closeOv();toast('추가했습니다');rerender();save();}
@@ -4159,12 +4235,15 @@ function openEditItem(id){const f=itemById(id);if(!f)return;const it=f.it;const 
       <div style="flex:1.4;min-width:0"><label class="fld">날짜(Day)</label><select class="input" id="eDay">${dayOpts}</select></div>
       <div style="flex:1;min-width:0"><label class="fld">시간</label><input class="input" id="eTime" type="time" value="${esc(it.time)}"></div></div>
     <label class="fld">제목</label><input class="input" id="eTitle" value="${esc(it.title)}">
-    <label class="fld">장소</label><input class="input" id="ePlace" value="${esc(it.place||'')}">
+    <label class="fld">장소</label><input class="input" id="ePlace" value="${esc(it.place||'')}" autocomplete="off"
+      ${it.geo&&it.geo.lat?`data-geo='${esc(JSON.stringify({name:it.geo.name||it.place,addr:it.geo.addr||'',lat:it.geo.lat,lng:it.geo.lng}))}'`:''}>
     <label class="fld">메모</label><input class="input" id="eSub" value="${esc(it.sub||'')}">
-    <button class="btn brand" onclick="saveEditItem('${id}')">${svg('i-check','ic')} 저장</button>`);}
+    <button class="btn brand" onclick="saveEditItem('${id}')">${svg('i-check','ic')} 저장</button>`);
+  attachPlacePicker('ePlace');}
 function saveEditItem(id){const f=itemById(id);if(!f)return;const it=f.it;const t=trip(curTrip);
   it.cat=$('eCat').value;it.time=$('eTime').value||it.time;it.title=$('eTitle').value.trim()||it.title;
   it.place=$('ePlace').value.trim();it.sub=$('eSub').value.trim();it.map=!!it.place;
+  takeGeo('ePlace',it);
   /* 날짜가 바뀌었으면 그 날로 옮깁니다 */
   const newIdx=parseInt(($('eDay')||{}).value);
   const oldIdx=(t&&t.days)?t.days.findIndex(d=>d.date===f.d.date):-1;
@@ -6711,7 +6790,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(openIntro,450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v10.2 (2026-09-12)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v10.3 (2026-09-12)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authMode('login');
@@ -6721,7 +6800,7 @@ window.onTrips=function(list){TRIPS=list;TRIPS_READY=true;
   if(curTrip&&!trip(curTrip))curTrip=null;
   if(!curTrip){const act=TRIPS.filter(t=>t.status!=='done');if(act.length)curTrip=act[0].id;}
   healMyMember();
-  rerender();};
+  if(typeof seedGeoCache==="function")seedGeoCache(TRIPS); rerender();};
 /* 예전 방식으로 참여한 사람은 멤버 기록에 '이름 첫 글자'만 있어 다른 사람이 누구인지 알 수 없습니다.
    앱을 열 때 내 기록만 조용히 채워 넣습니다 (여행 하나당 한 번, 바뀐 게 있을 때만 저장). */
 const HEALED=new Set();
