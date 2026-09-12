@@ -24,6 +24,23 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
+      # 인증키가 들어 있는지 먼저 확인합니다 (키 자체는 절대 찍지 않습니다)
+      - name: 인증키 들어 있는지 확인
+        env:
+          TOUR_API_KEY: ${{ secrets.TOUR_API_KEY }}
+        run: |
+          if [ -z "$TOUR_API_KEY" ]; then
+            echo "::error::인증키가 비어 있습니다."
+            echo ""
+            echo "  저장소 → Settings → Secrets and variables → Actions 로 가서"
+            echo "  [New repository secret] 을 누르고"
+            echo "     Name   : TOUR_API_KEY     ← 철자가 정확해야 합니다"
+            echo "     Secret : 공공데이터포털 일반 인증키"
+            echo "  를 넣은 뒤 다시 돌려 주세요."
+            exit 1
+          fi
+          echo "인증키 확인됨 (${#TOUR_API_KEY}자)"
+
       - name: 소식지 만드는 프로그램 준비
         run: |
           mkdir -p tools
@@ -41,8 +58,20 @@ jobs:
              ============================================================================ */
           import { writeFile, mkdir } from 'node:fs/promises';
 
-          const KEY = process.env.TOUR_API_KEY;
-          if (!KEY) { console.error('❌ TOUR_API_KEY 가 없습니다.'); process.exit(1); }
+          const RAW = (process.env.TOUR_API_KEY || '').trim();
+          if (!RAW) {
+            console.error('');
+            console.error('❌ 인증키가 없습니다.');
+            console.error('   저장소 → Settings → Secrets and variables → Actions 에서');
+            console.error('   이름을  TOUR_API_KEY  로 하여 인증키를 넣어 주세요.');
+            console.error('   (이름 철자가 다르면 여기서 못 읽습니다)');
+            process.exit(1);
+          }
+          /* 공공데이터포털은 인증키를 두 가지로 줍니다.
+             Encoding 키는 % 가 섞여 있어 그대로 쓰면 두 번 인코딩되어 '등록되지 않은 키'가 됩니다.
+             → % 가 보이면 원래 글자로 되돌려 씁니다. 어느 쪽을 넣어도 동작합니다. */
+          const KEY = RAW.includes('%') ? decodeURIComponent(RAW) : RAW;
+          console.log(`🔑 인증키 확인: ${KEY.length}자 (${RAW.includes('%') ? 'Encoding 키를 자동 변환' : 'Decoding 키'})`);
 
           const BASE = 'https://apis.data.go.kr/B551011/KorService2';
           const APP  = 'gabojen';
@@ -82,8 +111,14 @@ jobs:
               try {
                 const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
                 const text = await res.text();
-                if (text.includes('SERVICE_KEY_IS_NOT_REGISTERED')) throw new Error('인증키가 등록되지 않았습니다(승인까지 10분쯤 걸립니다)');
-                if (text.includes('LIMITED_NUMBER_OF_SERVICE_REQUESTS')) throw new Error('오늘 호출 한도(1,000건)를 넘었습니다');
+                if (text.includes('SERVICE_KEY_IS_NOT_REGISTERED'))
+                  throw new Error('인증키를 관광공사가 모른다고 합니다.\n   · 공공데이터포털의 "일반 인증키"를 그대로 넣으셨는지\n   · 활용신청 승인 뒤 10분쯤 지났는지\n   · 앞뒤에 빈칸이나 줄바꿈이 섞이지 않았는지 확인해 주세요.');
+                if (text.includes('LIMITED_NUMBER_OF_SERVICE_REQUESTS'))
+                  throw new Error('오늘 호출 한도(1,000건)를 넘었습니다. 내일 다시 돌려 주세요.');
+                if (text.includes('SERVICE_ACCESS_DENIED'))
+                  throw new Error('이 서비스에 대한 활용신청이 승인되지 않았습니다. 공공데이터포털에서 "국문 관광정보 서비스" 활용신청 상태를 확인해 주세요.');
+                if (text.includes('DEADLINE_HAS_EXPIRED'))
+                  throw new Error('인증키 활용 기간이 끝났습니다. 공공데이터포털에서 연장해 주세요.');
                 const j = JSON.parse(text);
                 const body = j?.response?.body;
                 if (!body) throw new Error('응답 형식이 예상과 다릅니다: ' + text.slice(0,160));
@@ -180,7 +215,12 @@ jobs:
             console.log(`✅ news/${month}.json · 축제 ${festivals.length}개 · ${kb}KB`);
           }
 
-          main().catch(e => { console.error('❌', e.message); process.exit(1); });
+          main().catch(e => {
+            console.error('');
+            console.error('❌ 소식지를 만들지 못했습니다.');
+            console.error('   ' + e.message);
+            process.exit(1);
+          });
 
           GABOJEN_EOF
 
