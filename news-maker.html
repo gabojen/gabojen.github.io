@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>여행 소식지 만들기 · 여행가보젠</title>
+<style>
+  :root{
+    --ink:#12212E; --ink-2:#2F3D46; --muted:#5A5449;
+    --paper:#F7F4EE; --card:#fff; --line:#E7E0D4;
+    --brand:#D9552F; --brand-ink:#A63B18; --teal:#0E6E6D;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px 16px 60px;background:var(--paper);color:var(--ink);
+    font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","맑은 고딕",sans-serif;
+    letter-spacing:-.01em;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:560px;margin:0 auto}
+  h1{font-size:23px;font-weight:800;margin:0 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:14px;line-height:1.6;margin:0 0 22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  .step{display:flex;align-items:baseline;gap:8px;font-size:12px;font-weight:800;color:var(--brand-ink);
+    letter-spacing:.06em;margin-bottom:10px}
+  .step b{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+  label{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin:0 0 6px}
+  input,select{width:100%;font-size:16px;font-family:inherit;padding:12px 13px;border:1px solid var(--line);
+    border-radius:11px;background:var(--paper);color:var(--ink)}
+  input:focus,select:focus{outline:3px solid rgba(217,85,47,.35);outline-offset:1px}
+  .row{display:flex;gap:10px;align-items:flex-end}
+  .row>div{flex:1;min-width:0}
+  button{font-family:inherit;font-size:15px;font-weight:800;border:none;border-radius:12px;
+    padding:14px 16px;cursor:pointer;width:100%;min-height:48px}
+  .go{background:var(--brand);color:#fff}
+  .go:disabled{opacity:.5;cursor:default}
+  .dl{background:var(--teal);color:#fff;margin-top:12px}
+  .ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .note{font-size:12.5px;color:var(--muted);line-height:1.6;margin:10px 2px 0}
+  .note b{color:var(--ink)}
+  #log{display:none;margin-top:12px;background:#171C20;color:#D8E2E6;border-radius:11px;padding:13px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.7;
+    max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+  #log.on{display:block}
+  .ok{color:#8FD694} .bad{color:#FF9B8A}
+  .warn{background:rgba(154,109,31,.10);border:1px solid rgba(154,109,31,.3);color:#7A5410;
+    border-radius:11px;padding:12px 13px;font-size:13px;line-height:1.6;margin-bottom:14px}
+  .done{display:none} .done.on{display:block}
+  a{color:var(--teal)}
+</style></head><body><div class="wrap">
+
+<h1>여행 소식지 만들기</h1>
+<p class="sub">한국관광공사 자료로 <b>이번 달 축제·갈 만한 곳</b> 파일을 만듭니다.<br>
+만든 파일을 저장소의 <b>news</b> 폴더에 올리면 앱의 [떠나기] 탭에 나옵니다.</p>
+
+<div class="warn">
+  🔒 <b>인증키는 이 브라우저에만 저장됩니다.</b><br>
+  인터넷 어디로도 보내지 않고(관광공사 외), 만들어진 파일에도 들어가지 않습니다.
+</div>
+
+<div class="card">
+  <div class="step">STEP 1 <b>인증키 넣기</b></div>
+  <label for="key">공공데이터포털 일반 인증키</label>
+  <input id="key" type="password" placeholder="Encoding·Decoding 아무거나" autocomplete="off" spellcheck="false">
+  <p class="note">한 번 넣으면 이 브라우저가 기억합니다. 다음 달엔 바로 STEP 2 부터 하시면 됩니다.</p>
+</div>
+
+<div class="card">
+  <div class="step">STEP 2 <b>만들기</b></div>
+  <div class="row">
+    <div><label for="month">어느 달</label><select id="month"></select></div>
+    <div style="flex:0 0 auto;width:46%"><button class="go" id="run">소식지 만들기</button></div>
+  </div>
+  <div id="log"></div>
+</div>
+
+<div class="card done" id="done">
+  <div class="step">STEP 3 <b>올리기</b></div>
+  <button class="dl" id="dl">① 파일 내려받기 (latest.json)</button>
+  <button class="ghost" id="open" style="margin-top:10px">② 올리는 곳 열기</button>
+  <p class="note">
+    ②를 누르면 깃허브 업로드 화면이 열립니다. 내려받은 <b>latest.json</b> 을 끌어다 놓고
+    아래 <b>Commit changes</b> 를 누르면 끝입니다.<br>
+    앱을 껐다 켜고 <b>[떠나기]</b> 탭을 보세요.
+  </p>
+</div>
+
+<p class="note" style="text-align:center;margin-top:22px">
+  자료 출처: 한국관광공사 TourAPI · 이 페이지는 여행가보젠 운영용입니다
+</p>
+
+<script>
+/* ============================================================================
+   운영자용 — 브라우저에서 관광공사 자료를 받아 소식지 파일을 만듭니다.
+   · 깃허브 서버(미국)는 관광공사가 접속을 거부해서 자동화가 안 됩니다.
+     그래서 한국에 있는 이 브라우저에서 직접 받습니다.
+   · 인증키는 localStorage 에만 두고, 만들어지는 파일에는 넣지 않습니다.
+   ============================================================================ */
+const BASE='https://apis.data.go.kr/B551011/KorService2';
+const REGIONS=[['11','서울'],['26','부산'],['27','대구'],['28','인천'],['29','광주'],['30','대전'],
+  ['31','울산'],['36','세종'],['41','경기'],['51','강원'],['43','충북'],['44','충남'],
+  ['52','전북'],['46','전남'],['47','경북'],['48','경남'],['50','제주']];
+const REGION_OF=Object.fromEntries(REGIONS);
+const MONTH_NOTE={1:['1월, 조용한 시작','한 해의 첫 장을 어디에 쓸지 정하는 달'],
+  2:['2월, 아직 겨울','사람 적은 겨울 끝자락이 오히려 좋은 때'],
+  3:['3월, 남쪽부터','꽃 소식은 남쪽에서 올라옵니다'],
+  4:['4월, 꽃 한가운데','일 년 중 가장 붐비는 달 — 평일이 답입니다'],
+  5:['5월, 걷기 좋은 날','덥기 전에 가장 많이 걸을 수 있는 달'],
+  6:['6월, 초록이 짙어질 때','장마 전 마지막 맑은 주말'],
+  7:['7월, 물가로','더위는 물가에서 식힙니다'],
+  8:['8월, 한여름','이른 아침과 늦은 오후에 움직이는 달'],
+  9:['9월, 한숨 돌리고','덥지도 춥지도 않은 짧은 계절'],
+  10:['10월, 억새와 단풍 사이','가장 멀리 다녀오기 좋은 달'],
+  11:['11월, 늦가을','붐빔이 가라앉고 색만 남는 때'],
+  12:['12월, 불빛','해넘이와 불빛을 보러 가는 달']};
+
+const $=id=>document.getElementById(id);
+const logBox=$('log');
+let RESULT=null;
+function log(msg,cls){ logBox.classList.add('on');
+  const s=document.createElement('div'); if(cls)s.className=cls; s.textContent=msg;
+  logBox.appendChild(s); logBox.scrollTop=logBox.scrollHeight; }
+
+/* 달 고르기 — 이번 달과 다음 두 달 */
+(function(){ const now=new Date(), sel=$('month');
+  for(let i=0;i<3;i++){ const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+    const v=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    sel.insertAdjacentHTML('beforeend',`<option value="${v}">${v}${i?'':' (이번 달)'}</option>`); } })();
+
+/* 인증키 기억 */
+try{ const k=localStorage.getItem('gabojen_tour_key'); if(k)$('key').value=k; }catch(e){}
+$('key').addEventListener('change',()=>{ try{ localStorage.setItem('gabojen_tour_key',$('key').value.trim()); }catch(e){} });
+
+const ymd=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+const https=u=>(u||'').replace(/^http:/,'https:');
+
+async function call(key,op,params){
+  const q=new URLSearchParams({serviceKey:key,MobileOS:'WEB',MobileApp:'gabojen',_type:'json',...params});
+  for(let a=1;a<=3;a++){
+    try{
+      const res=await fetch(`${BASE}/${op}?${q}`,{signal:AbortSignal.timeout(20000)});
+      const text=await res.text();
+      if(text.includes('SERVICE_KEY_IS_NOT_REGISTERED'))
+        throw new Error('인증키를 관광공사가 모릅니다. 일반 인증키가 맞는지, 승인 뒤 10분 지났는지 확인해 주세요.');
+      if(text.includes('SERVICE_ACCESS_DENIED'))
+        throw new Error('"국문 관광정보 서비스" 활용신청이 승인되지 않았습니다.');
+      if(text.includes('LIMITED_NUMBER_OF_SERVICE_REQUESTS'))
+        throw new Error('오늘 호출 한도(1,000건)를 넘었습니다. 내일 다시 해 주세요.');
+      const j=JSON.parse(text);
+      const body=j&&j.response&&j.response.body;
+      if(!body)throw new Error('응답이 예상과 다릅니다: '+text.slice(0,120));
+      const it=body.items&&body.items.item;
+      return Array.isArray(it)?it:(it?[it]:[]);
+    }catch(e){
+      if(a===3)throw e;
+      await new Promise(r=>setTimeout(r,700*a));
+    }
+  }
+}
+
+$('run').addEventListener('click',async()=>{
+  const rawKey=$('key').value.trim();
+  if(!rawKey){ alert('인증키를 먼저 넣어 주세요.'); $('key').focus(); return; }
+  /* Encoding 키(% 포함)면 원래 글자로 되돌립니다 */
+  const key=rawKey.includes('%')?decodeURIComponent(rawKey):rawKey;
+  try{ localStorage.setItem('gabojen_tour_key',rawKey); }catch(e){}
+
+  const btn=$('run'); btn.disabled=true; btn.textContent='만드는 중…';
+  logBox.innerHTML=''; logBox.classList.add('on'); $('done').classList.remove('on'); RESULT=null;
+
+  try{
+    const [y,mm]=$('month').value.split('-').map(Number);
+    const first=new Date(y,mm-1,1), last=new Date(y,mm,0);
+    log(`📅 ${y}-${String(mm).padStart(2,'0')} 소식지를 만듭니다`);
+    log(`🔑 인증키 ${key.length}자 (${rawKey.includes('%')?'Encoding → 자동 변환':'Decoding'})`);
+
+    /* ① 축제 */
+    const raw=[];
+    for(let page=1;page<=3;page++){
+      const rows=await call(key,'searchFestival2',{numOfRows:'100',pageNo:String(page),arrange:'Q',
+        eventStartDate:ymd(first),eventEndDate:ymd(last)});
+      raw.push(...rows); log(`   축제 ${page}쪽 … ${rows.length}건`);
+      if(rows.length<100)break;
+    }
+    const A=ymd(first),B=ymd(last),seen=new Set();
+    const festivals=raw.map(x=>({
+      id:String(x.contentid),title:(x.title||'').trim(),
+      start:x.eventstartdate||'',end:x.eventenddate||'',
+      region:REGION_OF[String(x.lDongRegnCd||'').padStart(2,'0')]||'',
+      addr:(x.addr1||'').trim(),tel:(x.tel||'').trim(),
+      img:https(x.firstimage),thumb:https(x.firstimage2||x.firstimage),
+      rights:x.cpyrhtDivCd||'',lat:x.mapy?+x.mapy:null,lng:x.mapx?+x.mapx:null}))
+      .filter(f=>f.title&&f.img&&f.start&&f.start<=B&&(!f.end||f.end>=A))
+      .filter(f=>!seen.has(f.id)&&seen.add(f.id))
+      .sort((a,b)=>a.start.localeCompare(b.start));
+    log(`✅ 축제 ${festivals.length}개`,'ok');
+
+    /* ② 지역별 갈 만한 곳 */
+    const spots={};
+    for(const [code,name] of REGIONS){
+      try{
+        const rows=await call(key,'areaBasedList2',{numOfRows:'12',pageNo:'1',arrange:'Q',
+          contentTypeId:'12',lDongRegnCd:code});
+        spots[name]=rows.filter(x=>x.firstimage).slice(0,4).map(x=>({
+          id:String(x.contentid),title:(x.title||'').trim(),addr:(x.addr1||'').trim(),
+          img:https(x.firstimage),thumb:https(x.firstimage2||x.firstimage),
+          rights:x.cpyrhtDivCd||'',lat:x.mapy?+x.mapy:null,lng:x.mapx?+x.mapx:null}));
+        log(`   ${name} … ${spots[name].length}곳`);
+      }catch(e){ spots[name]=[]; log(`   ${name} 건너뜀 (${e.message})`,'bad'); }
+      await new Promise(r=>setTimeout(r,100));
+    }
+
+    const [title,lead]=MONTH_NOTE[mm];
+    RESULT={month:`${y}-${String(mm).padStart(2,'0')}`,title,lead,
+      madeAt:new Date().toISOString().slice(0,10),source:'한국관광공사 TourAPI',festivals,spots};
+    const kb=Math.round(JSON.stringify(RESULT).length/1024);
+    log(`\n🎉 다 됐습니다 — 축제 ${festivals.length}개 · ${kb}KB`,'ok');
+    $('done').classList.add('on');
+    $('done').scrollIntoView({behavior:'smooth',block:'center'});
+  }catch(e){
+    log('\n❌ 실패했습니다','bad');
+    log('   '+(e.message||e),'bad');
+    if(/Failed to fetch|NetworkError|load failed/i.test(e.message||''))
+      log('   인터넷 연결을 확인해 주세요. (관광공사 서버가 잠시 느릴 수도 있습니다)','bad');
+  }finally{ btn.disabled=false; btn.textContent='소식지 만들기'; }
+});
+
+$('dl').addEventListener('click',()=>{
+  if(!RESULT)return;
+  const blob=new Blob([JSON.stringify(RESULT)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='latest.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+});
+$('open').addEventListener('click',()=>{
+  window.open('https://github.com/gabojen/gabojen.github.io/upload/main/news','_blank','noopener');
+});
+</script>
+</div></body></html>
