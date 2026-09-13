@@ -1184,7 +1184,7 @@
     -webkit-tap-highlight-color:transparent;}
   .rchip.on{background:var(--ink);color:#fff;border-color:var(--ink);}
   .rchip i{font-style:normal;color:var(--brand);margin-left:3px;}   /* 아직 안 가본 곳 표시 */
-  .rchip.on i{color:#fff;opacity:.7;}
+  .rchip.on i{display:none;}   /* 고른 칩에서는 '안 가본 곳' 점을 숨깁니다 (글자처럼 보임) */
   /* 갈 만한 곳 */
   .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .sgrid .scard{position:relative;height:116px;border-radius:14px;overflow:hidden;border:none;padding:0;
@@ -3156,7 +3156,10 @@ function festState(f){
 const grabRegions=txt=>REGION_LIST.filter(r=>String(txt||'').includes(r));
 /* 앞으로 갈 여행들 — 지역과 기간을 같이 봅니다 */
 function myTrips(){
-  const act=(typeof sortTrips==='function')?sortTrips(TRIPS.filter(t=>t.status!=='done')):[];
+  const t0=todayYmd();
+  const upcoming=(TRIPS||[]).filter(t=>t.status!=='done'
+    && String(t.end||t.start||'').replace(/-/g,'')>=t0);
+  const act=(typeof sortTrips==='function')?sortTrips(upcoming):upcoming;
   return act.map(t=>({
     regions:[...new Set(grabRegions(t.place).concat(grabRegions(t.title)))],
     start:String(t.start||'').replace(/-/g,''), end:String(t.end||'').replace(/-/g,''),
@@ -3168,11 +3171,50 @@ function matchesMyTrip(f){
   return myTrips().some(t=>
     t.regions.includes(f.region) && f.start<=(t.end||t.start) && (f.end||f.start)>=t.start);
 }
+/* 다녀온 지역 — '완료'로 표시된 것뿐 아니라 날짜가 지난 여행도 포함합니다 */
 function visitedRegions(){
-  const done=(TRIPS||[]).filter(t=>t.status==='done');
+  const t0=todayYmd();
+  const past=(TRIPS||[]).filter(t=>t.status==='done'||String(t.end||'').replace(/-/g,'')<t0);
   const out=[];
-  done.forEach(t=>REGION_LIST.forEach(r=>{ if(String(t.place||'').includes(r)||String(t.title||'').includes(r))out.push(r); }));
+  past.forEach(t=>out.push(...grabRegions(t.place),...grabRegions(t.title)));
   return [...new Set(out)];
+}
+/* ── 계절 추천 ────────────────────────────────────────────────
+   여행 기록이 없는 분께는 '지금 계절에 가기 좋은 곳'을 권합니다.
+   (관광공사 자료에 인기 순위가 없어 계절·지역의 일반적인 특징으로 정했습니다) */
+const SEASON_PICK={
+  봄:  [['전남','동백과 매화가 먼저 핍니다'],['경남','벚꽃이 이르게 옵니다'],['제주','유채가 한창이에요']],
+  여름:[['강원','바다와 계곡이 같이 있어요'],['제주','물빛이 가장 좋을 때'],['부산','해수욕장과 도시를 함께']],
+  가을:[['강원','단풍과 억새가 나란히'],['전북','고즈넉한 단풍길'],['경북','고택과 단풍을 같이']],
+  겨울:[['강원','눈과 온천을 함께'],['충북','붐비지 않는 온천'],['부산','남쪽이라 덜 춥습니다']],
+};
+function seasonNow(){ const m=new Date().getMonth()+1;
+  return m<=2||m===12?'겨울':(m<=5?'봄':(m<=8?'여름':'가을')); }
+/* 이 사람에게 권할 지역 한 곳 + 왜 그런지 한 줄 */
+function recommendRegion(been,spots){
+  const has=r=>((spots||{})[r]||[]).length>0;
+  /* ⚠ 다녀온 지역은 추천 대상에서 아예 뺍니다 (강원 다녀오셨으면 강원은 권하지 않습니다) */
+  const ok=r=>has(r)&&!been.includes(r);
+  const season=seasonNow(), picks=(SEASON_PICK[season]||[]).filter(([r])=>has(r));
+  /* ① 여행 기록이 없으면 — 계절 추천 */
+  if(!been.length){
+    const [r,why]=picks[0]||['제주','어디로든 떠나기 좋아요'];
+    return {region:r, head:`${season}엔 여기가 좋아요`, why, kind:'season'};
+  }
+  /* ② 기록이 있으면 — 이 계절 추천 중 '아직 안 가본 곳' */
+  const fresh=picks.filter(([r])=>ok(r));
+  if(fresh.length){ const [r,why]=fresh[0];
+    return {region:r, head:'아직 안 가보신 곳', why:`${season}엔 ${why}`, kind:'new'}; }
+  /* ③ 계절 추천을 다 가보셨으면 — 안 가본 지역 아무 곳이나(날마다 바뀝니다) */
+  const notBeen=REGION_LIST.filter(ok);
+  if(notBeen.length){
+    const r=notBeen[Math.floor(Date.now()/86400000)%notBeen.length];
+    return {region:r, head:'아직 안 가보신 곳', why:`${been.length}곳을 다녀오셨네요. 여기는 어떠세요`, kind:'new'};
+  }
+  /* ④ 갈 만한 곳을 다 다니셨을 때만 — '다시'라고 분명히 밝힙니다 */
+  const [r,why]=picks[0]||[been[0],''];
+  return {region:r, head:`${season}에 다시 가볼 만한 곳`,
+    why:`가볼 만한 곳은 다 다녀오셨네요. ${why}`, kind:'again'};
 }
 function hasStudentTrip(){ return (TRIPS||[]).some(t=>t.hasStudent); }
 
@@ -3211,10 +3253,12 @@ function renderGo(){
   const alwaysShow=always.slice().sort((a,b)=>
     (mine.includes(a.region)?0:1)-(mine.includes(b.region)?0:1)).slice(0,4);
 
-  /* 갈 만한 곳: 고른 지역 → 없으면 안 가본 지역부터 */
-  const notBeen=REGION_LIST.filter(r=>!been.includes(r));
-  const pickR=goRegion||mine[0]||notBeen[Math.floor(Date.now()/86400000)%notBeen.length]||'제주';
+  /* 갈 만한 곳 — 직접 고른 지역이 있으면 그것, 없으면 이력·계절로 추천 */
+  const rec=recommendRegion(been,NEWS.spots);
+  const pickR=goRegion||rec.region;
   const spots=((NEWS.spots||{})[pickR]||[]).slice(0,4);
+  const recHead=goRegion?'갈 만한 곳':rec.head;
+  const recWhy=goRegion?'':rec.why;
 
   const fcard=f=>{
     const st=festState(f), ever=!isSeasonal(f);
@@ -3240,7 +3284,8 @@ function renderGo(){
     ${alwaysShow.length?`<div class="eyebrow">언제 가도 볼 수 있어요 <span style="font-weight:700;color:var(--muted)">· 상시</span></div>
       <div class="flist">${alwaysShow.map(fcard).join('')}</div>`:''}
 
-    <div class="eyebrow">갈 만한 곳</div>
+    <div class="eyebrow">${esc(recHead)}${goRegion?'':` <span style="font-weight:700;color:var(--brand-ink)">· ${esc(rec.region)}</span>`}</div>
+    ${recWhy?`<p class="muted small" style="margin:-4px 2px 10px">${esc(recWhy)}</p>`:''}
     <div class="rchips" id="goChips">${REGION_LIST.map(r=>
       `<button class="rchip${r===pickR?' on':''}" data-r="${r}" onclick="goPick('${r}')">${r}${
         (been.length&&!been.includes(r))?'<i title="아직 안 가본 곳">·</i>':''}</button>`).join('')}</div>
@@ -7032,7 +7077,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(openIntro,450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v11.2 (2026-09-13)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v11.3 (2026-09-13)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authMode('login');
