@@ -1150,6 +1150,52 @@
      보이는 크기는 그대로 두고 '누를 수 있는 범위'만 넓힙니다. */
   .lnk{min-height:44px;display:inline-flex;align-items:center;}
   /* 내 UID 줄 — 글자가 길어 화면을 넘지 않도록 줄바꿈을 허용합니다 */
+
+  /* ── [떠나기] 탭 ─────────────────────────────────────────── */
+  .gohead{padding:2px 2px 14px;}
+  .gohead b{display:block;font-family:var(--font-display);font-size:23px;font-weight:700;letter-spacing:-.02em;color:var(--ink);}
+  .gohead span{display:block;margin-top:4px;font-size:13.5px;color:var(--muted);}
+  .goskel{height:76px;border-radius:14px;margin-bottom:10px;
+    background:linear-gradient(90deg,var(--line) 25%,var(--paper) 37%,var(--line) 63%);
+    background-size:400% 100%;animation:shim 1.4s ease infinite;}
+  @keyframes shim{0%{background-position:100% 0}100%{background-position:0 0}}
+  /* 축제 한 줄 */
+  .flist{display:block;}
+  .fcard{display:grid;grid-template-columns:84px minmax(0,1fr);column-gap:13px;align-items:center;
+    width:100%;padding:10px 0 11px;border:none;border-top:1px solid var(--line);background:none;
+    text-align:left;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+  .fcard:first-child{border-top:none;}
+  .fcard:active{background:rgba(217,85,47,.05);}
+  .fcard .fimg{position:relative;height:62px;border-radius:11px;background-size:cover;background-position:center;
+    background-color:var(--line);}
+  .fcard .fimg i{position:absolute;left:5px;bottom:5px;font-style:normal;font-size:10px;font-weight:800;
+    color:#fff;background:rgba(13,24,31,.62);padding:2px 6px;border-radius:6px;}
+  .fcard .fimg i.now{background:var(--brand);}
+  .fcard .ftx{min-width:0;}
+  .fcard .ftx b{display:block;font-size:15px;font-weight:700;line-height:1.35;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fcard .ftx em{display:block;margin-top:3px;font-style:normal;font-size:12.5px;color:var(--muted);
+    font-variant-numeric:tabular-nums;}
+  /* 지역 고르기 */
+  .rchips{display:flex;gap:6px;overflow-x:auto;margin:0 -18px 12px;padding:0 18px 2px;scrollbar-width:none;}
+  .rchips::-webkit-scrollbar{display:none;}
+  .rchip{flex-shrink:0;min-height:44px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink-2);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;}
+  .rchip.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .rchip i{font-style:normal;color:var(--brand);margin-left:3px;}   /* 아직 안 가본 곳 표시 */
+  .rchip.on i{color:#fff;opacity:.7;}
+  /* 갈 만한 곳 */
+  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .sgrid .scard{position:relative;height:116px;border-radius:14px;overflow:hidden;border:none;padding:0;
+    background-size:cover;background-position:center;background-color:var(--line);cursor:pointer;
+    display:flex;align-items:flex-end;-webkit-tap-highlight-color:transparent;}
+  .sgrid .scard:active{transform:scale(.97);}
+  .sgrid .sgr{position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,24,31,0) 40%,rgba(13,24,31,.78));}
+  .sgrid .stx{position:relative;padding:9px 10px;color:#fff;font-size:13px;font-weight:700;text-align:left;
+    line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}
+  .fbig{height:180px;border-radius:14px;background-size:cover;background-position:center;background-color:var(--line);}
+  html.dark .rchip.on{background:var(--brand);color:#20130E;border-color:var(--brand);}
   /* ── 장소 후보 목록 (입력칸 바로 아래) ── */
   .psugg{display:none;margin:-4px 0 8px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card);}
   .psugg.on{display:block;}
@@ -1491,12 +1537,14 @@
   <div class="screen" id="report"></div>
   <div class="screen" id="album"></div>
   <div class="screen" id="apply"></div>
+  <div class="screen" id="go"></div>
 
   <div class="nav hidden" id="nav">
     <span class="navind" id="navInd" aria-hidden="true"></span>
     <button data-tab="today" onclick="switchTab('today')"><span class="icw"><svg class="ic"><use href="#i-home"/></svg></span>홈</button>
     <button data-tab="trips" onclick="switchTab('trips')"><span class="icw"><svg class="ic"><use href="#i-suitcase"/></svg></span>내 여행</button>
     <button data-tab="history" onclick="switchTab('history')"><span class="icw"><svg class="ic"><use href="#i-camera"/></svg></span>추억</button>
+    <button data-tab="go" onclick="switchTab('go')"><span class="icw"><svg class="ic"><use href="#i-compass"/></svg></span>떠나기</button>
   </div>
 
   <div class="ov" id="ov"><div id="ovc"></div></div>
@@ -2411,7 +2459,7 @@ function show(id,{title,kicker,back=false,nav=true,push=true}={}){
   $('moreBtn').style.display=(id==='detail')?'flex':'none';   // 여행 메뉴는 상세에서만
   $('acctBtn').style.display=(id==='detail')?'none':'flex';
   if(!isLogin){$('ptitle').textContent=title||'여행가보젠';$('kicker').textContent=kicker||'';}
-  const tabFor={today:'today',trips:'trips',history:'history',detail:'trips',paste:'trips',report:'trips'}[id];
+  const tabFor={today:'today',trips:'trips',history:'history',go:'go',detail:'trips',paste:'trips',report:'trips'}[id];
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tabFor));
   moveNavInd();                 // 아래 메뉴바의 알약을 선택된 탭으로 옮깁니다
   popNavIcon();                 // 선택된 아이콘이 '톡' 하고 반응합니다
@@ -2488,6 +2536,7 @@ function routeTo(id,opt={}){
   if(id==='today'){renderToday();show('today',{kicker:curTrip?'오늘의 여행':'',title:curTrip&&trip(curTrip)?trip(curTrip).title:'여행가보젠',...opt});}
   else if(id==='trips'){renderTrips();show('trips',{title:'내 여행',...opt});}
   else if(id==='history'){renderHistory();show('history',{title:'추억',...opt});}
+  else if(id==='go'){renderGo();show('go',{title:'떠나기',...opt});}
   else if(id==='detail'){if(!trip(curTrip)){switchTab('trips');return;}renderDetail();show('detail',{kicker:trip(curTrip).place+' · '+mdLabel(trip(curTrip).start)+'–'+mdLabel(trip(curTrip).end),title:trip(curTrip).title,back:true,...opt});}
   else if(id==='paste'){renderPaste();show('paste',{title:'예약 붙여넣기',back:true,...opt});}
   else if(id==='report'){renderReport();show('report',{title:'체험학습 보고서',back:true,...opt});}
@@ -2500,6 +2549,7 @@ function routeTo(id,opt={}){
 function rerender(){const cur=document.querySelector('.screen.active');if(!cur)return;const id=cur.id;
   if(id==='today')renderToday();else if(id==='trips')renderTrips();else if(id==='detail'){if(trip(curTrip))renderDetail();else switchTab('trips');}
   else if(id==='history')renderHistory();
+  else if(id==='go')renderGo();
   else if(id==='album')renderAlbum();
   else if(id==='report')renderReport();
   else if(id==='apply')renderApply();}     /* 보고서 화면에서 사진을 올리면 바로 반영되게 */
@@ -3055,6 +3105,195 @@ function renderEmptyHome(){
       <div style="height:10px"></div>
       <button class="btn ghost" onclick="joinPrompt()">${svg('i-key','ic')} 초대코드로 참여하기</button>
     </div>`;
+}
+
+
+/* ============================================================================
+   [떠나기] — 이번 달 여행 소식
+   · 소식지는 앱이 실시간으로 관광공사 API 를 부르지 않습니다.
+     매달 한 번 GitHub Actions 가 news/YYYY-MM.json 을 만들어 올려 둡니다.
+     → 인증키가 앱(공개 저장소)에 들어가지 않고, 호출 한도도 안 씁니다.
+   · 개인화(계절·다음 여행지·자녀 동행·안 가본 지역)는 전부 **이 폰 안에서만** 계산합니다.
+     서버로 보내는 것은 없습니다.
+   ============================================================================ */
+let NEWS=null, NEWS_STATE='idle';       // idle | loading | ok | none
+const REGION_LIST=['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주'];
+let goRegion=null;                       // 지금 보고 있는 지역 (null = 추천)
+
+function newsUrl(){ return (window.__newsUrl||'news/latest.json')+'?v='+new Date().toISOString().slice(0,10); }
+async function loadNews(){
+  if(NEWS_STATE==='loading'||NEWS_STATE==='ok')return;
+  NEWS_STATE='loading';
+  try{
+    const r=await fetch(newsUrl(),{cache:'no-cache'});
+    if(!r.ok)throw new Error('없음');
+    NEWS=await r.json(); NEWS_STATE='ok';
+  }catch(e){ NEWS_STATE='none'; }
+  if(document.querySelector('.screen.active')&&document.querySelector('.screen.active').id==='go')renderGo();
+}
+/* 날짜 글자(20261003) → '10/3' */
+function fdate(v){ return v&&v.length===8 ? (+v.slice(4,6))+'/'+(+v.slice(6,8)) : ''; }
+function todayYmd(){ const d=new Date(); return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0'); }
+/* 며칠짜리 행사인가 — 관광공사 자료에는 '왕궁수문장 교대의식'처럼
+   1년 내내 하는 상설 프로그램이 축제와 섞여 옵니다(전체의 1/5).
+   60일을 넘으면 '상시'로 보고 이번 달 축제와 나눠 보여 줍니다. */
+function festDays(f){
+  if(!f.start||!f.end)return 1;
+  const D=v=>new Date(+v.slice(0,4),+v.slice(4,6)-1,+v.slice(6,8));
+  const n=Math.round((D(f.end)-D(f.start))/86400000)+1;
+  return isNaN(n)?1:n;
+}
+function isSeasonal(f){ return festDays(f)<=60; }
+/* 지금 열리는 중인가 / 며칠 남았나 */
+function festState(f){
+  const t=todayYmd();
+  if(f.end&&f.end<t)return {k:'past',label:'끝남'};
+  if(f.start<=t)return {k:'now',label:'열리는 중'};
+  const d=Math.round((new Date(f.start.slice(0,4),+f.start.slice(4,6)-1,+f.start.slice(6,8))-new Date(t.slice(0,4),+t.slice(4,6)-1,+t.slice(6,8)))/86400000);
+  return {k:'soon',label:d<=7?`${d}일 뒤`:''};
+}
+/* ── 이 폰 안에서만 하는 개인화 ────────────────────────────── */
+const grabRegions=txt=>REGION_LIST.filter(r=>String(txt||'').includes(r));
+/* 앞으로 갈 여행들 — 지역과 기간을 같이 봅니다 */
+function myTrips(){
+  const act=(typeof sortTrips==='function')?sortTrips(TRIPS.filter(t=>t.status!=='done')):[];
+  return act.map(t=>({
+    regions:[...new Set(grabRegions(t.place).concat(grabRegions(t.title)))],
+    start:String(t.start||'').replace(/-/g,''), end:String(t.end||'').replace(/-/g,''),
+  })).filter(x=>x.regions.length&&x.start);
+}
+function myRegions(){ const o=[]; myTrips().forEach(t=>o.push(...t.regions)); return [...new Set(o)]; }
+/* 그 여행지에서, 그 기간에 실제로 겹치는 축제인가 */
+function matchesMyTrip(f){
+  return myTrips().some(t=>
+    t.regions.includes(f.region) && f.start<=(t.end||t.start) && (f.end||f.start)>=t.start);
+}
+function visitedRegions(){
+  const done=(TRIPS||[]).filter(t=>t.status==='done');
+  const out=[];
+  done.forEach(t=>REGION_LIST.forEach(r=>{ if(String(t.place||'').includes(r)||String(t.title||'').includes(r))out.push(r); }));
+  return [...new Set(out)];
+}
+function hasStudentTrip(){ return (TRIPS||[]).some(t=>t.hasStudent); }
+
+function renderGo(){
+  const box=$('go'); if(!box)return;
+  if(NEWS_STATE==='idle'){ loadNews(); }
+  if(NEWS_STATE==='idle'||NEWS_STATE==='loading'){
+    box.innerHTML=`<div class="gohead"><b>이번 달 여행 소식</b><span>불러오는 중…</span></div>
+      <div class="goskel"></div><div class="goskel"></div>`;
+    return;
+  }
+  if(NEWS_STATE==='none'||!NEWS){
+    box.innerHTML=`<div class="empty">
+      <div class="big">${svg('i-compass','ic')}</div>
+      <h2 style="margin:0 0 6px;font-size:19px">아직 소식지가 없어요</h2>
+      <p class="muted small" style="margin:0 auto;max-width:290px">매달 초에 이번 달 축제와 갈 만한 곳이 올라옵니다.</p>
+      <button class="btn ghost sm" style="margin:18px auto 0;width:auto" onclick="NEWS_STATE='idle';renderGo()">${svg('i-info','ic')} 다시 확인</button></div>`;
+    return;
+  }
+
+  const mine=myRegions(), been=visitedRegions();
+  const t=todayYmd();
+  const live=(NEWS.festivals||[]).filter(f=>!f.end||f.end>=t);
+  const seasonal=live.filter(isSeasonal), always=live.filter(f=>!isSeasonal(f));
+  /* 내 다음 여행지 근처 축제를 맨 앞으로, 그다음 날짜순 */
+  const sorted=seasonal.slice().sort((a,b)=>{
+    const am=mine.includes(a.region)?0:1, bm=mine.includes(b.region)?0:1;
+    return am!==bm?am-bm:a.start.localeCompare(b.start);
+  });
+  /* ① 내 여행 기간·지역에 딱 맞는 것 → ② 없으면 지역만 맞는 것 */
+  let near=sorted.filter(matchesMyTrip).slice(0,3), nearWhy='trip';
+  if(!near.length){ near=sorted.filter(f=>mine.includes(f.region)).slice(0,3); nearWhy='region'; }
+  const rest=sorted.filter(f=>near.indexOf(f)<0).slice(0,10);
+  const nearRegions=[...new Set(near.map(f=>f.region))].slice(0,2).join(' · ');
+  /* 상시 프로그램은 내 지역 것을 먼저 */
+  const alwaysShow=always.slice().sort((a,b)=>
+    (mine.includes(a.region)?0:1)-(mine.includes(b.region)?0:1)).slice(0,4);
+
+  /* 갈 만한 곳: 고른 지역 → 없으면 안 가본 지역부터 */
+  const notBeen=REGION_LIST.filter(r=>!been.includes(r));
+  const pickR=goRegion||mine[0]||notBeen[Math.floor(Date.now()/86400000)%notBeen.length]||'제주';
+  const spots=((NEWS.spots||{})[pickR]||[]).slice(0,4);
+
+  const fcard=f=>{
+    const st=festState(f), ever=!isSeasonal(f);
+    const tag=ever?'' : (st.k==='now'?'<i class="now">열리는 중</i>':(st.label?`<i>${esc(st.label)}</i>`:''));
+    const when=ever?'상시':`${fdate(f.start)}${f.end&&f.end!==f.start?'–'+fdate(f.end):''}`;
+    return `<button class="fcard" onclick="openFestival('${esc(f.id)}')">
+      <span class="fimg" style="background-image:url('${esc(f.thumb||f.img)}')">${tag}</span>
+      <span class="ftx"><b>${esc(f.title)}</b>
+        <em>${esc(f.region)} · ${when}</em></span>
+    </button>`;
+  };
+
+  box.innerHTML=`
+    <div class="gohead"><b>${esc(NEWS.title||'이번 달 여행 소식')}</b><span>${esc(NEWS.lead||'')}</span></div>
+    ${hasStudentTrip()?`<button class="nudge" onclick="switchTab('trips')">${svg('i-file')}
+      <span><b>체험학습</b> 다녀오실 여행이 있어요. 축제 기간에 맞추면 신청서 쓰기가 쉬워집니다.</span>${svg('i-right','ch')}</button>`:''}
+
+    ${near.length?`<div class="eyebrow">${esc(nearRegions)} ${nearWhy==='trip'?'가시는 날짜에 열려요':'가시는군요 · 그곳의 축제'}</div>
+      <div class="flist">${near.map(fcard).join('')}</div>`:''}
+
+    <div class="eyebrow">이번 달 축제 <span style="font-weight:700;color:var(--muted)">· ${seasonal.length}개</span></div>
+    <div class="flist">${rest.map(fcard).join('')||'<p class="muted small" style="padding:6px 2px">이번 달에 남은 축제가 없어요.</p>'}</div>
+    ${alwaysShow.length?`<div class="eyebrow">언제 가도 볼 수 있어요 <span style="font-weight:700;color:var(--muted)">· 상시</span></div>
+      <div class="flist">${alwaysShow.map(fcard).join('')}</div>`:''}
+
+    <div class="eyebrow">갈 만한 곳</div>
+    <div class="rchips" id="goChips">${REGION_LIST.map(r=>
+      `<button class="rchip${r===pickR?' on':''}" data-r="${r}" onclick="goPick('${r}')">${r}${
+        (been.length&&!been.includes(r))?'<i title="아직 안 가본 곳">·</i>':''}</button>`).join('')}</div>
+    <div class="sgrid">${spots.map(sp=>
+      `<button class="scard" onclick="openSpot('${esc(pickR)}','${esc(sp.id)}')" style="background-image:url('${esc(sp.img||sp.thumb)}')">
+        <span class="sgr"></span><span class="stx">${esc(sp.title)}</span></button>`).join('')
+      ||'<p class="muted small" style="padding:6px 2px">이 지역은 아직 자료가 없어요.</p>'}</div>
+
+    <p class="muted small" style="margin:16px 2px 0;line-height:1.6">
+      자료 · 사진 출처: <b>한국관광공사</b> (${esc(NEWS.month||'')} 기준)<br>
+      축제 날짜는 주최 측 사정으로 바뀔 수 있어요. 가시기 전에 한 번 확인해 주세요.</p>`;
+  if(typeof axStaggerIn==='function')axStaggerIn('.fcard, .scard',box,{step:34,dy:10,start:40});
+  /* 고른 지역 칩이 옆으로 밀려 안 보일 수 있어 화면 안으로 끌어옵니다 */
+  const chips=document.getElementById('goChips'), on=chips&&chips.querySelector('.rchip.on');
+  if(chips&&on)chips.scrollLeft=Math.max(0,on.offsetLeft-chips.clientWidth/2+on.offsetWidth/2);
+}
+function goPick(r){ goRegion=r; renderGo(); }
+
+/* 축제 하나 자세히 — 바로 '여행 만들기'로 이어집니다 */
+function openFestival(id){
+  const f=((NEWS&&NEWS.festivals)||[]).find(x=>String(x.id)===String(id)); if(!f)return;
+  const st=festState(f);
+  openSheet(`<div class="grab"></div>
+    ${f.img?`<div class="fbig" style="background-image:url('${esc(f.img)}')"></div>`:''}
+    <h3 style="margin-top:12px">${esc(f.title)}</h3>
+    <div class="menu" style="margin-top:10px">
+      <div class="mrow" style="cursor:default">${svg('i-cal')}<span class="mtx"><b>${
+        isSeasonal(f)?`${fdate(f.start)}${f.end&&f.end!==f.start?' – '+fdate(f.end):''}`:'상시 운영'
+      }</b>${isSeasonal(f)&&st.label?`<em>${esc(st.label)}</em>`:''}</span></div>
+      ${f.addr?`<div class="mrow" style="cursor:default">${svg('i-pin')}<span class="mtx"><b>${esc(f.addr)}</b></span></div>`:''}
+      ${f.tel?`<a class="mrow" href="tel:${esc(f.tel)}">${svg('i-info')}<span class="mtx"><b>${esc(f.tel)}</b><em>주최 측에 확인</em></span>${svg('i-right','mch')}</a>`:''}
+    </div>
+    <button class="btn brand" style="margin-top:14px" onclick="closeOv();tripFromFestival('${esc(f.id)}')">
+      ${svg('i-plus','ic')} 이 축제로 여행 만들기</button>
+    ${f.addr?`<button class="btn ghost sm" style="margin-top:8px" onclick="closeOv();openMap('${esc(f.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>`:''}
+    <p class="muted small" style="margin:12px 2px 0">사진·정보: 한국관광공사</p>`);
+}
+function openSpot(region,id){
+  const sp=(((NEWS&&NEWS.spots)||{})[region]||[]).find(x=>String(x.id)===String(id)); if(!sp)return;
+  openSheet(`<div class="grab"></div>
+    ${sp.img?`<div class="fbig" style="background-image:url('${esc(sp.img)}')"></div>`:''}
+    <h3 style="margin-top:12px">${esc(sp.title)}</h3>
+    ${sp.addr?`<p class="muted small" style="margin:4px 2px 0">${svg('i-pin')} ${esc(sp.addr)}</p>`:''}
+    <button class="btn ghost" style="margin-top:14px" onclick="closeOv();openMap('${esc(sp.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>
+    <p class="muted small" style="margin:12px 2px 0">사진·정보: 한국관광공사</p>`);
+}
+/* 축제 날짜·장소를 채운 채로 여행 만들기 화면을 엽니다 */
+function tripFromFestival(id){
+  const f=((NEWS&&NEWS.festivals)||[]).find(x=>String(x.id)===String(id)); if(!f)return;
+  const iso=v=>v&&v.length===8?`${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}`:'';
+  window.__tripSeed={title:f.title, place:(f.region||'')+(f.addr?' '+f.addr.split(' ').slice(0,2).join(' '):''),
+    start:iso(f.start), end:iso(f.end||f.start)};
+  openCreateTrip();
 }
 
 /* ---- 내 여행 ---- */
@@ -4300,14 +4539,17 @@ async function recheckVerify(){
 function openCreateTrip(){
   if(needVerify())return;
   const y=new Date().getFullYear();
+  /* [떠나기]의 축제에서 넘어왔으면 제목·여행지·날짜가 미리 채워집니다 */
+  const seed=window.__tripSeed||null; window.__tripSeed=null;
   openSheet(`<div class="grab"></div><h3>새 여행 만들기</h3>
-    <label class="fld">여행 제목</label><input class="input" id="cTitle" placeholder="예: 제주 여름 여행">
-    <label class="fld">여행지</label><input class="input" id="cPlace" placeholder="예: 제주도">
+    ${seed?`<p class="muted small" style="margin:-4px 2px 10px">${svg('i-compass')} <b>${esc(seed.title)}</b> 일정으로 채웠어요. 고치셔도 됩니다.</p>`:''}
+    <label class="fld">여행 제목</label><input class="input" id="cTitle" placeholder="예: 제주 여름 여행" value="${seed?esc(seed.title):''}">
+    <label class="fld">여행지</label><input class="input" id="cPlace" placeholder="예: 제주도" value="${seed?esc(seed.place):''}">
     <label class="fld">함께 가는 그룹</label>
     <select class="input" id="cGroup"><option>가족</option><option>친구</option><option>동료</option><option>기타</option></select>
     <div class="row" style="gap:10px">
-      <div style="flex:1"><label class="fld">시작일</label><input class="input" id="cStart" type="date" value="${y}-08-05"></div>
-      <div style="flex:1"><label class="fld">종료일</label><input class="input" id="cEnd" type="date" value="${y}-08-08"></div></div>
+      <div style="flex:1"><label class="fld">시작일</label><input class="input" id="cStart" type="date" value="${seed&&seed.start?esc(seed.start):y+'-08-05'}"></div>
+      <div style="flex:1"><label class="fld">종료일</label><input class="input" id="cEnd" type="date" value="${seed&&seed.end?esc(seed.end):y+'-08-08'}"></div></div>
     <label class="fld" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="cStudent" style="width:18px;height:18px"> 학생(자녀)이 함께 가요 · 체험학습 보고서 기능 켜기</label>
     <div style="height:6px"></div>
     <button class="btn brand" id="cBtn" onclick="saveCreateTrip()">${svg('i-check','ic')} 여행 만들기</button>`);}
@@ -6790,7 +7032,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(openIntro,450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v10.3 (2026-09-12)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v11.2 (2026-09-13)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authMode('login');
