@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <title>여행가보젠 — 함께 이어가는 여행</title>
+  <rect width="512" height="512" rx="120" fill="#BC482C"/>
+  <path d="M142 350c86 0 64-125 145-125h37" stroke="#FFF9EF" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="142" cy="350" r="25" fill="#F7CC95"/>
+  <path d="M331 118c-43 0-74 30-74 70 0 50 74 108 74 108s74-58 74-108c0-40-31-70-74-70Z" fill="#FFF9EF"/>
+  <circle cx="331" cy="186" r="26" fill="#BC482C"/>
+  <path d="M221 362h3m29-2h3m28-7h3" stroke="#F7CC95" stroke-width="14" stroke-linecap="round"/>
+</svg>
