@@ -52,12 +52,15 @@ const tripBases = new WeakMap(), saveQueues = new Map();
 function rememberTrip(t){tripBases.set(t,TravelCore.clone(t));return t;}
 function stripMeta(t){const c=TravelCore.clone(t);if(c){delete c._rev;delete c.updatedAt;}return c;}
 async function writeTripDraft(draft){
+  const uid=auth.currentUser?.uid;
+  if(!uid)throw Object.assign(new Error('로그인한 뒤 다시 저장해 주세요.'),{code:'travel/session-changed'});
   if(!navigator.onLine)throw Object.assign(new Error('인터넷에 연결한 뒤 다시 저장해 주세요.'),{code:'travel/offline'});
   const {local,base,isNew}=draft;
   TravelCore.validateTrip(local);
   const ref=doc(db,'trips',local.id);
   const saved=await runTransaction(db,async tx=>{
     const snap=await tx.get(ref);
+    if(auth.currentUser?.uid!==uid)throw Object.assign(new Error('로그인 상태가 바뀌어 저장을 멈췄어요.'),{code:'travel/session-changed'});
     if(isNew&&snap.exists())throw new Error('같은 여행 번호가 이미 있어요. 다시 만들어 주세요.');
     if(!isNew&&!snap.exists())throw new Error('삭제된 여행입니다.');
     const remote=snap.exists()?snap.data():null;
@@ -297,11 +300,15 @@ window.FB={
     }catch(e){}
   },
   async updateMyProfile(name,photo){
-    await updateProfile(auth.currentUser,{displayName:name});
-    await setDoc(doc(db,'users',auth.currentUser.uid),
-      {name,photo:photo||"",email:auth.currentUser.email,updatedAt:Date.now()},{merge:true});
+    const user=auth.currentUser;
+    await updateProfile(user,{displayName:name});
+    if(auth.currentUser?.uid!==user.uid)throw Object.assign(new Error('로그인 상태가 바뀌었어요.'),{code:'travel/session-changed'});
+    await setDoc(doc(db,'users',user.uid),
+      {name,photo:photo||"",email:user.email,updatedAt:Date.now()},{merge:true});
   },
   async saveTrip(t,isNew,deletePhotoIds=[]){
+    const uid=auth.currentUser?.uid,generation=authGeneration;
+    const current=()=>uid&&auth.currentUser?.uid===uid&&generation===authGeneration;
     const local=TravelCore.clone(t),base=tripBases.get(t);
     if(!isNew&&!base)throw new Error('여행을 다시 불러온 뒤 수정해 주세요.');
     const draft={base:TravelCore.clone(base),local,isNew:!!isNew,deletePhotoIds};
@@ -309,6 +316,7 @@ window.FB={
     releaseState.pending++;setSyncStatus('saving','변경 내용을 저장하고 있어요…');
     const previous=saveQueues.get(t.id)||Promise.resolve();
     const work=previous.catch(()=>{}).then(async()=>{
+      if(!current())throw Object.assign(new Error('로그인 상태가 바뀌어 저장을 멈췄어요.'),{code:'travel/session-changed'});
       if(releaseState.failed.has(t.id)){
         const failed=releaseState.failed.get(t.id);failed.local=local;failed.deletePhotoIds=[...new Set([...(failed.deletePhotoIds||[]),...deletePhotoIds])];
         throw Object.assign(new Error('저장하지 못한 변경을 먼저 확인해 주세요.'),{code:'travel/pending-draft'});
@@ -321,11 +329,12 @@ window.FB={
       if(isNew)rememberTrip(t);
       return result;
     }catch(e){
+      if(!current())throw e;
       if(!releaseState.failed.has(t.id))releaseState.failed.set(t.id,draft);
       setSyncStatus('error',e.code==='travel/conflict'?'다른 구성원의 수정과 겹쳐 저장을 멈췄어요':'변경 내용을 저장하지 못했어요');
       toast(e.code==='travel/conflict'?'다른 구성원의 수정과 겹쳤어요. 상단에서 미저장 내용을 확인해 주세요.':'저장하지 못했어요. 입력한 내용은 상단에서 확인할 수 있어요.');
       throw e;
-    }finally{releaseState.pending--;if(saveQueues.get(t.id)===work)saveQueues.delete(t.id);if(!releaseState.pending)refreshConnection();}
+    }finally{if(current())releaseState.pending=Math.max(0,releaseState.pending-1);if(saveQueues.get(t.id)===work)saveQueues.delete(t.id);if(current()&&!releaseState.pending)refreshConnection();}
   },
   createDraft(t){const copy=TravelCore.clone(t);tripBases.set(copy,TravelCore.clone(t));return copy;},
   async retryTrip(draft){const result=await writeTripDraft(draft);this.reloadTrips();return result;},
@@ -487,6 +496,7 @@ onAuthStateChanged(auth,async user=>{
   const generation=++authGeneration;
   ++tripWatchGeneration;++photoWatchGeneration;
   if(unsub){unsub();unsub=null;}if(photoUnsub){photoUnsub();photoUnsub=null;}
+  if(user&&typeof ME!=='undefined'&&ME.uid&&ME.uid!==user.uid)window.onSignedOut();
   if(user){
     let profile={name:user.displayName,photo:""};
     try{const s=await getDoc(doc(db,'users',user.uid));
