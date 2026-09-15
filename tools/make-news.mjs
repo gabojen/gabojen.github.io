@@ -10,7 +10,7 @@
      TOUR_API_KEY="..."       node tools/make-news.mjs 2026-11    (특정 달)
    ============================================================================ */
 import { writeFile, mkdir, readFile } from 'node:fs/promises';
-import { variedPlaces } from './news-catalog.mjs';
+import { variedPlaces, travelRegion } from './news-catalog.mjs';
 
 const RAW = (process.env.TOUR_API_KEY || '').trim();
 if (!RAW) {
@@ -37,9 +37,9 @@ const APP  = 'gabojen';
 
 /* 법정동 시도 코드 (매뉴얼 lDongRegnCd) */
 const REGIONS = [
-  ['11','서울'],['26','부산'],['27','대구'],['28','인천'],['29','광주'],['30','대전'],
+  ['11','서울'],['26','부산'],['27','대구'],['28','인천'],['12','광주'],['30','대전'],
   ['31','울산'],['36','세종'],['41','경기'],['51','강원'],['43','충북'],['44','충남'],
-  ['52','전북'],['46','전남'],['47','경북'],['48','경남'],['50','제주'],
+  ['52','전북'],['12','전남'],['47','경북'],['48','경남'],['50','제주'],
 ];
 const REGION_OF = Object.fromEntries(REGIONS);
 
@@ -101,7 +101,7 @@ async function call(op, params) {
 /* 이미지는 저작권 유형이 붙어 있습니다.
    Type1 = 출처표시, Type3 = 출처표시 + 변경금지.
    둘 다 출처를 반드시 표시하고, 사진에 색 보정·합성을 하지 않습니다. */
-const pickImg = x => (x.firstimage || '').replace(/^http:/,'https:');
+const pickImg = x => (x.firstimage || x.firstimage2 || '').replace(/^http:/,'https:');
 const pickThumb = x => (x.firstimage2 || x.firstimage || '').replace(/^http:/,'https:');
 
 function festivalOf(x) {
@@ -110,7 +110,7 @@ function festivalOf(x) {
     title: (x.title||'').trim(),
     start: x.eventstartdate || '',
     end: x.eventenddate || '',
-    region: REGION_OF[String(x.lDongRegnCd||'').padStart(2,'0')] || '',
+    region: travelRegion(x) || REGION_OF[String(x.lDongRegnCd||'').padStart(2,'0')] || '',
     addr: (x.addr1||'').trim(),
     tel: (x.tel||'').trim(),
     img: pickImg(x),
@@ -155,15 +155,23 @@ async function main() {
   let previous={};
   try { previous=JSON.parse(await readFile('news/latest.json','utf8')).spots||{}; } catch (_) {}
   const spots={}, collectionWarnings=[];
-  let successfulTypes=0;
+  let successfulTypes=0,legacyAreas=null;
   for (const [code,name] of REGIONS) {
     const collected=[];
     for (const type of ['12','14','28','38','39']) {
       try {
-        const rows=await call('areaBasedList2',{
-          numOfRows:'30',pageNo:'1',arrange:'Q',contentTypeId:type,lDongRegnCd:code,
+        let rows=await call('areaBasedList2',{
+          numOfRows:code==='12'?'100':'30',pageNo:'1',arrange:'Q',contentTypeId:type,lDongRegnCd:code,
         });
-        const batch=variedPlaces(rows,6);
+        // Some records have not migrated to the legal-district field yet.
+        // Resolve legacy codes from the provider instead of guessing them.
+        if(!rows.length) {
+          if(!legacyAreas)legacyAreas=await call('areaCode2',{numOfRows:'100',pageNo:'1'});
+          const legacy=legacyAreas.find(x=>String(x.name||'').includes(name));
+          if(legacy)rows=await call('areaBasedList2',{numOfRows:'30',pageNo:'1',arrange:'C',contentTypeId:type,areaCode:String(legacy.code)});
+        }
+        const matching=rows.filter(x=>travelRegion(x)===name);
+        const batch=variedPlaces(matching,6,false);
         collected.push(...batch.map(x=>({
           id:String(x.contentid),title:(x.title||'').trim(),addr:(x.addr1||'').trim(),
           contentTypeId:type,img:pickImg(x),thumb:pickThumb(x),rights:x.cpyrhtDivCd||'',
