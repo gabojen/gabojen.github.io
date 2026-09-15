@@ -1,0 +1,12 @@
+{
+  "kind":"editorial",
+  "checkedAt":"2026-09-15",
+  "title":"다음 여행의 작은 영감",
+  "lead":"바다를 걷고, 골목에 머물고. 우리에게 맞는 여행을 찾아요.",
+  "places":[
+    {"id":"hyeopjae","region":"제주","title":"협재해수욕장","tag":"바다 산책","description":"제주의 바다를 보며 여유로운 시간을 보내는 여행을 계획해 보세요.","image":"covers/sea1.webp","source":"제주관광공사 공식 가이드북","url":"https://www.visitjeju.net/pdf/Official%20Jeju%20Tourism%20Guidebook_kr.pdf","sourceDate":"2024-11"},
+    {"id":"gyeongpo","region":"강원","title":"경포호","tag":"호숫가 산책","description":"호수 주변 풍경을 천천히 둘러보는 하루. 이동 시간과 산책 구간은 일행에 맞춰 정해요.","image":"covers/forest2.webp","source":"강릉시 관광","url":"https://www.gn.go.kr/tour/html/tour/sub01/sub01_06_10.html"},
+    {"id":"donggung","region":"경북","title":"동궁과 월지","tag":"역사와 야경","description":"경주의 역사 공간과 야경을 만나는 여행 아이디어예요. 방문 시간과 관람 조건을 먼저 확인해 주세요.","image":"covers/palace2.webp","source":"경주시 문화관광","url":"https://www.gyeongju.go.kr/tour_bak/page.do?mnu_uid=2942"},
+    {"id":"bukchon","region":"서울","title":"북촌 한옥마을","tag":"골목과 한옥","description":"한옥과 골목을 돌아보는 도심 여행. 주민 생활공간인 만큼 허용된 방문 시간과 구역을 꼭 확인해 주세요.","image":"covers/palace1.webp","source":"서울한옥포털","url":"https://hanok.seoul.go.kr/front/kor/town/town01.do"}
+  ]
+}
