@@ -1,1 +1,2 @@
-window.GABOJEN_AI_KEY = "AQ.Ab8RN6KWarRDj1_IwBoRpSWzjItuPR5I5_mOB54c3q3C8lx1iA";
+// Retired: the app now uses Firebase AI Logic without a separate AI secret file.
+// This compatibility placeholder intentionally contains no credentials.
