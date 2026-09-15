@@ -124,6 +124,29 @@
     if (!festivals.length && !Object.values(spots).some(a=>a.length)) throw new Error('여행 소식이 없습니다.');
     return {...value,festivals,spots};
   }
+  const placeThemes = {'12':'관광·자연','14':'문화·전시','28':'레포츠','38':'시장·쇼핑','39':'맛집·카페'};
+  function placeTheme(place) { return placeThemes[String(place.contentTypeId || '12')] || '관광·자연'; }
+  // Interleave kinds so the first screen is varied, while keeping every place
+  // reachable. Selection never changes the source feed or the user's trips.
+  function discoveryFor(news, region, today, theme = '전체') {
+    const editorial = news?.kind === 'editorial';
+    const source = editorial ? (news.places || []).filter(p=>p.region===region) : (news?.spots?.[region] || []);
+    const unique = rows => { const seen = new Set(); return rows.filter(x=>x && x.id != null && !seen.has(String(x.id)) && seen.add(String(x.id))); };
+    const groups = new Map();
+    for (const p of unique(source)) { const key = placeTheme(p); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(p); }
+    // Give broadly useful walks and sightseeing a turn before niche facilities.
+    // This is a display rule, not a popularity rating or a claim of suitability.
+    const sightseeing = p => /공장|반려견|체육단지/.test(p.title)?-1:/공원|정원|식물원|수목원|숲|해수욕장|해변|오름|둘레길|호수/.test(p.title)?1:0;
+    if (groups.has('관광·자연')) groups.get('관광·자연').sort((a,b)=>sightseeing(b)-sightseeing(a));
+    const places = [];
+    const queues = [...groups.values()].map(a=>a.slice());
+    while (queues.some(a=>a.length)) queues.forEach(a=>{if(a.length)places.push(a.shift());});
+    const millis = d => Date.parse(d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6)+'T00:00:00Z');
+    const extended = f => millis(f.end)-millis(f.start) >= 60*86400000 ? 1 : 0;
+    const festivals = unique(news?.festivals || []).filter(f=>f.region===region && f.end>=today)
+      .sort((a,b)=>extended(a)-extended(b) || (a.start>today?1:0)-(b.start>today?1:0) || a.start.localeCompare(b.start) || String(a.id).localeCompare(String(b.id)));
+    return {places:theme==='전체'?places:places.filter(p=>placeTheme(p)===theme),themes:['전체',...groups.keys()],festivals,editorial,total:places.length};
+  }
   // Only UID-attributed content can be safely removed automatically. Legacy names
   // are not identities: two members can have the same display name.
   function removeAuthoredContent(trip, uid, photoIds = []) {
@@ -152,5 +175,5 @@
     }
     return clashes;
   }
-  return { clone, merge, validDate, dateRange, safeURL, safeImage, jsText, validateTrip, normalizePlans, normalizeNews, removeAuthoredContent, planConflicts };
+  return { clone, merge, validDate, dateRange, safeURL, safeImage, jsText, validateTrip, normalizePlans, normalizeNews, placeTheme, discoveryFor, removeAuthoredContent, planConflicts };
 });
