@@ -49,11 +49,11 @@ html.dark .nudge,html.dark .ent.next,html.dark .action-tile:hover,html.dark .rea
 @media print{.workspace-brand,.sync-status,.preview-note,.skip-link{display:none!important}.phone:not([data-screen=login]){padding-left:0}.phone{min-height:0}.ov{position:static;padding:0}.sheet,.modal{max-height:none}}
 .ent .pl em{color:var(--muted)}html.dark .btn.brand,html.dark .rchip.on{color:#fff}
 .tl .pl em{opacity:1}
-/* Small screens must be able to shrink native date inputs without overlap. */
-.date-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.date-fields>div{min-width:0}.date-fields input[type=date]{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;min-inline-size:0;padding:12px 10px}
+/* Native iOS dates need a full row even on wider phones. Keep the date picker. */
+.date-fields{display:grid;grid-template-columns:minmax(0,1fr);gap:0;min-width:0}
+.date-fields>div{min-width:0;max-width:100%}
+.date-fields input[type=date]{-webkit-appearance:none;appearance:none;display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;inline-size:100%;max-inline-size:100%;min-inline-size:0;padding:12px 14px}
 .date-fields input::-webkit-date-and-time-value{min-width:0;text-align:left}
-@media(max-width:360px){.date-fields{grid-template-columns:minmax(0,1fr);gap:0}}
 /* Keep the memory album visible below a compact, two-row stamp preview. */
 .stamp-grid{grid-template-columns:repeat(3,minmax(0,76px));justify-content:center;gap:12px 18px}
 .stamp-c{width:100%;max-width:76px;min-width:44px;min-height:44px}.stamp-c.off{opacity:.5}
