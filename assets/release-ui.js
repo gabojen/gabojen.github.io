@@ -106,8 +106,6 @@ window.requestAIConsent=async function(kind){
   if(releaseState.aiConsent)return;
   return new Promise((resolve,reject)=>{const dialog=document.createElement('dialog');dialog.className='ai-dialog';dialog.innerHTML='<h3>AI와 함께 일정 만들기</h3><p>이 기능에 필요한 여행지·날짜·일정 또는 선택한 예약 문자·사진이 Google Gemini로 전송됩니다. 이름·연락처·예약번호 등 불필요한 정보는 먼저 가려 주세요.</p><p class="muted small">결과는 초안입니다. 운영시간, 휴무, 가격과 예약 가능 여부는 방문 전 확인해 주세요.</p><button class="btn brand" data-yes>확인하고 계속</button><button class="btn ghost" data-no>취소</button>';document.body.append(dialog);const finish=ok=>{releaseState.cancelAIConsent=null;dialog.close();dialog.remove();if(ok){releaseState.aiConsent=true;resolve();}else reject(Object.assign(new Error('AI 요청을 취소했어요.'),{code:'travel/cancelled'}));};releaseState.cancelAIConsent=()=>finish(false);dialog.querySelector('[data-yes]').onclick=()=>finish(true);dialog.querySelector('[data-no]').onclick=()=>finish(false);dialog.addEventListener('cancel',e=>{e.preventDefault();finish(false);});dialog.showModal();});
 };
-const originalGo=renderGo;
-renderGo=function(){originalGo();if(NEWS){const current=todayStr().slice(0,7),month=String(NEWS.month||'').slice(0,7);if(month&&month<current)$('go').insertAdjacentHTML('afterbegin','<div class="news-stale">'+esc(month)+'에 수집한 여행 정보예요. 최신 운영 여부는 주최 측에서 확인해 주세요.</div>');}};
 const originalAuthed=window.onAuthed;
 window.onAuthed=function(user,profile){originalAuthed(user,profile);if(location.hash.startsWith('#invite='))setTimeout(()=>{if(ME.uid===user.uid)joinPrompt();},700);};
 const originalSignedOut=window.onSignedOut;
@@ -153,13 +151,6 @@ openPrivacy=function(){policyBody('개인정보 처리방침',`
 if('serviceWorker' in navigator&&location.protocol!=='file:'&&!location.pathname.endsWith('/preview.html')){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 }
-const monthlyGo=renderGo;
-renderGo=function(){
-  if(NEWS?.kind!=='editorial'){monthlyGo();return;}
-  const regions=['전체',...new Set(NEWS.places.map(p=>p.region))],selected=goRegion&&regions.includes(goRegion)?goRegion:'전체';
-  const places=NEWS.places.filter(p=>selected==='전체'||p.region===selected);
-  $('go').innerHTML=`<header class="page-lead"><span class="section-label">FIND YOUR NEXT JOURNEY</span><h2>${esc(NEWS.title)}</h2><p>${esc(NEWS.lead)}</p></header><div class="rchips">${regions.map(r=>`<button class="rchip${selected===r?' on':''}" onclick="goPick('${TravelCore.jsText(r)}')">${esc(r)}</button>`).join('')}</div><div class="discovery-grid">${places.map(p=>`<button class="discovery-card" onclick="openEditorial('${TravelCore.jsText(p.id)}')"><div class="discovery-image" style="background-image:url('${TravelCore.safeImage(p.image)}')"><span>${esc(p.region)}</span></div><div class="discovery-copy"><small>${esc(p.tag)}</small><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p><span class="discovery-more">여행 아이디어 보기 ${svg('i-right')}</span></div></button>`).join('')}</div><p class="muted small" style="margin-top:20px">공식 관광 안내를 참고한 기본 여행 아이디어예요. 운영시간·입장 조건은 방문 전 공식 안내를 확인해 주세요. 카드 사진은 여행 분위기를 보여주는 이미지로 실제 장소와 다를 수 있어요.</p>`;
-};
 function openEditorial(id){const p=NEWS?.places?.find(p=>p.id===id);if(!p)return;window.__editorialPlace=p;openSheet(`<h3>${esc(p.title)}</h3><p class="muted small">${esc(p.description)}</p><div class="ready-list"><span>${esc(p.region)}</span><span>${esc(p.tag)}</span></div><button class="btn brand" style="margin-top:20px" onclick="createFromEditorial()">${svg('i-plus')} 이곳으로 여행 만들기</button>${trip(curTrip)?`<button class="btn ghost" style="margin-top:10px" onclick="addEditorialToTrip()">${svg('i-pin')} 내 여행 일정에 담기</button>`:''}<button class="btn ghost" style="margin-top:10px" onclick="openExt('${TravelCore.jsText(p.url)}')">${svg('i-ext')} 공식 관광 안내 확인</button><p class="muted small" style="margin-top:15px">출처: ${esc(p.source)}${p.sourceDate?' · '+esc(p.sourceDate)+' 발행':''}<br>현재 운영시간·요금·통제 구간은 공식 안내에서 확인해 주세요.</p>`);}
 function createFromEditorial(){const p=window.__editorialPlace;if(!p)return;window.__tripSeed={title:p.title+' 여행',place:p.region+' · '+p.title,start:todayStr(),end:todayStr()};openCreateTrip();}
 function addEditorialToTrip(){const p=window.__editorialPlace;if(!p||!trip(curTrip))return;openAddItem(0);$('aTitle').value=p.title;$('aPlace').value=p.title;$('aSub').value='여행 아이디어 · 방문 전 운영정보 확인';}

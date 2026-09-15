@@ -1572,7 +1572,7 @@ async function loadNews(){
   if(document.querySelector('.screen.active')&&document.querySelector('.screen.active').id==='go')renderGo();
 }
 /* 날짜 글자(20261003) → '10/3' */
-function fdate(v){ return v&&v.length===8 ? (+v.slice(4,6))+'/'+(+v.slice(6,8)) : ''; }
+function fdate(v){ return v&&v.length===8 ? (v.slice(0,4)!==String(new Date().getFullYear())?v.slice(0,4)+'/':'')+(+v.slice(4,6))+'/'+(+v.slice(6,8)) : ''; }
 function todayYmd(){ const d=new Date(); return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0'); }
 /* 며칠짜리 행사인가 — 관광공사 자료에는 '왕궁수문장 교대의식'처럼
    1년 내내 하는 상설 프로그램이 축제와 섞여 옵니다(전체의 1/5).
@@ -1675,74 +1675,53 @@ function renderGo(){
     return;
   }
 
-  const mine=myRegions(), been=visitedRegions();
-  const t=todayYmd();
-  const live=(NEWS.festivals||[]).filter(f=>!f.end||f.end>=t);
-  const seasonal=live.filter(isSeasonal), always=live.filter(f=>!isSeasonal(f));
-  /* 내 다음 여행지 근처 축제를 맨 앞으로, 그다음 날짜순 */
-  const sorted=seasonal.slice().sort((a,b)=>{
-    const am=mine.includes(a.region)?0:1, bm=mine.includes(b.region)?0:1;
-    return am!==bm?am-bm:a.start.localeCompare(b.start);
-  });
-  /* ① 내 여행 기간·지역에 딱 맞는 것 → ② 없으면 지역만 맞는 것 */
-  let near=sorted.filter(matchesMyTrip).slice(0,3), nearWhy='trip';
-  if(!near.length){ near=sorted.filter(f=>mine.includes(f.region)).slice(0,3); nearWhy='region'; }
-  const rest=sorted.filter(f=>near.indexOf(f)<0).slice(0,10);
-  const nearRegions=[...new Set(near.map(f=>f.region))].slice(0,2).join(' · ');
-  /* 상시 프로그램은 내 지역 것을 먼저 */
-  const alwaysShow=always.slice().sort((a,b)=>
-    (mine.includes(a.region)?0:1)-(mine.includes(b.region)?0:1)).slice(0,4);
-
-  /* 갈 만한 곳 — 직접 고른 지역이 있으면 그것, 없으면 이력·계절로 추천 */
-  const rec=recommendRegion(been,NEWS.spots);
-  const pickR=goRegion||rec.region;
-  const spots=((NEWS.spots||{})[pickR]||[]).slice(0,4);
-  const recHead=goRegion?'갈 만한 곳':rec.head;
-  const recWhy=goRegion?'':rec.why;
-
+  const grouped=NEWS.kind==='editorial'
+    ? Object.fromEntries(REGION_LIST.map(r=>[r,NEWS.places.filter(p=>p.region===r)])) : NEWS.spots;
+  const rec=recommendRegion(visitedRegions(),grouped);
+  const pickR=REGION_LIST.includes(goRegion)?goRegion:rec.region;
+  const data=TravelCore.discoveryFor(NEWS,pickR,todayYmd(),goTheme);
+  const spots=data.places.slice(0,goPlaceLimit), festivals=data.festivals.slice(0,goFestivalLimit);
   const fcard=f=>{
-    const st=festState(f), ever=!isSeasonal(f);
-    const tag=ever?'' : (st.k==='now'?'<i class="now">열리는 중</i>':(st.label?`<i>${esc(st.label)}</i>`:''));
-    const when=ever?'상시':`${fdate(f.start)}${f.end&&f.end!==f.start?'–'+fdate(f.end):''}`;
-    return `<button class="fcard" onclick="openFestival('${TravelCore.jsText(f.id)}')">
-      <span class="fimg" style="background-image:url('${TravelCore.safeImage(f.thumb||f.img)}')">${tag}</span>
-      <span class="ftx"><b>${esc(f.title)}</b>
-        <em>${esc(f.region)} · ${when}</em></span>
-    </button>`;
+    const state=festState(f);
+    return `<button class="fcard" data-region="${esc(f.region)}" onclick="openFestival('${TravelCore.jsText(f.id)}')">
+      <span class="fimg" style="background-image:url('${TravelCore.safeImage(f.thumb||f.img)}')">${state.k==='now'?'<i class="now">열리는 중</i>':state.label?`<i>${esc(state.label)}</i>`:''}</span>
+      <span class="ftx"><b>${esc(f.title)}</b><em>${fdate(f.start)}${f.end!==f.start?' – '+fdate(f.end):''}</em>${matchesMyTrip(f)?'<small class="trip-match">내 여행 날짜와 맞아요</small>':''}</span></button>`;
   };
-
-  box.innerHTML=`
-    <div class="gohead"><b>${esc(NEWS.title||'이번 달 여행 소식')}</b><span>${esc(NEWS.lead||'')}</span></div>
-    ${hasStudentTrip()?`<button class="nudge" onclick="switchTab('trips')">${svg('i-file')}
-      <span><b>체험학습</b> 다녀오실 여행이 있어요. 축제 기간에 맞추면 신청서 쓰기가 쉬워집니다.</span>${svg('i-right','ch')}</button>`:''}
-
-    ${near.length?`<div class="eyebrow">${esc(nearRegions)} ${nearWhy==='trip'?'가시는 날짜에 열려요':'가시는군요 · 그곳의 축제'}</div>
-      <div class="flist">${near.map(fcard).join('')}</div>`:''}
-
-    <div class="eyebrow">이번 달 축제 <span style="font-weight:700;color:var(--muted)">· ${seasonal.length}개</span></div>
-    <div class="flist">${rest.map(fcard).join('')||'<p class="muted small" style="padding:6px 2px">이번 달에 남은 축제가 없어요.</p>'}</div>
-    ${alwaysShow.length?`<div class="eyebrow">언제 가도 볼 수 있어요 <span style="font-weight:700;color:var(--muted)">· 상시</span></div>
-      <div class="flist">${alwaysShow.map(fcard).join('')}</div>`:''}
-
-    <div class="eyebrow">${esc(recHead)}${goRegion?'':` <span style="font-weight:700;color:var(--brand-ink)">· ${esc(rec.region)}</span>`}</div>
-    ${recWhy?`<p class="muted small" style="margin:-4px 2px 10px">${esc(recWhy)}</p>`:''}
-    <div class="rchips" id="goChips">${REGION_LIST.map(r=>
-      `<button class="rchip${r===pickR?' on':''}" data-r="${r}" onclick="goPick('${r}')">${r}${
-        (been.length&&!been.includes(r))?'<i title="아직 안 가본 곳">·</i>':''}</button>`).join('')}</div>
-    <div class="sgrid">${spots.map(sp=>
-      `<button class="scard" onclick="openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')" style="background-image:url('${TravelCore.safeImage(sp.img||sp.thumb)}')">
-        <span class="sgr"></span><span class="stx">${esc(sp.title)}</span></button>`).join('')
-      ||'<p class="muted small" style="padding:6px 2px">이 지역은 아직 자료가 없어요.</p>'}</div>
-
-    <p class="muted small" style="margin:16px 2px 0;line-height:1.6">
-      자료 · 사진 출처: <b>한국관광공사</b> (${esc(NEWS.month||'')} 기준)<br>
-      축제 날짜는 주최 측 사정으로 바뀔 수 있어요. 가시기 전에 한 번 확인해 주세요.</p>`;
-  if(typeof axStaggerIn==='function')axStaggerIn('.fcard, .scard',box,{step:34,dy:10,start:40});
-  /* 고른 지역 칩이 옆으로 밀려 안 보일 수 있어 화면 안으로 끌어옵니다 */
-  const chips=document.getElementById('goChips'), on=chips&&chips.querySelector('.rchip.on');
-  if(chips&&on)chips.scrollLeft=Math.max(0,on.offsetLeft-chips.clientWidth/2+on.offsetWidth/2);
+  const month=String(NEWS.month||'').slice(0,7), stale=month&&month<todayStr().slice(0,7);
+  box.innerHTML=`<header class="page-lead go-lead"><span class="section-label">국내 여행 아이디어</span>
+      <h2>다음 여행, 어디로 갈까요?</h2><p>갈 만한 곳부터 그 지역의 축제까지, 가볍게 둘러보세요.</p></header>
+    <div class="region-picker"><label for="goRegionSelect">여행 지역</label><select class="input" id="goRegionSelect" onchange="goPick(this.value)">${REGION_LIST.map(r=>`<option value="${r}" ${r===pickR?'selected':''}>${r}</option>`).join('')}</select></div>
+    <div class="season-regions"><span>${esc(seasonNow())} 추천</span>${(SEASON_PICK[seasonNow()]||[]).map(([r])=>`<button class="rchip${r===pickR?' on':''}" aria-pressed="${r===pickR}" onclick="goPick('${r}')">${r}</button>`).join('')}</div>
+    <section aria-labelledby="goPlacesTitle">
+      <div class="section-heading"><h3 id="goPlacesTitle">${esc(pickR)}, 이런 곳은 어때요?</h3><span class="muted small">${data.total}곳</span></div>
+      ${!goRegion?`<p class="muted small go-reason">${esc(rec.why)}</p>`:''}
+      ${data.themes.length>2?`<div class="go-themes" aria-label="장소 종류">${data.themes.map(t=>`<button class="rchip${t===goTheme?' on':''}" aria-pressed="${t===goTheme}" onclick="goChooseTheme('${TravelCore.jsText(t)}')">${esc(t)}</button>`).join('')}</div>`:''}
+      <div class="place-grid">${spots.map(sp=>`<button class="place-card" data-place-id="${esc(sp.id)}" onclick="${data.editorial?`openEditorial('${TravelCore.jsText(sp.id)}')`:`openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')`}">
+        <span class="place-photo">${(sp.img||sp.thumb||sp.image)?`<img src="${TravelCore.safeImage(sp.img||sp.thumb||sp.image)}" alt="" loading="lazy" decoding="async">`:svg('i-pin','ic')}</span>
+        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}</small><b>${esc(sp.title)}</b><em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}</em></span></button>`).join('')||'<p class="go-empty">이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.</p>'}</div>
+      ${data.places.length>spots.length?`<button class="btn ghost sm go-more" id="goPlaceMore" onclick="goShowMore('places')">장소 더 보기 · ${spots.length}/${data.places.length}</button>`:''}
+    </section>
+    <section class="region-festivals" aria-labelledby="goFestivalsTitle">
+      <div class="section-heading"><h3 id="goFestivalsTitle">${esc(pickR)}의 축제·행사</h3><span class="muted small">${data.festivals.length}개</span></div>
+      <p class="muted small go-reason">${esc(pickR)}에서 진행 중이거나 앞으로 열릴 행사예요.</p>
+      <div class="flist">${festivals.map(fcard).join('')||`<p class="go-empty">${data.editorial?'지금은 축제 정보를 불러오지 못했어요.':'현재 수집된 '+esc(pickR)+'의 예정된 축제·행사가 없어요.'}<br>지역을 바꾸면 다른 곳의 소식을 볼 수 있어요.</p>`}</div>
+      ${data.festivals.length>festivals.length?`<button class="btn ghost sm go-more" id="goFestivalMore" onclick="goShowMore('festivals')">${esc(pickR)} 행사 더 보기 · ${festivals.length}/${data.festivals.length}</button>`:''}
+    </section>
+    ${NEWS.collectionWarnings?.length?'<p class="muted small go-source">일부 장소는 이전 수집 정보를 함께 보여드려요.</p>':''}
+    ${stale?`<div class="news-stale">${esc(month)}에 수집한 정보예요. 최신 운영 여부는 주최 측에서 확인해 주세요.</div>`:''}
+    <p class="muted small go-source">${data.editorial?'공식 관광 안내를 참고한 기본 여행 아이디어예요. 카드 사진은 분위기 이미지로 실제 장소와 다를 수 있어요.':'사진·정보: 한국관광공사 TourAPI · '+esc(NEWS.madeAt||month)+' 수집'}<br>운영시간·요금·행사 일정은 방문 전 공식 안내를 확인해 주세요.</p>`;
 }
-function goPick(r){ goRegion=r; renderGo(); }
+let goTheme='전체',goPlaceLimit=6,goFestivalLimit=3;
+function goPick(r){if(!REGION_LIST.includes(r))return;goRegion=r;goTheme='전체';goPlaceLimit=6;goFestivalLimit=3;renderGo();$('go').scrollTop=0;}
+function goChooseTheme(theme){goTheme=theme;goPlaceLimit=6;const y=$('go').scrollTop;renderGo();$('go').scrollTop=y;}
+function goShowMore(kind){
+  const box=$('go'),y=box.scrollTop;
+  const selector=kind==='places'?'.place-card':'.fcard',count=box.querySelectorAll(selector).length;
+  if(kind==='places')goPlaceLimit+=6;else goFestivalLimit+=3;
+  renderGo();
+  const next=box.querySelectorAll(selector)[count];if(next)next.focus({preventScroll:true});
+  box.scrollTop=y;
+}
 
 /* 축제 하나 자세히 — 바로 '여행 만들기'로 이어집니다 */
 function openFestival(id){
@@ -1753,20 +1732,20 @@ function openFestival(id){
     <h3 style="margin-top:12px">${esc(f.title)}</h3>
     <div class="menu" style="margin-top:10px">
       <div class="mrow" style="cursor:default">${svg('i-cal')}<span class="mtx"><b>${
-        isSeasonal(f)?`${fdate(f.start)}${f.end&&f.end!==f.start?' – '+fdate(f.end):''}`:'상시 운영'
-      }</b>${isSeasonal(f)&&st.label?`<em>${esc(st.label)}</em>`:''}</span></div>
+        `${fdate(f.start)}${f.end&&f.end!==f.start?' – '+fdate(f.end):''}`
+      }</b>${st.label?`<em>${esc(st.label)}</em>`:''}</span></div>
       ${f.addr?`<div class="mrow" style="cursor:default">${svg('i-pin')}<span class="mtx"><b>${esc(f.addr)}</b></span></div>`:''}
       ${f.tel?`<a class="mrow" href="tel:${esc(f.tel)}">${svg('i-info')}<span class="mtx"><b>${esc(f.tel)}</b><em>주최 측에 확인</em></span>${svg('i-right','mch')}</a>`:''}
     </div>
     <button class="btn brand" style="margin-top:14px" onclick="closeOv();tripFromFestival('${TravelCore.jsText(f.id)}')">
       ${svg('i-plus','ic')} 이 축제로 여행 만들기</button>
     ${f.addr?`<button class="btn ghost sm" style="margin-top:8px" onclick="closeOv();openMap('${TravelCore.jsText(f.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>`:''}
-    <p class="muted small" style="margin:12px 2px 0">사진·정보: 한국관광공사</p>`);
+    <p class="muted small" style="margin:12px 2px 0">표시된 기간 중 세부 진행일·시간은 주최 측 안내를 확인해 주세요.<br>사진·정보: 한국관광공사</p>`);
 }
 function openSpot(region,id){
   const sp=(((NEWS&&NEWS.spots)||{})[region]||[]).find(x=>String(x.id)===String(id)); if(!sp)return;
   openSheet(`<div class="grab"></div>
-    ${sp.img?`<div class="fbig" style="background-image:url('${esc(sp.img)}')"></div>`:''}
+    ${sp.img?`<div class="fbig" style="background-image:url('${TravelCore.safeImage(sp.img)}')"></div>`:''}
     <h3 style="margin-top:12px">${esc(sp.title)}</h3>
     ${sp.addr?`<p class="muted small" style="margin:4px 2px 0">${svg('i-pin')} ${esc(sp.addr)}</p>`:''}
     <button class="btn ghost" style="margin-top:14px" onclick="closeOv();openMap('${TravelCore.jsText(sp.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>
@@ -1777,7 +1756,8 @@ function tripFromFestival(id){
   const f=((NEWS&&NEWS.festivals)||[]).find(x=>String(x.id)===String(id)); if(!f)return;
   const iso=v=>v&&v.length===8?`${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}`:'';
   window.__tripSeed={title:f.title, place:(f.region||'')+(f.addr?' '+f.addr.split(' ').slice(0,2).join(' '):''),
-    start:iso(f.start), end:iso(f.end||f.start)};
+    start:iso(f.start>todayYmd()?f.start:todayYmd()),
+    end:iso(festDays(f)>7?(f.start>todayYmd()?f.start:todayYmd()):(f.end||f.start))};
   openCreateTrip();
 }
 
@@ -3021,9 +3001,9 @@ function openCreateTrip(){
     <label class="fld">여행지</label><input class="input" id="cPlace" placeholder="예: 제주도" value="${seed?esc(seed.place):''}">
     <label class="fld">함께 가는 그룹</label>
     <select class="input" id="cGroup"><option>가족</option><option>친구</option><option>동료</option><option>기타</option></select>
-    <div class="row" style="gap:10px">
-      <div style="flex:1"><label class="fld">시작일</label><input class="input" id="cStart" type="date" value="${seed&&seed.start?esc(seed.start):todayStr()}"></div>
-      <div style="flex:1"><label class="fld">종료일</label><input class="input" id="cEnd" type="date" value="${seed&&seed.end?esc(seed.end):todayStr()}"></div></div>
+    <div class="date-fields">
+      <div><label class="fld" for="cStart">시작일</label><input class="input" id="cStart" type="date" value="${seed&&seed.start?esc(seed.start):todayStr()}"></div>
+      <div><label class="fld" for="cEnd">종료일</label><input class="input" id="cEnd" type="date" value="${seed&&seed.end?esc(seed.end):todayStr()}"></div></div>
     <label class="fld" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="cStudent" style="width:18px;height:18px"> 학생(자녀)이 함께 가요 · 체험학습 보고서 기능 켜기</label>
     <div style="height:6px"></div>
     <button class="btn brand" id="cBtn" onclick="saveCreateTrip()">${svg('i-check','ic')} 여행 만들기</button>`);}
@@ -3772,8 +3752,9 @@ function dialSvg(frac,icon){
 function stampBoard(){
   const list=earnedStamps(), got=list.filter(x=>x.got).length;
   const recent=list.filter(x=>x.got).slice(-3).reverse();
+  const preview=list.filter(x=>x.got).concat(list.filter(x=>!x.got)).slice(0,6);
   return `<div class="card stampcard" id="stampWrap">
-    <button class="stamphd" onclick="toggleStamps()" aria-expanded="${stampOpen}">
+    <button class="stamphd" onclick="toggleStamps()" aria-expanded="${stampOpen}" aria-controls="stampPreview">
       ${dialSvg(list.length?got/list.length:0,'i-medal')}
       <div style="flex:1;min-width:0;text-align:left">
         <b style="font-size:14.5px">여행 스탬프</b>
@@ -3783,11 +3764,16 @@ function stampBoard(){
         `<span style="--sink:${STAMP_INK[s.ink]||STAMP_INK.ink}">${svg(s.icon)}</span>`).join('')}</div>`:''}
       <span class="chev ${stampOpen?'up':''}">${svg('i-down')}</span>
     </button>
-    ${stampOpen?`<div class="stamp-grid">${list.map((s,i)=>stampChip(s,i)).join('')}</div>
-      <p class="muted small" style="margin:12px 2px 0;line-height:1.6">
-        스탬프는 여행이 끝나면 <b>자동으로</b> 찍힙니다. 흐린 스탬프를 눌러 보면 무엇을 하면 받는지 알려 드려요.</p>`:''}
+    ${stampOpen?`<div id="stampPreview"><div class="stamp-grid stamp-preview">${preview.map((s,i)=>stampChip(s,i)).join('')}</div>
+      <p class="muted small stamp-note">여행이 끝나면 자동으로 모여요.</p>
+      <button class="btn ghost sm stamp-more" onclick="openAllStamps()">전체 스탬프 ${list.length}개 보기 ${svg('i-right','ic')}</button></div>`:''}
   </div>`;
 }
+function openAllStamps(){
+  const list=earnedStamps();
+  openSheet(`<h3>여행 스탬프</h3><p class="muted small">${list.filter(s=>s.got).length} / ${list.length}개 모았어요. 스탬프를 누르면 받는 방법을 볼 수 있어요.</p><div class="stamp-grid stamp-all">${list.map((s,i)=>stampChip(s,i)).join('')}</div>`);
+}
+
 
 
 /* ── 이미 올린 사진 줄이기 ────────────────────────────────────
@@ -5481,7 +5467,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.0.0-rc.2';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.0.0-rc.3';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
