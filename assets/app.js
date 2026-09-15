@@ -1691,7 +1691,7 @@ function renderGo(){
   box.innerHTML=`<header class="page-lead go-lead"><span class="section-label">국내 여행 아이디어</span>
       <h2>다음 여행, 어디로 갈까요?</h2><p>갈 만한 곳부터 그 지역의 축제까지, 가볍게 둘러보세요.</p></header>
     <div class="region-picker"><label for="goRegionSelect">여행 지역</label><select class="input" id="goRegionSelect" onchange="goPick(this.value)">${REGION_LIST.map(r=>`<option value="${r}" ${r===pickR?'selected':''}>${r}</option>`).join('')}</select></div>
-    <div class="season-regions"><span>${esc(seasonNow())} 추천</span>${(SEASON_PICK[seasonNow()]||[]).map(([r])=>`<button class="rchip${r===pickR?' on':''}" aria-pressed="${r===pickR}" onclick="goPick('${r}')">${r}</button>`).join('')}</div>
+    <div class="season-regions"><span>${esc(seasonNow())} 추천</span>${(SEASON_PICK[seasonNow()]||[]).filter(([r])=>(grouped?.[r]||[]).length).map(([r])=>`<button class="rchip${r===pickR?' on':''}" aria-pressed="${r===pickR}" onclick="goPick('${r}')">${r}</button>`).join('')}</div>
     <section aria-labelledby="goPlacesTitle">
       <div class="section-heading"><h3 id="goPlacesTitle">${esc(pickR)}, 이런 곳은 어때요?</h3><span class="muted small">${data.total}곳</span></div>
       ${!goRegion?`<p class="muted small go-reason">${esc(rec.why)}</p>`:''}
@@ -1702,9 +1702,9 @@ function renderGo(){
       ${data.places.length>spots.length?`<button class="btn ghost sm go-more" id="goPlaceMore" onclick="goShowMore('places')">장소 더 보기 · ${spots.length}/${data.places.length}</button>`:''}
     </section>
     <section class="region-festivals" aria-labelledby="goFestivalsTitle">
-      <div class="section-heading"><h3 id="goFestivalsTitle">${esc(pickR)}의 축제·행사</h3><span class="muted small">${data.festivals.length}개</span></div>
-      <p class="muted small go-reason">${esc(pickR)}에서 진행 중이거나 앞으로 열릴 행사예요.</p>
-      <div class="flist">${festivals.map(fcard).join('')||`<p class="go-empty">${data.editorial?'지금은 축제 정보를 불러오지 못했어요.':'현재 수집된 '+esc(pickR)+'의 예정된 축제·행사가 없어요.'}<br>지역을 바꾸면 다른 곳의 소식을 볼 수 있어요.</p>`}</div>
+      <div class="section-heading"><h3 id="goFestivalsTitle">${esc(pickR)}의 축제·행사</h3><span class="muted small">${data.editorial?'연결 필요':data.festivals.length+'개'}</span></div>
+      ${!data.editorial?`<p class="muted small go-reason">${esc(pickR)}에서 진행 중이거나 앞으로 열릴 행사예요.</p>`:''}
+      <div class="flist">${festivals.map(fcard).join('')||`<p class="go-empty">${data.editorial?'지금은 축제 정보를 불러오지 못했어요.':'현재 수집된 '+esc(pickR)+'의 예정된 축제·행사가 없어요.'}<br>${data.editorial?'장소 아이디어는 계속 둘러볼 수 있어요.':'지역을 바꾸면 다른 곳의 소식을 볼 수 있어요.'}</p>`}</div>
       ${data.festivals.length>festivals.length?`<button class="btn ghost sm go-more" id="goFestivalMore" onclick="goShowMore('festivals')">${esc(pickR)} 행사 더 보기 · ${festivals.length}/${data.festivals.length}</button>`:''}
     </section>
     ${NEWS.collectionWarnings?.length?'<p class="muted small go-source">일부 장소는 이전 수집 정보를 함께 보여드려요.</p>':''}
@@ -1712,8 +1712,11 @@ function renderGo(){
     <p class="muted small go-source">${data.editorial?'공식 관광 안내를 참고한 기본 여행 아이디어예요. 카드 사진은 분위기 이미지로 실제 장소와 다를 수 있어요.':'사진·정보: 한국관광공사 TourAPI · '+esc(NEWS.madeAt||month)+' 수집'}<br>운영시간·요금·행사 일정은 방문 전 공식 안내를 확인해 주세요.</p>`;
 }
 let goTheme='전체',goPlaceLimit=6,goFestivalLimit=3;
-function goPick(r){if(!REGION_LIST.includes(r))return;goRegion=r;goTheme='전체';goPlaceLimit=6;goFestivalLimit=3;renderGo();$('go').scrollTop=0;}
-function goChooseTheme(theme){goTheme=theme;goPlaceLimit=6;const y=$('go').scrollTop;renderGo();$('go').scrollTop=y;}
+function goPick(r){if(!REGION_LIST.includes(r))return;goRegion=r;goTheme='전체';goPlaceLimit=6;goFestivalLimit=3;renderGo();$('goRegionSelect')?.focus({preventScroll:true});$('go').scrollTop=0;}
+function goChooseTheme(theme){
+  goTheme=theme;goPlaceLimit=6;const box=$('go'),y=box.scrollTop,x=box.querySelector('.go-themes')?.scrollLeft||0;
+  renderGo();const chips=box.querySelector('.go-themes');if(chips){chips.scrollLeft=x;chips.querySelector('[aria-pressed=true]')?.focus({preventScroll:true});}box.scrollTop=y;
+}
 function goShowMore(kind){
   const box=$('go'),y=box.scrollTop;
   const selector=kind==='places'?'.place-card':'.fcard',count=box.querySelectorAll(selector).length;
