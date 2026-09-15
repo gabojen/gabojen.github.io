@@ -341,7 +341,8 @@ function tripId(){return randId(20);}       // 여행 = 초대코드 (더 길게
 function initial(name){return (name||"?").trim().charAt(0)||"?";}
 
 /* ---- 인증 화면 ---- */
-function authMode(m){authTab=m; $("signupConsent").hidden=m!=="signup";
+let authBusy=false;
+function authMode(m){if(authBusy)return;authTab=m; $("signupConsent").hidden=m!=="signup";
   $('tabLogin').classList.toggle('on',m==='login');$('tabSignup').classList.toggle('on',m==='signup');
   $('nameWrap').style.display=m==='signup'?'block':'none';
   $('authBtn').textContent=m==='signup'?'가입하고 시작하기':'로그인';$('authErr').innerHTML='';
@@ -374,20 +375,24 @@ function isTempMail(email){
   return TEMP_MAIL.some(x=>dom===x||dom.endsWith('.'+x));
 }
 async function doAuth(){
+  if(authBusy)return;
+  const mode=authTab;
   const email=$('aEmail').value.trim(),pw=$('aPw').value,name=($('aName').value||'').trim();
   if(!email||!pw){authError('이메일과 비밀번호를 입력해 주세요.');return;}
-  if(authTab==='signup'&&!name){authError('이름을 입력해 주세요.');return;}
+  if(authTab==='signup'&&(!name||name.length>100)){authError('이름은 1~100자로 입력해 주세요.');return;}
   if(authTab==='signup'&&isTempMail(email)){
     authError('일회용 메일 주소로는 가입할 수 없어요. 평소 쓰시는 메일 주소를 입력해 주세요.');return;}
   if(authTab==='signup'&&pw.length<8){
     authError('비밀번호를 8자 이상으로 만들어 주세요.');return;}
   if(!window.FB){authError('연결을 준비하고 있어요. 잠시 후 다시 시도해 주세요.');return;}
   if(authTab==='signup'&&(!$('agreeTerms').checked||!$('agreePrivacy').checked||!$('agreeAge').checked)){authError('가입에 필요한 필수 항목을 확인해 주세요.');return;}
+  authBusy=true;
   $('authBtn').disabled=true;$('authBtn').textContent='처리 중…';
   try{
-    if(authTab==='signup')await window.FB.signup(email,pw,name);
+    if(mode==='signup')await window.FB.signup(email,pw,name);
     else {await window.FB.login(email,pw);clearFails(email);}
   }catch(e){authError(window.FB.msg(e));}
+  finally{authBusy=false;}
   $('authBtn').disabled=false;$('authBtn').textContent=(authTab==='signup'?'가입하고 시작하기':'로그인');
 }
 /* ---- 아바타(사진 또는 이니셜) ---- */
@@ -658,9 +663,11 @@ async function openAdmin(){
       <b style="font-size:16px">${svg('i-grid','ic')} 운영 현황</b>
       <button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
     <div id="admBody">${aiBusy('불러오는 중…')}</div>`);
+  const adminUid=ME.uid,adminBox=$('admBody');
   let d;
   try{ d=await window.FB.adminStats(); }
   catch(e){ const b=$('admBody'); if(b)b.innerHTML=`<div class="err">불러오지 못했습니다: ${esc((e&&e.code)||e)}</div>`; return; }
+  if(!IS_ADMIN||ME.uid!==adminUid||!sheetIsCurrent(adminBox))return;
   const su=d.summary||{};
   const now=su.signups||0, out=su.leaves||0;
   const active30=(d.members||[]).filter(m=>{const n=daysAgo(m.seen); return n!==null&&n<=30;}).length;
@@ -677,7 +684,7 @@ async function openAdmin(){
   window.__admMembers=members;                    /* 회원 목록 팝업(두 번째 단계)이 씁니다 */
   box.innerHTML=`
     <div class="card statrow" style="margin:0 0 10px">
-      <div class="stat"><span class="sic">${svg('i-users')}</span><b id="admTotal">${total}</b><em>현재 회원</em></div>
+      <div class="stat"><span class="sic">${svg('i-users')}</span><b id="admTotal">${total}</b><em>조회된 회원</em></div>
       <span class="sdiv"></span>
       <div class="stat">${dialSvg(rate,'i-heart')}<b id="admA7">${active7}</b><em>최근 7일 접속</em></div>
     </div>
@@ -689,7 +696,7 @@ async function openAdmin(){
       <div><b>${su.photos||0}</b><span>올린 사진</span></div>
       <div class="cost"><b>${su.aiCalls||0}</b><span>AI 호출</span></div>
     </div>
-    <p class="muted small" style="margin:8px 2px 0;line-height:1.55">AI 호출만 <b>비용</b>이 듭니다. 나머지는 무료 범위예요.</p>
+    <p class="muted small" style="margin:8px 2px 0;line-height:1.55">회원 목록은 최대 200명까지 조회합니다. 누적 수치는 과거에 기록된 값으로 최신 사용량과 다를 수 있어요. 실제 사용량과 요금은 Firebase·Google Cloud 콘솔에서 확인해 주세요.</p>
 
     <div class="menu" style="margin-top:14px">
       ${d.membersErr
@@ -768,7 +775,9 @@ function openAccount(){
   <div class="eyebrow">앱</div>
   <div class="menu">
     ${menuRow('i-info','사용법 다시 보기','','closeOv();openIntro()')}
-    ${menuRow('i-file','이용약관 · 개인정보 처리방침','','openTerms()')}
+    ${menuRow('i-file','이용약관','','openTerms()')}
+    ${menuRow('i-file','개인정보 처리방침','','openPrivacy()')}
+    ${menuRow('i-info','문의 · 신고','','openSupport()')}
     ${menuRow('i-file','내 여행 데이터 내려받기','일정과 사진 참조를 JSON으로 보관','exportMyTrips()')}
     ${IS_ADMIN?menuRow('i-camera','사진 보관소 점검','','runStorageDiag()'):''}
   </div>
@@ -794,8 +803,9 @@ function menuRow(icon,label,sub,onclick){
 }
 function refreshAdminSlot(){
   if(IS_ADMIN||!window.FB||!window.FB.isAdmin)return;
+  const uid=ME.uid;
   window.FB.isAdmin().then(function(v){
-    if(!v)return;
+    if(!v||!uid||ME.uid!==uid)return;
     IS_ADMIN=true;
     const slot=document.getElementById('adminSlot');
     if(slot)slot.innerHTML=adminMenuHtml();
@@ -822,26 +832,31 @@ function pickPhoto(ev){const f=ev.target.files&&ev.target.files[0];if(!f)return;
     img.onload=()=>{ // 정사각형으로 잘라 160px로 축소 (용량 절약)
       const s=Math.min(img.width,img.height),c=document.createElement('canvas');c.width=c.height=160;
       c.getContext('2d').drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,160,160);
+      const p=$('pfPrev');if(!p||!ev.target.isConnected)return;
       newPhoto=c.toDataURL('image/jpeg',0.82);
-      const p=$('pfPrev');p.style.backgroundImage=`url('${newPhoto}')`;p.style.background=`url('${newPhoto}') center/cover`;
+      p.style.backgroundImage=`url('${newPhoto}')`;p.style.background=`url('${newPhoto}') center/cover`;
       p.innerHTML=`<span class="cam">${svg('i-camera','ic')}</span>`;};
     img.src=e.target.result;};
   r.readAsDataURL(f);}
 function removePhoto(){newPhoto="";const p=$('pfPrev');if(p){p.style.background=AVCOL[0];p.style.backgroundImage='none';
   p.innerHTML=esc(initial($('pfName').value||ME.name))+`<span class="cam">${svg('i-camera','ic')}</span>`;}toast('저장을 누르면 반영됩니다');}
 async function saveProfile(){
-  const name=($('pfName').value||'').trim();if(!name){toast('이름을 입력해 주세요.');return;}
-  $('pfBtn').disabled=true;
+  const name=($('pfName').value||'').trim();if(!name||name.length>100){toast('이름은 1~100자로 입력해 주세요.');return;}
+  const button=$('pfBtn'),profileUid=ME.uid;
+  button.disabled=true;
   const photo=(newPhoto===null)?ME.photo:newPhoto;
   try{
     await window.FB.updateMyProfile(name,photo);
+    if(ME.uid!==profileUid)return;
     ME.name=name;ME.photo=photo;
     // 내가 속한 여행들의 멤버 정보(이름/사진)도 함께 갱신
-    for(const t of TRIPS){let ch=false;
+    for(const t of TRIPS){if(ME.uid!==profileUid)return;let ch=false;
       (t.members||[]).forEach(m=>{if(m.uid===ME.uid){m.n=initial(name);m.nm=name;m.photo=photo||"";ch=true;}});
       if(ch)await window.FB.saveTrip(t);}
-    closeOv();toast('프로필을 저장했어요');rerender();
-  }catch(e){toast('저장 실패: 잠시 후 다시 시도해 주세요.');$('pfBtn').disabled=false;}
+    if(ME.uid!==profileUid)return;
+    if(sheetIsCurrent(button))closeOv();toast('프로필을 저장했어요');rerender();
+  }catch(e){if(ME.uid===profileUid)toast('프로필 정보를 모두 저장하지 못했어요. 연결을 확인한 뒤 다시 저장해 주세요.');}
+  finally{if(button.isConnected)button.disabled=false;}
 }
 async function sendVerify(){try{await window.FB.sendVerify();toast('인증 메일을 보냈어요. 메일함을 확인해 주세요.');closeOv();}
   catch(e){toast('발송 실패: 잠시 후 다시 시도해 주세요.');}}
@@ -1552,8 +1567,8 @@ async function loadNews(){
   try{
     const r=await fetch(newsUrl(),{cache:'no-cache'});
     if(!r.ok)throw new Error('없음');
-    NEWS=await r.json(); NEWS_STATE='ok';
-  }catch(e){try{const r=await fetch('news/editorial.json');if(!r.ok)throw new Error('없음');NEWS=await r.json();NEWS_STATE='ok';}catch(_){NEWS_STATE='none';}}
+    NEWS=TravelCore.normalizeNews(await r.json()); NEWS_STATE='ok';
+  }catch(e){try{const r=await fetch('news/editorial.json');if(!r.ok)throw new Error('없음');NEWS=TravelCore.normalizeNews(await r.json());NEWS_STATE='ok';}catch(_){NEWS=null;NEWS_STATE='none';}}
   if(document.querySelector('.screen.active')&&document.querySelector('.screen.active').id==='go')renderGo();
 }
 /* 날짜 글자(20261003) → '10/3' */
@@ -1654,8 +1669,8 @@ function renderGo(){
   if(NEWS_STATE==='none'||!NEWS){
     box.innerHTML=`<div class="empty">
       <div class="big">${svg('i-compass','ic')}</div>
-      <h2 style="margin:0 0 6px;font-size:19px">아직 소식지가 없어요</h2>
-      <p class="muted small" style="margin:0 auto;max-width:290px">매달 초에 이번 달 축제와 갈 만한 곳이 올라옵니다.</p>
+      <h2 style="margin:0 0 6px;font-size:19px">여행 소식을 불러오지 못했어요</h2>
+      <p class="muted small" style="margin:0 auto;max-width:290px">인터넷 연결을 확인한 뒤 다시 시도해 주세요. 내 여행의 일정은 계속 확인할 수 있어요.</p>
       <button class="btn ghost sm" style="margin:18px auto 0;width:auto" onclick="NEWS_STATE='idle';renderGo()">${svg('i-info','ic')} 다시 확인</button></div>`;
     return;
   }
@@ -1690,7 +1705,7 @@ function renderGo(){
     const tag=ever?'' : (st.k==='now'?'<i class="now">열리는 중</i>':(st.label?`<i>${esc(st.label)}</i>`:''));
     const when=ever?'상시':`${fdate(f.start)}${f.end&&f.end!==f.start?'–'+fdate(f.end):''}`;
     return `<button class="fcard" onclick="openFestival('${TravelCore.jsText(f.id)}')">
-      <span class="fimg" style="background-image:url('${esc(f.thumb||f.img)}')">${tag}</span>
+      <span class="fimg" style="background-image:url('${TravelCore.safeImage(f.thumb||f.img)}')">${tag}</span>
       <span class="ftx"><b>${esc(f.title)}</b>
         <em>${esc(f.region)} · ${when}</em></span>
     </button>`;
@@ -1715,7 +1730,7 @@ function renderGo(){
       `<button class="rchip${r===pickR?' on':''}" data-r="${r}" onclick="goPick('${r}')">${r}${
         (been.length&&!been.includes(r))?'<i title="아직 안 가본 곳">·</i>':''}</button>`).join('')}</div>
     <div class="sgrid">${spots.map(sp=>
-      `<button class="scard" onclick="openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')" style="background-image:url('${esc(sp.img||sp.thumb)}')">
+      `<button class="scard" onclick="openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')" style="background-image:url('${TravelCore.safeImage(sp.img||sp.thumb)}')">
         <span class="sgr"></span><span class="stx">${esc(sp.title)}</span></button>`).join('')
       ||'<p class="muted small" style="padding:6px 2px">이 지역은 아직 자료가 없어요.</p>'}</div>
 
@@ -1734,7 +1749,7 @@ function openFestival(id){
   const f=((NEWS&&NEWS.festivals)||[]).find(x=>String(x.id)===String(id)); if(!f)return;
   const st=festState(f);
   openSheet(`<div class="grab"></div>
-    ${f.img?`<div class="fbig" style="background-image:url('${esc(f.img)}')"></div>`:''}
+    ${f.img?`<div class="fbig" style="background-image:url('${TravelCore.safeImage(f.img)}')"></div>`:''}
     <h3 style="margin-top:12px">${esc(f.title)}</h3>
     <div class="menu" style="margin-top:10px">
       <div class="mrow" style="cursor:default">${svg('i-cal')}<span class="mtx"><b>${
@@ -3016,7 +3031,8 @@ async function saveCreateTrip(){
   const title=$('cTitle').value.trim();if(!title){toast('여행 제목을 입력해 주세요.');return;}
   const start=$('cStart').value,end=$('cEnd').value;
   try{TravelCore.dateRange(start,end);}catch(e){toast(e.message);return;}
-  $('cBtn').disabled=true;
+  const button=$('cBtn'),createUid=ME.uid;
+  button.disabled=true;
   const t={id:tripId(),title,place:$('cPlace').value.trim()||"여행지",groupType:$('cGroup').value,
     hasStudent:$('cStudent').checked,status:"active",start,end,   /* 표지는 저장하지 않고 coverArt()가 그때그때 그립니다 */
     members:[memberRec()],memberUids:[ME.uid],
@@ -3024,24 +3040,25 @@ async function saveCreateTrip(){
   try{await window.FB.saveTrip(t,true);      // true = 새로 만든 여행(통계용)
     /* 서버에서 목록이 다시 내려오길 기다리지 않고 바로 엽니다.
        (인터넷이 느리면 0.2초 안에 안 내려와서 엉뚱하게 [내 여행] 목록으로 튕기던 문제) */
+    if(ME.uid!==createUid)return;
     if(!trip(t.id))TRIPS.push(t);
+    if(!sheetIsCurrent(button)){toast('여행을 만들었어요. 내 여행에서 확인해 주세요.');rerender();return;}
     curTrip=t.id;curDay=0;curFilter="all";viewAll=true;closeOv();toast('여행을 만들었어요!');
     routeTo('detail');}
-  catch(e){toast('저장 실패: 인터넷 연결을 확인해 주세요.');$('cBtn').disabled=false;}
+  catch(e){if(ME.uid===createUid)toast(e.code==='travel/conflict'?'여행을 저장하지 못했어요. 다시 시도해 주세요.':e.message&& !/Firebase|[a-z]+\//i.test(e.message)?e.message:'저장 실패: 인터넷 연결을 확인해 주세요.');}
+  finally{if(button.isConnected)button.disabled=false;}
 }
 
 /* ---- 붙여넣기 ---- */
-const SMS=`[휘닉스 파크] 예약안내
-○ 이용자명 : 김광석 님
-○ 예약번호 : 4891
-○ 입실일자 : 2026-08-20
-○ 퇴실일자 : 2026-08-21
-○ 객실타입 : 스카이 로얄 1 실
-* 체크인데스크 : 블루 체크인센터 (블루동 1층 위치)
+const SMS=`[예시 호텔] 예약안내 (화면 체험용)
+○ 이용자명 : 여행자
+○ 예약번호 : SAMPLE123
+○ 입실일자 : 2026-10-03
+○ 퇴실일자 : 2026-10-04
+○ 객실타입 : 스탠다드 1실
 * 체크인시간 : 15:00 부터
 * 체크아웃시간 : 11:00 까지
-[문의] 객실예약 1577-0069, 콘도프론트 033-330-6200
-강원특별자치도 평창군 봉평면 태기로 174`;
+제주특별자치도 제주시`;
 let parsed=null;
 function renderPaste(){parsed=null;
   $('paste').innerHTML=`<p class="muted small" style="margin:6px 2px 12px"><b style="color:var(--ink)">예약 확인 문자·메일</b>을 그대로 붙여넣으면 필요한 항목만 골라 자동 정리합니다.<br>항공·기차·버스·숙박·렌트카·입장권·공연·식당 예약 모두 됩니다.</p>
@@ -4435,7 +4452,9 @@ async function doClone(){
     start,end:days[days.length-1],members:[memberRec()],
     memberUids:[ME.uid],days:nd,pack:(src.pack||[]).map(p=>({title:p.title,sub:p.sub,done:false})),proposals:[],owner:ME.uid};
   try{await window.FB.saveTrip(t,true);   // 복제도 새 여행이라 통계에 셉니다
-    if(!trip(t.id))TRIPS.push(t);          /* 위와 같은 이유 — 바로 열 수 있게 */
+    if(ME.uid!==createUid)return;
+    if(!trip(t.id))TRIPS.push(t);
+    if(!sheetIsCurrent(button)){toast('여행을 만들었어요. 내 여행에서 확인해 주세요.');rerender();return;}          /* 위와 같은 이유 — 바로 열 수 있게 */
     curTrip=t.id;curDay=0;viewAll=true;closeOv();toast('복제했어요!');routeTo('detail');}
   catch(e){toast('복제 실패: 잠시 후 다시 시도해 주세요.');}}
 
@@ -4882,7 +4901,9 @@ function openModal(html){$('ovc').outerHTML='<div id="ovc" class="modal">'+html+
    새로 연 확인 팝업이 그 예약에 의해 260ms 뒤 저절로 닫혀 버렸습니다.
    → 열 때마다 번호(_ovGen)를 올리고, 닫기 예약은 "내가 닫으려던 그 화면이 아직 열려 있을 때만" 닫습니다. */
 let _ovGen=0;
+function sheetIsCurrent(element){return element?.isConnected&&$('ov').classList.contains('on')&&!$('ov').dataset.closing;}
 function closeOv(){
+  $('ov').dataset.closing='true';
   const ov=$('ov');
   if(!ov.classList.contains('on')){ov.className='ov';ov.style.opacity='';return;}
   const gen=_ovGen;                                   /* 지금 닫으려는 화면의 번호 */
@@ -4896,7 +4917,7 @@ function closeOv(){
 }
 /* 시트·팝업이 열릴 때 — 번호를 올려 이전 닫기 예약을 무효화하고, 배경을 스르륵 어둡게 */
 function axOvIn(){
-  const ov=$('ov'); if(!ov)return;
+  const ov=$('ov'); if(!ov)return;delete ov.dataset.closing;
   _ovGen++;
   const gen=_ovGen;
   try{ if(typeof AX!=='undefined'&&AX.on&&AX.A.utils&&AX.A.utils.remove)AX.A.utils.remove(ov); }catch(e){}  /* 진행 중이던 닫힘 애니메이션 중단 */
@@ -5454,17 +5475,18 @@ window.onAuthed=function(user,profile){
   try{ const q=new URLSearchParams(location.search);
     if(q.get('open')==='album'&&q.get('trip')){ const id=q.get('trip');
       /* 여행 목록이 아직 안 왔을 수 있어 최대 6초까지 기다립니다 */
-      let tries=0; (function go(){ if(trip(id)){openAlbum(id);return;} if(++tries<12)setTimeout(go,500); })();
+      let tries=0; (function go(){ if(ME.uid!==user.uid)return; if(trip(id)){openAlbum(id);return;} if(++tries<12)setTimeout(go,500); })();
       history.replaceState(null,'',location.pathname); } }catch(e){}
   /* 처음 오신 분에게만 사용법을 보여 드립니다 (한 번 보면 다시 안 뜹니다) */
-  if(firstTime&&!introSeen())setTimeout(openIntro,450);};
+  if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.0 출시 검토본';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.0.0-rc.2';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
-  hideSplash();stack=[];show('login',{push:false});authMode('login');
-  $('aEmail').value='';$('aPw').value='';};
+  hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
+  $('aEmail').value='';$('aPw').value='';$('aName').value='';
+  for(const id of ['agreeTerms','agreePrivacy','agreeAge'])$(id).checked=false;};
 let TRIPS_READY=false;
 window.onTrips=function(list){TRIPS=list;TRIPS_READY=true;
   if(curTrip&&!trip(curTrip))curTrip=null;

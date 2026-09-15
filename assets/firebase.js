@@ -89,16 +89,21 @@ function msg(e){
 }
 
 // 내 여행 실시간 구독
-let photoUnsub=null;
+let photoUnsub=null,tripWatchGeneration=0,photoWatchGeneration=0,authGeneration=0;
 function watchTrips(uid){
   if(unsub)unsub();
+  const generation=++tripWatchGeneration;
   const q=query(collection(db,'trips'),where('memberUids','array-contains',uid));
   unsub=onSnapshot(q,snap=>{
+    if(generation!==tripWatchGeneration||auth.currentUser?.uid!==uid)return;
     window.__invalidTrips=[];const list=[];snap.forEach(d=>{const t={...d.data(),id:d.id};try{TravelCore.validateTrip(t);list.push(rememberTrip(t));}catch(e){window.__invalidTrips.push(t);console.warn('[여행 데이터] 형식을 확인해야 하는 여행이 있습니다.');}});
     list.sort((a,b)=>(a.start||'').localeCompare(b.start||''));
     window.onTrips(list);if(!releaseState.pending&&!releaseState.failed.size)refreshConnection();
-  },err=>{console.error(err);window.onFbError('데이터를 불러오지 못했습니다: '+err.message);});
+  },err=>{if(generation!==tripWatchGeneration||auth.currentUser?.uid!==uid)return;console.error(err);window.onFbError('데이터를 불러오지 못했습니다: '+err.message);});
 }
+
+function aiSession(){const session={uid:auth.currentUser?.uid,generation:authGeneration};assertAISession(session);return session;}
+function assertAISession(session){if(!session.uid||auth.currentUser?.uid!==session.uid||session.generation!==authGeneration)throw Object.assign(new Error('로그인 상태가 바뀌어 AI 요청을 취소했어요.'),{code:'travel/cancelled'});}
 
 /* ── Gemini 비전: 예약 캡처를 구조화 데이터로 직접 변환 ──
    키는 Firebase가 서버에서 관리하므로 앱 코드에 노출되지 않습니다. */
@@ -147,32 +152,38 @@ window.FB={
   msg,
   aiReady(){ return true; },
   async readText(text){
+    const session=aiSession();
     await window.requestAIConsent('text');
+    assertAISession(session);
     const log=[]; let lastErr=null;
     window.__aiDebug={tried:log,raw:'',ok:false};
     for(const name of AI_MODELS){
       try{
         const model=getGenerativeModel(ai(),{model:name,generationConfig:{responseMimeType:'application/json',maxOutputTokens:8192}},{timeout:45000});
         const r=await model.generateContent([AI_PROMPT,'\n\n---\n'+String(text||'').slice(0,6000)]);
+        assertAISession(session);
         const txt=(r.response.text()||'').replace(/```json|```/g,'').trim();
         window.__aiDebug.raw=txt; log.push(name+': 응답 '+txt.length+'자');
         const m=txt.match(/\{[\s\S]*\}/);
         if(!m)throw new Error('AI 응답이 JSON이 아닙니다');
         const j=JSON.parse(m[0]); window.__aiDebug.ok=true; window.__aiDebug.model=name; return j;
-      }catch(e){ lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
+      }catch(e){assertAISession(session);if(e.code==='travel/cancelled')throw e;lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
     }
     const err=new Error(log.join(' / ')); err.detail=log; throw err;
   },
   async readImage(file){
+    const session=aiSession();
     if(!file||!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>10*1024*1024)throw new Error('JPG·PNG·WebP 사진을 10MB 이하로 선택해 주세요.');
     await window.requestAIConsent('image');
     const part=await fileToPart(file);
+    assertAISession(session);
     const log=[]; let lastErr=null;
     window.__aiDebug={tried:log,raw:'',ok:false};
     for(const name of AI_MODELS){
       try{
         const model=getGenerativeModel(ai(),{model:name,generationConfig:{responseMimeType:'application/json',maxOutputTokens:8192}},{timeout:45000});
         const r=await model.generateContent([AI_PROMPT,part]);
+        assertAISession(session);
         const txt=(r.response.text()||'').replace(/```json|```/g,'').trim();
         window.__aiDebug.raw=txt;
         log.push(name+': 응답 '+txt.length+'자');
@@ -181,7 +192,7 @@ window.FB={
         const j=JSON.parse(m[0]);
         window.__aiDebug.ok=true; window.__aiDebug.model=name;
         return j;
-      }catch(e){ lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
+      }catch(e){assertAISession(session);if(e.code==='travel/cancelled')throw e;lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
     }
     const err=new Error(log.join(' / '));
     err.detail=log; throw err;
@@ -205,8 +216,10 @@ window.FB={
   aiRoute(){return 'firebase';},
   /* images: 사진 data URL 배열 (없으면 글만 보냅니다) — 보고서에서 사진을 읽을 때 씁니다 */
   async askJson(prompt,images){
+    const session=aiSession();
     await window.requestAIConsent('plan');
-    this.bump('aiCalls');                       // 비용이 드는 유일한 기능이라 횟수를 셉니다
+    assertAISession(session);
+    this.bump('aiCalls');
     const log=[]; window.__aiDebug={tried:log,raw:'',ok:false,route:this.aiRoute()};
     const pics=(images||[]).map(u=>{
       const m=/^data:([^;]+);base64,(.*)$/.exec(String(u)||''); return m?{mime:m[1],b64:m[2]}:null;
@@ -218,13 +231,14 @@ window.FB={
         const r=await model.generateContent(pics.length
           ? [prompt].concat(pics.map(p=>({inlineData:{mimeType:p.mime,data:p.b64}})))
           : prompt);
+        assertAISession(session);
         const txt=(r.response.text()||'').replace(/```json|```/g,'').trim();
         window.__aiDebug.raw=txt; log.push(name+': 응답 '+txt.length+'자');
         const m=txt.match(/\{[\s\S]*\}/);
         if(!m)throw new Error('AI 응답이 JSON이 아닙니다');
         const j=JSON.parse(m[0]);
         window.__aiDebug.ok=true; window.__aiDebug.model=name; return j;
-      }catch(e){ log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
+      }catch(e){assertAISession(session);if(e.code==='travel/cancelled')throw e;log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
     }
     const err=new Error(log.join(' / ')); err.detail=log; throw err;
   },
@@ -422,12 +436,14 @@ window.FB={
   /* 지금 보고 있는 여행의 사진만 가져옵니다 (다른 여행 사진은 안 불러옵니다) */
   watchPhotos(tripId,cb){
     if(photoUnsub){photoUnsub();photoUnsub=null;}
+    const generation=++photoWatchGeneration,uid=auth.currentUser?.uid;
     if(!tripId)return;
     const q=query(collection(db,'photos'),where('tripId','==',tripId));
     photoUnsub=onSnapshot(q,snap=>{
+      if(generation!==photoWatchGeneration||auth.currentUser?.uid!==uid)return;
       const map={}; snap.forEach(d=>{const v=d.data(); map[d.id]={u:v.u,by:v.by,uid:v.uid};});
       cb(map);
-    },err=>{ console.warn('[사진] 불러오기 실패:',err&&err.code); cb({},err); });
+    },err=>{if(generation!==photoWatchGeneration||auth.currentUser?.uid!==uid)return;console.warn('[사진] 불러오기 실패:',err&&err.code);cb({},err);});
   },
   /* 여행을 지울 때 그 여행 사진도 같이 지웁니다 */
   async deleteTripPhotos(tripId){
@@ -468,10 +484,14 @@ window.FB={
 };
 
 onAuthStateChanged(auth,async user=>{
+  const generation=++authGeneration;
+  ++tripWatchGeneration;++photoWatchGeneration;
+  if(unsub){unsub();unsub=null;}if(photoUnsub){photoUnsub();photoUnsub=null;}
   if(user){
     let profile={name:user.displayName,photo:""};
     try{const s=await getDoc(doc(db,'users',user.uid));
       if(s.exists()){const d=s.data();profile.name=profile.name||d.name;profile.photo=d.photo||"";}}catch(e){}
+    if(generation!==authGeneration||auth.currentUser?.uid!==user.uid)return;
     watchTrips(user.uid);
     window.onAuthed(user,profile);
   }else{

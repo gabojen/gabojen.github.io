@@ -56,7 +56,8 @@
     if (!validDate(start) || !validDate(end)) throw new Error('올바른 여행 날짜를 입력해 주세요.');
     const a = Date.parse(start + 'T00:00:00Z'), b = Date.parse(end + 'T00:00:00Z');
     const count = Math.round((b - a) / 86400000) + 1;
-    if (count < 1 || count > 90) throw new Error('여행은 시작일부터 최대 90일까지 만들 수 있어요.');
+    if (count < 1) throw new Error('종료일은 시작일과 같거나 뒤로 선택해 주세요.');
+    if (count > 90) throw new Error('여행은 시작일부터 최대 90일까지 만들 수 있어요.');
     return Array.from({ length: count }, (_, i) => new Date(a + i * 86400000).toISOString().slice(0, 10));
   }
   function safeURL(value) {
@@ -68,6 +69,7 @@
   function safeImage(value) {
     const s = String(value || '');
     if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) return s;
+    if (/^(?:covers|hero|assets)\/[A-Za-z0-9_-]+\.(?:webp|png|jpe?g)$/i.test(s)) return s;
     const u = safeURL(s);
     return u ? u.replace(/["'()<>\\\s]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase()) : '';
   }
@@ -77,17 +79,17 @@
   function validateTrip(t) {
     if (!t || !/^[A-Za-z0-9_-]{4,80}$/.test(t.id || '')) throw new Error('여행 번호가 올바르지 않습니다.');
     const dates = dateRange(t.start, t.end);
-    if (!t.title || t.title.length > 100 || (t.place || '').length > 200) throw new Error('여행 제목은 100자, 여행지는 200자 이내로 입력해 주세요.');
-    if (!Array.isArray(t.days) || !t.days.length || t.days.length > 90 || t.days.some(d => !dates.includes(d.date)) || new Set(t.days.map(d=>d.date)).size !== t.days.length) throw new Error('일정 날짜를 확인해 주세요.');
+    if (typeof t.title !== 'string' || !t.title.trim() || t.title.length > 100 || (t.place != null && typeof t.place !== 'string') || (t.place || '').length > 200) throw new Error('여행 제목은 100자, 여행지는 200자 이내로 입력해 주세요.');
+    if (!Array.isArray(t.days) || !t.days.length || t.days.length > 90 || t.days.some(d => !record(d) || !dates.includes(d.date)) || new Set(t.days.map(d=>d.date)).size !== t.days.length) throw new Error('일정 날짜를 확인해 주세요.');
     const categories = new Set(['transport','stay','rentcar','ticket','plan','pack']);
     const ids = new Set();
     for (const day of t.days) {
       if (!Array.isArray(day.items) || day.items.length > 150) throw new Error('하루 일정은 150개까지 저장할 수 있어요.');
       for (const it of day.items) {
-        if (!/^[A-Za-z0-9_-]{1,80}$/.test(it._id || '') || ids.has(it._id)) throw new Error('일정 번호가 중복되었거나 올바르지 않습니다.');
+        if (!record(it) || !/^[A-Za-z0-9_-]{1,80}$/.test(it._id || '') || ids.has(it._id)) throw new Error('일정 번호가 중복되었거나 올바르지 않습니다.');
         ids.add(it._id);
         if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(it.time || '') || !categories.has(it.cat)) throw new Error('일정 시간과 분류를 확인해 주세요.');
-        if (!it.title || it.title.length > 200 || (it.sub || '').length > 6000) throw new Error('일정 제목은 200자, 메모는 6,000자 이내로 입력해 주세요.');
+        if (typeof it.title !== 'string' || !it.title.trim() || it.title.length > 200 || (it.sub != null && typeof it.sub !== 'string') || (it.sub || '').length > 6000) throw new Error('일정 제목은 200자, 메모는 6,000자 이내로 입력해 주세요.');
       }
     }
     if (JSON.stringify(t).length > 850000 || new TextEncoder().encode(JSON.stringify(t)).length > 900000) throw new Error('저장공간이 부족합니다. 사진을 줄인 뒤 다시 저장해 주세요.');
@@ -95,13 +97,32 @@
   }
   function normalizePlans(value, dates) {
     if (!value || !Array.isArray(value.plans)) throw new Error('AI 응답 형식이 올바르지 않습니다. 다시 시도해 주세요.');
-    return value.plans.slice(0, 2).map(p => ({
+    return value.plans.filter(record).slice(0, 2).map(p => ({
       name: String(p.name || '추천 일정').slice(0, 20), summary: String(p.summary || '').slice(0, 100),
-      days: (Array.isArray(p.days) ? p.days : []).filter(d => dates.includes(d.date)).map(d => ({date:d.date,
-        items: (Array.isArray(d.items) ? d.items : []).slice(0, 15).filter(x => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(x.time || '') && typeof x.title === 'string' && x.title.trim())
+      days: (Array.isArray(p.days) ? p.days : []).filter(d => record(d) && dates.includes(d.date)).filter((d,i,a) => a.findIndex(x=>x.date===d.date)===i).map(d => ({date:d.date,
+        items: (Array.isArray(d.items) ? d.items : []).filter(x => record(x) && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(x.time || '') && typeof x.title === 'string' && x.title.trim()).slice(0, 15)
           .map(x => ({time:x.time,title:x.title.slice(0,80),place:String(x.place || '').slice(0,150),kind:x.kind==='ticket'?'ticket':'plan',why:String(x.why||'').slice(0,150)}))
       })).filter(d => d.items.length)
     })).filter(p => p.days.length);
+  }
+  // Published files and fallbacks use different schemas. Reject broken feeds so
+  // the caller can load the fallback; discard individual malformed cards.
+  function normalizeNews(value) {
+    if (!record(value)) throw new Error('여행 정보 형식을 확인해 주세요.');
+    const text = x => typeof x === 'string' ? x : '';
+    const card = x => record(x) && ['string','number'].includes(typeof x.id) && text(x.title).trim();
+    const images = x => ({...x,id:String(x.id),img:safeImage(x.img),thumb:safeImage(x.thumb)});
+    if (value.kind === 'editorial') {
+      const places = (Array.isArray(value.places) ? value.places : []).filter(card).filter(p=>text(p.region).trim()).map(p=>({...p,id:String(p.id),image:safeImage(p.image),url:safeURL(p.url)}));
+      if (!places.length) throw new Error('여행 아이디어가 없습니다.');
+      return {...value,title:text(value.title)||'다음 여행의 작은 영감',lead:text(value.lead),places};
+    }
+    if (!Array.isArray(value.festivals) || !record(value.spots)) throw new Error('여행 소식을 불러오지 못했어요.');
+    const ymd = x => typeof x === 'string' && /^\d{8}$/.test(x) && validDate(x.slice(0,4)+'-'+x.slice(4,6)+'-'+x.slice(6));
+    const festivals = value.festivals.filter(card).filter(f=>ymd(f.start)&&ymd(f.end)&&f.end>=f.start).map(images);
+    const spots = Object.fromEntries(Object.entries(value.spots).filter(([r,a])=>r&&Array.isArray(a)).map(([r,a])=>[r,a.filter(card).map(images)]));
+    if (!festivals.length && !Object.values(spots).some(a=>a.length)) throw new Error('여행 소식이 없습니다.');
+    return {...value,festivals,spots};
   }
   // Only UID-attributed content can be safely removed automatically. Legacy names
   // are not identities: two members can have the same display name.
@@ -131,5 +152,5 @@
     }
     return clashes;
   }
-  return { clone, merge, validDate, dateRange, safeURL, safeImage, jsText, validateTrip, normalizePlans, removeAuthoredContent, planConflicts };
+  return { clone, merge, validDate, dateRange, safeURL, safeImage, jsText, validateTrip, normalizePlans, normalizeNews, removeAuthoredContent, planConflicts };
 });
