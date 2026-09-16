@@ -1698,7 +1698,7 @@ function renderGo(){
       ${data.themes.length>2?`<div class="go-themes" aria-label="장소 종류">${data.themes.map(t=>`<button class="rchip${t===goTheme?' on':''}" aria-pressed="${t===goTheme}" onclick="goChooseTheme('${TravelCore.jsText(t)}')">${esc(t)}</button>`).join('')}</div>`:''}
       <div class="place-grid">${spots.map(sp=>`<button class="place-card" data-place-id="${esc(sp.id)}" onclick="${data.editorial?`openEditorial('${TravelCore.jsText(sp.id)}')`:`openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')`}">
         <span class="place-photo">${(sp.img||sp.thumb||sp.image)?`<img src="${TravelCore.safeImage(sp.img||sp.thumb||sp.image)}" alt="" loading="lazy" decoding="async">`:svg('i-pin','ic')}</span>
-        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}</small><b>${esc(sp.title)}</b><em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}</em></span></button>`).join('')||'<p class="go-empty">이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.</p>'}</div>
+        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}</small><b>${esc(sp.title)}</b>${sp.intro?`<span class="place-intro">${esc(sp.intro)}</span>`:''}<em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}</em></span></button>`).join('')||'<p class="go-empty">이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.</p>'}</div>
       ${data.places.length>spots.length?`<button class="btn ghost sm go-more" id="goPlaceMore" onclick="goShowMore('places')">장소 더 보기 · ${spots.length}/${data.places.length}</button>`:''}
     </section>
     <section class="region-festivals" aria-labelledby="goFestivalsTitle">
@@ -1712,7 +1712,17 @@ function renderGo(){
     <p class="muted small go-source">${data.editorial?'공식 관광 안내를 참고한 기본 여행 아이디어예요. 카드 사진은 분위기 이미지로 실제 장소와 다를 수 있어요.':'사진·정보: 한국관광공사 TourAPI · '+esc(NEWS.madeAt||month)+' 수집'}<br>운영시간·요금·행사 일정은 방문 전 공식 안내를 확인해 주세요.</p>`;
 }
 let goTheme='전체',goPlaceLimit=6,goFestivalLimit=3;
-function goPick(r){if(!REGION_LIST.includes(r))return;goRegion=r;goTheme='전체';goPlaceLimit=6;goFestivalLimit=3;renderGo();$('goRegionSelect')?.focus({preventScroll:true});$('go').scrollTop=0;}
+/* 지역 고르기.
+   ⚠ 예전에는 고른 뒤 드롭다운에 포커스를 줘서 휴대폰에서 '지역 선택' 창이 저절로 열렸고,
+     화면까지 맨 위로 튕겼습니다. 이제 보던 자리에서 내용만 바뀝니다. */
+function goPick(r){
+  if(!REGION_LIST.includes(r))return;
+  const box=$('go'), keep=box?box.scrollTop:0;
+  goRegion=r;goTheme='전체';goPlaceLimit=6;goFestivalLimit=3;
+  renderGo();
+  if(box)box.scrollTop=keep;                       /* 보던 위치 유지 */
+  const sel=$('goRegionSelect'); if(sel)sel.value=r;   /* 드롭다운 값만 맞추고 열지는 않음 */
+}
 function goChooseTheme(theme){
   goTheme=theme;goPlaceLimit=6;const box=$('go'),y=box.scrollTop,x=box.querySelector('.go-themes')?.scrollLeft||0;
   renderGo();const chips=box.querySelector('.go-themes');if(chips){chips.scrollLeft=x;chips.querySelector('[aria-pressed=true]')?.focus({preventScroll:true});}box.scrollTop=y;
@@ -1749,7 +1759,9 @@ function openSpot(region,id){
   const sp=(((NEWS&&NEWS.spots)||{})[region]||[]).find(x=>String(x.id)===String(id)); if(!sp)return;
   openSheet(`<div class="grab"></div>
     ${sp.img?`<div class="fbig" style="background-image:url('${TravelCore.safeImage(sp.img)}')"></div>`:''}
-    <h3 style="margin-top:12px">${esc(sp.title)}</h3>
+    <p class="muted small" style="margin:12px 2px 0;font-weight:700;color:var(--brand-ink)">${esc(TravelCore.placeTheme(sp))}</p>
+    <h3 style="margin-top:2px">${esc(sp.title)}</h3>
+    ${sp.intro?`<p class="spot-intro">${esc(sp.intro)}</p>`:''}
     ${sp.addr?`<p class="muted small" style="margin:4px 2px 0">${svg('i-pin')} ${esc(sp.addr)}</p>`:''}
     <button class="btn ghost" style="margin-top:14px" onclick="closeOv();openMap('${TravelCore.jsText(sp.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>
     <p class="muted small" style="margin:12px 2px 0">사진·정보: 한국관광공사</p>`);
@@ -2993,6 +3005,73 @@ async function recheckVerify(){
     else toast('아직 인증 전이에요. 메일의 링크를 눌러 주세요.');
   }catch(e){ toast('확인하지 못했어요. 잠시 후 다시 시도해 주세요.'); }
 }
+/* ══ 기간 달력 ══════════════════════════════════════════════
+   출발일·도착일을 칸 두 개에 따로 넣던 것을, 달력 하나에서 **두 번 탭**으로 끝냅니다.
+   · 첫 탭 = 출발일, 둘째 탭 = 도착일 (출발일보다 앞을 누르면 출발일을 다시 잡음)
+   · 위의 [당일·1박 2일·…] 을 누르면 출발일 기준으로 도착일이 자동으로 잡힘
+   · 결과는 숨은 칸(startId/endId)에 'YYYY-MM-DD' 로 들어가서, 저장 코드는 그대로 씁니다. */
+const RP_DOW=['일','월','화','수','목','금','토'];
+function rpIso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function rpParse(v){ if(!v||v.length!==10)return null; const d=new Date(+v.slice(0,4),+v.slice(5,7)-1,+v.slice(8,10)); return isNaN(d)?null:d; }
+function rpAdd(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function rpLabel(v){ const d=rpParse(v); if(!d)return ''; return (d.getMonth()+1)+'/'+d.getDate()+'('+RP_DOW[d.getDay()]+')'; }
+function mountRangePicker(boxId,startId,endId){
+  const box=document.getElementById(boxId), sIn=document.getElementById(startId), eIn=document.getElementById(endId);
+  if(!box||!sIn||!eIn)return;
+  const today=rpIso(new Date());
+  const st={start:sIn.value||'', end:eIn.value||'', phase:'start'};
+  const base=rpParse(st.start)||new Date();
+  st.y=base.getFullYear(); st.m=base.getMonth();
+  if(st.start&&st.end)st.phase='start';
+
+  const nights=function(){ if(!st.start||!st.end)return null;
+    return Math.round((rpParse(st.end)-rpParse(st.start))/86400000); };
+  const sync=function(){ sIn.value=st.start; eIn.value=st.end; };
+  const summary=function(){
+    const n=nights();
+    if(!st.start)return `<b>출발일을 눌러 주세요</b>`;
+    if(!st.end)return `<b>${rpLabel(st.start)}</b><span>→ 도착일을 눌러 주세요</span>`;
+    return `<b>${rpLabel(st.start)} → ${rpLabel(st.end)}</b><span>${n===0?'당일':n+'박 '+(n+1)+'일'}</span>`;
+  };
+  const draw=function(){
+    sync();
+    const first=new Date(st.y,st.m,1), last=new Date(st.y,st.m+1,0);
+    let cells='';
+    for(let i=0;i<first.getDay();i++)cells+='<i></i>';
+    for(let d=1;d<=last.getDate();d++){
+      const iso=rpIso(new Date(st.y,st.m,d));
+      const cls=['rp-d'];
+      if(iso===st.start||iso===st.end)cls.push('on');
+      if(st.start&&st.end&&iso>st.start&&iso<st.end)cls.push('in');
+      if(iso===today)cls.push('today');
+      if(iso<today)cls.push('past');
+      if(iso===st.start)cls.push('a'); if(iso===st.end)cls.push('b');
+      cells+=`<button type="button" class="${cls.join(' ')}" data-d="${iso}" aria-label="${st.y}년 ${st.m+1}월 ${d}일${iso===st.start?' 출발':iso===st.end?' 도착':''}">${d}</button>`;
+    }
+    const chips=[['당일',0],['1박 2일',1],['2박 3일',2],['3박 4일',3],['4박 5일',4]].map(([t,n])=>
+      `<button type="button" class="rp-chip${nights()===n?' on':''}" data-n="${n}">${t}</button>`).join('');
+    box.innerHTML=`<div class="rp-sum">${summary()}</div>
+      <div class="rp-chips">${chips}</div>
+      <div class="rp-head"><button type="button" class="rp-nav" data-go="-1" aria-label="이전 달">${svg('i-left')}</button>
+        <b>${st.y}년 ${st.m+1}월</b>
+        <button type="button" class="rp-nav" data-go="1" aria-label="다음 달">${svg('i-right')}</button></div>
+      <div class="rp-dow">${RP_DOW.map(w=>`<span>${w}</span>`).join('')}</div>
+      <div class="rp-grid">${cells}</div>`;
+  };
+  box.addEventListener('click',function(ev){
+    const nav=ev.target.closest('.rp-nav'); if(nav){ st.m+=+nav.dataset.go; if(st.m<0){st.m=11;st.y--;} if(st.m>11){st.m=0;st.y++;} draw(); return; }
+    const chip=ev.target.closest('.rp-chip'); if(chip){
+      const n=+chip.dataset.n; const s0=rpParse(st.start)||new Date();
+      st.start=rpIso(s0); st.end=rpIso(rpAdd(s0,n)); st.phase='start';
+      const e=rpParse(st.end); st.y=e.getFullYear(); st.m=e.getMonth(); draw(); return; }
+    const day=ev.target.closest('.rp-d'); if(!day)return;
+    const iso=day.dataset.d;
+    if(st.phase==='start'||!st.start||iso<st.start){ st.start=iso; st.end=''; st.phase='end'; }
+    else { st.end=iso; st.phase='start'; }
+    draw();
+  });
+  draw();
+}
 function openCreateTrip(){
   if(needVerify())return;
   const y=new Date().getFullYear();
@@ -3004,15 +3083,18 @@ function openCreateTrip(){
     <label class="fld">여행지</label><input class="input" id="cPlace" placeholder="예: 제주도" value="${seed?esc(seed.place):''}">
     <label class="fld">함께 가는 그룹</label>
     <select class="input" id="cGroup"><option>가족</option><option>친구</option><option>동료</option><option>기타</option></select>
-    <div class="date-fields">
-      <div><label class="fld" for="cStart">시작일</label><input class="input" id="cStart" type="date" value="${seed&&seed.start?esc(seed.start):todayStr()}"></div>
-      <div><label class="fld" for="cEnd">종료일</label><input class="input" id="cEnd" type="date" value="${seed&&seed.end?esc(seed.end):todayStr()}"></div></div>
+    <label class="fld">여행 기간</label>
+    <div class="rp" id="cRange"></div>
+    <input type="hidden" id="cStart" value="${seed&&seed.start?esc(seed.start):''}">
+    <input type="hidden" id="cEnd" value="${seed&&seed.end?esc(seed.end):''}">
     <label class="fld" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="cStudent" style="width:18px;height:18px"> 학생(자녀)이 함께 가요 · 체험학습 보고서 기능 켜기</label>
     <div style="height:6px"></div>
-    <button class="btn brand" id="cBtn" onclick="saveCreateTrip()">${svg('i-check','ic')} 여행 만들기</button>`);}
+    <button class="btn brand" id="cBtn" onclick="saveCreateTrip()">${svg('i-check','ic')} 여행 만들기</button>`);
+  mountRangePicker('cRange','cStart','cEnd');}
 async function saveCreateTrip(){
   const title=$('cTitle').value.trim();if(!title){toast('여행 제목을 입력해 주세요.');return;}
   const start=$('cStart').value,end=$('cEnd').value;
+  if(!start||!end){toast('달력에서 출발일과 도착일을 골라 주세요.');return;}
   try{TravelCore.dateRange(start,end);}catch(e){toast(e.message);return;}
   const button=$('cBtn'),createUid=ME.uid;
   button.disabled=true;
@@ -5470,7 +5552,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.0.0-rc.3';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.0.3 (2026-09-16)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

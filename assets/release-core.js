@@ -111,7 +111,7 @@
     if (!record(value)) throw new Error('여행 정보 형식을 확인해 주세요.');
     const text = x => typeof x === 'string' ? x : '';
     const card = x => record(x) && ['string','number'].includes(typeof x.id) && text(x.title).trim();
-    const images = x => ({...x,id:String(x.id),img:safeImage(x.img),thumb:safeImage(x.thumb)});
+    const images = x => ({...x,id:String(x.id),img:safeImage(x.img),thumb:safeImage(x.thumb),intro:text(x.intro).replace(/<[^>]+>/g,'').trim().slice(0,200)});
     if (value.kind === 'editorial') {
       const places = (Array.isArray(value.places) ? value.places : []).filter(card).filter(p=>text(p.region).trim()).map(p=>({...p,id:String(p.id),image:safeImage(p.image),url:safeURL(p.url)}));
       if (!places.length) throw new Error('여행 아이디어가 없습니다.');
@@ -130,7 +130,10 @@
   // reachable. Selection never changes the source feed or the user's trips.
   function discoveryFor(news, region, today, theme = '전체') {
     const editorial = news?.kind === 'editorial';
-    const source = editorial ? (news.places || []).filter(p=>p.region===region) : (news?.spots?.[region] || []);
+    // 물건 파는 곳(38 쇼핑)·숙박(32)·여행코스(25)는 '가볼 곳' 추천에 넣지 않는다.
+    // 예전 파일에 섞여 있어도 화면에는 나오지 않도록 여기서 거른다. (2026-09-16)
+    const excluded = p => ['38','32','25'].includes(String(p.contentTypeId || ''));
+    const source = (editorial ? (news.places || []).filter(p=>p.region===region) : (news?.spots?.[region] || [])).filter(p=>!excluded(p));
     const unique = rows => { const seen = new Set(); return rows.filter(x=>x && x.id != null && !seen.has(String(x.id)) && seen.add(String(x.id))); };
     const groups = new Map();
     for (const p of unique(source)) { const key = placeTheme(p); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(p); }
