@@ -899,6 +899,9 @@ function show(id,{title,kicker,back=false,nav=true,push=true}={}){
   $('moreBtn').style.display=(id==='detail')?'flex':'none';   // 여행 메뉴는 상세에서만
   $('acctBtn').style.display=(id==='detail')?'none':'flex';
   if(!isLogin){$('ptitle').textContent=title||'여행가보젠';$('kicker').textContent=kicker||'';}
+  /* 상세 화면의 '여행지 · 날짜' 줄을 누르면 바로 고칠 수 있게 (2026-09-16) */
+  const k=$('kicker'); if(k){ const ed=id==='detail'&&trip(curTrip)&&trip(curTrip).owner===ME.uid;
+    k.classList.toggle('tap',!!ed); k.onclick=ed?openEditTrip:null; k.title=ed?'여행 정보 고치기':''; }
   const tabFor={today:'today',trips:'trips',history:'history',go:'go',detail:'trips',paste:'trips',report:'trips'}[id];
   document.querySelectorAll('.nav button').forEach(b=>(b.classList.toggle('on',b.dataset.tab===tabFor), b.setAttribute('aria-current',b.dataset.tab===tabFor?'page':'false')));
   moveNavInd();                 // 아래 메뉴바의 알약을 선택된 탭으로 옮깁니다
@@ -1514,6 +1517,8 @@ function openItemMenu(id){const f=itemById(id);if(!f)return;const it=f.it;const 
 /* 여행 메뉴 (상단 ⋯) */
 function openTripMenu(){const t=trip(curTrip);if(!t)return;
   openSheet(`<div class="grab"></div><h3>여행 관리</h3>
+    <button class="btn ghost" onclick="openEditTrip()">${svg('i-edit','ic')} 여행 정보 고치기 <em style="font-style:normal;opacity:.7">· 제목·여행지·기간</em></button>
+    <div style="height:10px"></div>
     <button class="btn ghost" onclick="openPlanWizard()">${svg('i-spark','ic')} AI로 일정 짜기</button>
     <div style="height:10px"></div>
     <button class="btn ghost" onclick="closeOv();openShare()">${svg('i-share','ic')} 멤버 초대</button>
@@ -3112,6 +3117,68 @@ async function saveCreateTrip(){
     routeTo('detail');}
   catch(e){if(ME.uid===createUid)toast(e.code==='travel/conflict'?'여행을 저장하지 못했어요. 다시 시도해 주세요.':e.message&& !/Firebase|[a-z]+\//i.test(e.message)?e.message:'저장 실패: 인터넷 연결을 확인해 주세요.');}
   finally{if(button.isConnected)button.disabled=false;}
+}
+
+/* ---- 여행 정보 고치기 (제목·여행지·그룹·기간) ----
+   2026-09-16: 만든 뒤에는 날짜를 못 바꿔서(2박 3일 → 3박 4일 등) 지우고 다시 만들어야 했습니다.
+   · 기간을 줄이면 잘려 나가는 날의 일정 개수를 세어서 먼저 물어봅니다. 조용히 지우지 않습니다.
+   · 기간을 늘리면 새 날은 빈 채로 붙고, 기존 날의 일정은 그대로 남습니다.
+   · 저장은 기존 save() 그대로 — release-core.validateTrip 이 days 와 start/end 가 맞는지 다시 확인합니다. */
+function openEditTrip(){
+  const t=trip(curTrip); if(!t)return;
+  if(t.owner!==ME.uid){toast('여행을 만든 분만 고칠 수 있어요.');return;}
+  closeOv();
+  openSheet(`<div class="grab"></div><h3>여행 정보 고치기</h3>
+    <label class="fld">여행 제목</label><input class="input" id="eTitle" value="${esc(t.title||'')}">
+    <label class="fld">여행지</label><input class="input" id="ePlace" value="${esc(t.place||'')}">
+    <label class="fld">함께 가는 그룹</label>
+    <select class="input" id="eGroup">${['가족','친구','동료','기타'].map(g=>`<option ${g===t.groupType?'selected':''}>${g}</option>`).join('')}</select>
+    <label class="fld">여행 기간</label>
+    <div class="rp" id="eRange"></div>
+    <input type="hidden" id="eStart" value="${esc(t.start||'')}">
+    <input type="hidden" id="eEnd" value="${esc(t.end||'')}">
+    <label class="fld" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="eStudent" style="width:18px;height:18px" ${t.hasStudent?'checked':''}> 학생(자녀)이 함께 가요 · 체험학습 보고서 기능 켜기</label>
+    <p class="muted small" style="margin:6px 2px 0">기간을 늘리면 새 날이 빈 채로 붙고, 줄이면 그 날의 일정은 지워집니다(지우기 전에 한 번 더 물어봐요).</p>
+    <div style="height:6px"></div>
+    <button class="btn brand" id="eBtn" onclick="saveEditTrip()">${svg('i-check','ic')} 저장</button>`);
+  mountRangePicker('eRange','eStart','eEnd');
+}
+async function saveEditTrip(force){
+  const t=trip(curTrip); if(!t)return;
+  const title=$('eTitle').value.trim(); if(!title){toast('여행 제목을 입력해 주세요.');return;}
+  const start=$('eStart').value,end=$('eEnd').value;
+  if(!start||!end){toast('달력에서 출발일과 도착일을 골라 주세요.');return;}
+  let dates; try{dates=daysBetween(start,end);}catch(e){toast(e.message);return;}
+  const lost=(t.days||[]).filter(d=>!dates.includes(d.date));
+  const lostItems=lost.reduce((n,d)=>n+((d.items||[]).length),0);
+  const snap={title,place:$('ePlace').value.trim(),group:$('eGroup').value,student:$('eStudent').checked,start,end};
+  if(lostItems&&!force){
+    /* ⚠ openModal 은 시트를 통째로 갈아끼우므로 입력값(snap)은 그 전에 읽어 둔다 */
+    openModal(`<b style="font-size:16px">${lost.length}일이 기간에서 빠져요</b>
+      <p class="muted small" style="margin:8px 0 16px">${lost.map(d=>mdLabel(d.date)).join(', ')}에 적어 둔 <b>일정 ${lostItems}개</b>가 함께 지워집니다. 되돌릴 수 없어요.</p>
+      <div class="row" style="gap:10px"><button class="btn ghost" style="flex:1" onclick="closeOv();openEditTrip();__editKeep()">다시 고르기</button>
+      <button class="btn" style="flex:1;background:#B23B3B" onclick="closeOv();__editApply()">지우고 저장</button></div>`);
+    window.__editApply=()=>applyEditTrip(snap);
+    window.__editKeep=()=>{ /* 고른 값 유지한 채 다시 열기 */
+      $('eTitle').value=snap.title;$('ePlace').value=snap.place;$('eGroup').value=snap.group;$('eStudent').checked=snap.student;
+      $('eStart').value=snap.start;$('eEnd').value=snap.end;mountRangePicker('eRange','eStart','eEnd'); };
+    return;
+  }
+  await applyEditTrip(snap);
+}
+async function applyEditTrip(v){
+  const t=trip(curTrip); if(!t)return;
+  const before=JSON.stringify({a:t.title,b:t.place,c:t.groupType,d:t.hasStudent,e:t.start,f:t.end,g:t.days});
+  const dates=daysBetween(v.start,v.end);
+  const old=Object.fromEntries((t.days||[]).map(d=>[d.date,d]));
+  t.title=v.title; t.place=v.place||'여행지'; t.groupType=v.group; t.hasStudent=v.student;
+  t.start=v.start; t.end=v.end;
+  t.days=dates.map(d=>old[d]||{date:d,items:[]});
+  if(curDay>=t.days.length)curDay=0;
+  const btn=$('eBtn'); if(btn)btn.disabled=true;
+  if(await save()){closeOv();toast('여행 정보를 고쳤어요.');routeTo('detail',{push:false});}   /* push:false — 이미 상세 화면이라 뒤로가기 기록을 쌓지 않음 */
+  else{ const o=JSON.parse(before); t.title=o.a;t.place=o.b;t.groupType=o.c;t.hasStudent=o.d;t.start=o.e;t.end=o.f;t.days=o.g;
+    if(btn&&btn.isConnected)btn.disabled=false; toast('저장하지 못했어요. 인터넷 연결을 확인해 주세요.'); }
 }
 
 /* ---- 붙여넣기 ---- */
@@ -5552,7 +5619,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.0.3 (2026-09-16)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.0.4 (2026-09-16)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
