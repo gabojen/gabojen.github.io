@@ -1698,7 +1698,7 @@ function renderGo(){
       ${data.themes.length>2?`<div class="go-themes" aria-label="장소 종류">${data.themes.map(t=>`<button class="rchip${t===goTheme?' on':''}" aria-pressed="${t===goTheme}" onclick="goChooseTheme('${TravelCore.jsText(t)}')">${esc(t)}</button>`).join('')}</div>`:''}
       <div class="place-grid">${spots.map(sp=>`<button class="place-card" data-place-id="${esc(sp.id)}" onclick="${data.editorial?`openEditorial('${TravelCore.jsText(sp.id)}')`:`openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')`}">
         <span class="place-photo">${(sp.img||sp.thumb||sp.image)?`<img src="${TravelCore.safeImage(sp.img||sp.thumb||sp.image)}" alt="" loading="lazy" decoding="async">`:svg('i-pin','ic')}</span>
-        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}</small><b>${esc(sp.title)}</b><em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}</em></span></button>`).join('')||'<p class="go-empty">이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.</p>'}</div>
+        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}</small><b>${esc(sp.title)}</b>${sp.intro?`<span class="place-intro">${esc(sp.intro)}</span>`:''}<em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}</em></span></button>`).join('')||'<p class="go-empty">이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.</p>'}</div>
       ${data.places.length>spots.length?`<button class="btn ghost sm go-more" id="goPlaceMore" onclick="goShowMore('places')">장소 더 보기 · ${spots.length}/${data.places.length}</button>`:''}
     </section>
     <section class="region-festivals" aria-labelledby="goFestivalsTitle">
@@ -1759,7 +1759,9 @@ function openSpot(region,id){
   const sp=(((NEWS&&NEWS.spots)||{})[region]||[]).find(x=>String(x.id)===String(id)); if(!sp)return;
   openSheet(`<div class="grab"></div>
     ${sp.img?`<div class="fbig" style="background-image:url('${TravelCore.safeImage(sp.img)}')"></div>`:''}
-    <h3 style="margin-top:12px">${esc(sp.title)}</h3>
+    <p class="muted small" style="margin:12px 2px 0;font-weight:700;color:var(--brand-ink)">${esc(TravelCore.placeTheme(sp))}</p>
+    <h3 style="margin-top:2px">${esc(sp.title)}</h3>
+    ${sp.intro?`<p class="spot-intro">${esc(sp.intro)}</p>`:''}
     ${sp.addr?`<p class="muted small" style="margin:4px 2px 0">${svg('i-pin')} ${esc(sp.addr)}</p>`:''}
     <button class="btn ghost" style="margin-top:14px" onclick="closeOv();openMap('${TravelCore.jsText(sp.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>
     <p class="muted small" style="margin:12px 2px 0">사진·정보: 한국관광공사</p>`);
@@ -5550,7 +5552,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.0.2 (2026-09-16)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.0.3 (2026-09-16)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

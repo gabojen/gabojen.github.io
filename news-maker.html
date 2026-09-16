@@ -68,6 +68,7 @@
     <div><label for="month">어느 달</label><select id="month"></select></div>
     <div style="flex:0 0 auto;width:46%"><button class="go" id="run">소식지 만들기</button></div>
   </div>
+  <p class="note">장소 400곳쯤의 소개글까지 받아서 <b>3~5분</b> 걸립니다. 화면을 닫지 말고 기다려 주세요. (하루 한도 1,000건 중 약 480건 사용 — 하루 한 번만)</p>
   <div id="log"></div>
 </div>
 
@@ -169,6 +170,7 @@ $('run').addEventListener('click',async()=>{
     const [y,mm]=$('month').value.split('-').map(Number);
     const first=new Date(y,mm-1,1), last=new Date(y,mm,0);
     log(`📅 ${y}-${String(mm).padStart(2,'0')} 소식지를 만듭니다`);
+    log(`ℹ️ 관광공사 호출 약 ${3+17*4+17*4*6}건 (하루 한도 1,000건)`);
     log(`🔑 인증키 ${key.length}자 (${rawKey.includes('%')?'Encoding → 자동 변환':'Decoding'})`);
 
     /* ① 축제 */
@@ -192,20 +194,53 @@ $('run').addEventListener('click',async()=>{
       .sort((a,b)=>a.start.localeCompare(b.start));
     log(`✅ 축제 ${festivals.length}개`,'ok');
 
-    /* ② 지역별 갈 만한 곳 */
+    /* ② 지역별 갈 만한 곳 — 관광지·문화시설·레포츠·맛집 네 종류.
+       쇼핑(38)·숙박(32)·여행코스(25)는 '가볼 곳' 추천에 맞지 않아 모으지 않습니다. */
+    const KINDS=[['12','관광지'],['14','문화시설'],['28','레포츠'],['39','맛집']];
+    const PER_KIND=6;
     const spots={};
     for(const [code,name] of REGIONS){
-      try{
-        const rows=await call(key,'areaBasedList2',{numOfRows:'12',pageNo:'1',arrange:'Q',
-          contentTypeId:'12',lDongRegnCd:code});
-        spots[name]=rows.filter(x=>x.firstimage).slice(0,4).map(x=>({
-          id:String(x.contentid),title:(x.title||'').trim(),addr:(x.addr1||'').trim(),
-          img:https(x.firstimage),thumb:https(x.firstimage2||x.firstimage),
-          rights:x.cpyrhtDivCd||'',lat:x.mapy?+x.mapy:null,lng:x.mapx?+x.mapx:null}));
-        log(`   ${name} … ${spots[name].length}곳`);
-      }catch(e){ spots[name]=[]; log(`   ${name} 건너뜀 (${e.message})`,'bad'); }
-      await new Promise(r=>setTimeout(r,100));
+      spots[name]=[];
+      for(const [type,label] of KINDS){
+        try{
+          const rows=await call(key,'areaBasedList2',{numOfRows:'10',pageNo:'1',arrange:'Q',
+            contentTypeId:type,lDongRegnCd:code});
+          spots[name].push(...rows.filter(x=>x.firstimage&&x.title).slice(0,PER_KIND).map(x=>({
+            id:String(x.contentid),title:(x.title||'').trim(),addr:(x.addr1||'').trim(),contentTypeId:type,
+            img:https(x.firstimage),thumb:https(x.firstimage2||x.firstimage),
+            rights:x.cpyrhtDivCd||'',lat:x.mapy?+x.mapy:null,lng:x.mapx?+x.mapx:null})));
+        }catch(e){ log(`   ${name} ${label} 건너뜀 (${e.message})`,'bad'); }
+        await new Promise(r=>setTimeout(r,60));
+      }
+      log(`   ${name} … ${spots[name].length}곳`);
     }
+
+    /* ③ 장소마다 한 줄 소개 — 공식 개요(overview)의 첫 문장만 짧게 */
+    const all=Object.values(spots).flat();
+    log(`📝 장소 ${all.length}곳의 소개글을 받습니다 (호출 ${all.length}건)`);
+    let done=0,miss=0;
+    const intro=raw=>{
+      let t=String(raw||'').replace(/<br\s*\/?>/gi,' ').replace(/<[^>]+>/g,'')
+        .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+        .replace(/\s+/g,' ').trim();
+      if(!t)return '';
+      /* 문장 단위로 자르되 140자 안쪽 */
+      const parts=t.split(/(?<=[.!?。])\s+/); let out='';
+      for(const q of parts){ if((out+' '+q).trim().length>140)break; out=(out+' '+q).trim(); }
+      if(!out)out=t.slice(0,138)+'…';
+      return out;
+    };
+    const queue=all.slice();
+    await Promise.all(Array.from({length:4},async()=>{
+      while(queue.length){
+        const sp=queue.shift();
+        try{ const [row]=await call(key,'detailCommon2',{contentId:sp.id,numOfRows:'1',pageNo:'1'});
+          sp.intro=intro(row&&row.overview); if(!sp.intro)miss++;
+        }catch(e){ miss++; }
+        if(++done%40===0)log(`   소개글 ${done}/${all.length}`);
+      }
+    }));
+    log(`✅ 소개글 ${all.length-miss}곳 받음${miss?` · ${miss}곳은 공식 소개가 없음`:''}`,'ok');
 
     const [title,lead]=MONTH_NOTE[mm];
     RESULT={month:`${y}-${String(mm).padStart(2,'0')}`,title,lead,

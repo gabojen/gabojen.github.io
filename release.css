@@ -100,3 +100,8 @@ html.dark .nudge,html.dark .ent.next,html.dark .action-tile:hover,html.dark .rea
 .rp-d.on.a{border-radius:21px 0 0 21px}.rp-d.on.b{border-radius:0 21px 21px 0}.rp-d.on.a.b{border-radius:21px}
 .rp-d:active{transform:scale(.94)}
 html.dark .rp-chip{background:var(--card)}
+
+/* 갈 만한 곳 — 한 줄 소개 (2026-09-16). 카드에선 두 줄까지, 자세히 보기에선 전부 */
+.place-copy .place-intro{font-size:12px;line-height:1.55;color:var(--ink-2,#3a4650);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.spot-intro{margin:8px 2px 0;font-size:14.5px;line-height:1.65;color:var(--ink-2,#3a4650);overflow-wrap:anywhere}
+@media(min-width:700px){.place-copy .place-intro{font-size:13px}}
