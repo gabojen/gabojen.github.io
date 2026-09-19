@@ -1002,7 +1002,10 @@ function watchScreenScroll(el){
 function goBack(){const p=stack.pop();if(p)routeTo(p,{push:false});else switchTab('today');}
 function switchTab(id){stack=[];routeTo(id,{push:false});}
 function routeTo(id,opt={}){
-  if(id==='today'){renderToday();show('today',{kicker:curTrip?'오늘의 여행':'',title:curTrip&&trip(curTrip)?trip(curTrip).title:'여행가보젠',...opt});}
+  if(id==='today'){renderToday();
+    /* 제목줄은 '진행 중·예정' 여행일 때만 그 여행 이름 — 끝난 여행이 curTrip 에 남아 있어도 '오늘의 여행'으로 표시하지 않음 (2026-09-19) */
+    const home=trip(curTrip), live=home&&home.status!=='done'&&ddayOf(home)!=='종료';
+    show('today',{kicker:live?'오늘의 여행':'',title:live?home.title:'여행가보젠',...opt});}
   else if(id==='trips'){renderTrips();show('trips',{title:'내 여행',...opt});}
   else if(id==='history'){renderHistory();show('history',{title:'추억',...opt});}
   else if(id==='go'){renderGo();show('go',{title:'여행 추천',...opt});}
@@ -1559,6 +1562,26 @@ function openTripMenu(){const t=trip(curTrip);if(!t)return;
 /* 신규 사용자가 가장 먼저 보는 화면 — '아직 아무것도 안 적은 기록장의 첫 장'으로 보이게 합니다.
    여행이 생기면 어떤 모습이 되는지 표지 미리보기로 함께 알려 줍니다. */
 function renderEmptyHome(){
+  /* 2026-09-19: 지난 여행이 있는 분에게 '첫 여행' 안내가 나오던 것 구분 — 다녀온 여행이 있으면 '다음 여행' 안내 */
+  const done=doneTrips();
+  if(done.length){
+    $('today').innerHTML=`<div class="empty">
+      <div class="blankcard">
+        <div class="art" style="background-image:${brandCover()}"></div>
+        <span class="tape"></span>
+        <div class="lbl">${svg('i-plus','ic')} 여기에 다음 여행이 들어갑니다</div>
+      </div>
+      <h2 style="margin:0 0 6px;font-size:20px">${esc(ME.name)}님, 다음 여행을 준비해 볼까요?</h2>
+      <p class="muted small" style="margin:0 auto;max-width:300px">지금 진행 중이거나 예정된 여행이 없어요.<br>다녀온 여행 ${done.length}개는 <b>추억</b>에서 다시 볼 수 있어요.</p>
+      <div style="height:18px"></div>
+      <button class="btn brand" onclick="openCreateTrip()">${svg('i-plus','ic')} 새 여행 만들기</button>
+      <div style="height:10px"></div>
+      <button class="btn ghost" onclick="openClone()">${svg('i-copy','ic')} 지난 여행 복제해서 만들기</button>
+      <div style="height:10px"></div>
+      <button class="btn ghost" onclick="joinPrompt()">${svg('i-key','ic')} 초대코드로 참여하기</button>
+    </div>`;
+    return;
+  }
   $('today').innerHTML=`<div class="empty">
       <div class="blankcard">
         <div class="art" style="background-image:${brandCover()}"></div>
@@ -4536,20 +4559,12 @@ function photoBlock(){
     g+=`<div class="album" style="height:110px;background:url('${photoThumb(ph[i])}') center/cover" onclick="openPhotoView(${i})">${
         photoWho(ph[i])?`<span class="who">${esc(photoWho(ph[i]))}</span>`:''}</div>`;
   const usage=usagePct(t);
-  /* 여행 중에 일정마다 붙여 둔 사진을 날짜별로 모아 보여 줍니다 */
+  /* 일정마다 붙여 둔 사진('그날의 기록')은 여행책의 날짜 장에 이미 날짜별로 들어 있습니다.
+     2026-09-19: 추억 화면에 같은 사진을 한 번 더 펼치지 않고, 여행책으로 안내만 합니다.
+     (여행이 여러 개일 때 화면이 길어지고, 같은 사진이 두 곳에 보이는 문제) */
   const trail=allItemPhotos(t);
-  let trailBlock='';
-  if(trail.length){
-    const byDate={};
-    trail.forEach(x=>{(byDate[x.date]=byDate[x.date]||[]).push(x);});
-    trailBlock=`<div class="eyebrow" style="margin-top:18px">${svg('i-cal','ic')} 그날의 기록 ${trail.length}장</div>`
-      +Object.keys(byDate).sort().map((d,idx)=>`<div class="mday">
-          <div class="mdh">${svg('i-pin')} DAY ${byDate[d][0].di+1} · ${mdLabel(d)}(${dowOf(d)})</div>
-          <div class="mgrid">${byDate[d].map(x=>
-            `<div class="mp" style="background-image:url('${x.url}')" onclick="openTrailPhoto('${TravelCore.jsText(x.id)}',${x.pi})">
-               <div class="cap">${esc(tidyTitle(x.title,x.by?9:14))}${x.by?' · '+esc(photoWho(x)||x.by):''}</div></div>`).join('')}</div>
-        </div>`).join('');
-  }
+  const trailBlock=trail.length&&t?`<div class="nudge" style="margin-top:14px" onclick="openAlbum('${TravelCore.jsText(t.id)}')" role="button">
+      ${svg('i-cal','ic')}<span style="flex:1">일정에 붙인 사진 <b>${trail.length}장</b>은 <b>여행책</b>의 날짜 장에서 볼 수 있어요</span>${svg('i-right','ic')}</div>`:'';
   return `${picker}<div class="grid">${g}</div>${ph.length?'<div style="height:10px"></div>':''}
     <label class="btn ghost sm" style="cursor:pointer" for="memFile">${svg('i-plus','ic')} 사진 올리기${t?' · '+esc(t.title):''}</label>
     <input type="file" id="memFile" accept="image/*" multiple style="display:none" onchange="addMemPhotos(event)">
@@ -5671,7 +5686,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.0.6 (2026-09-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.0.7 (2026-09-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

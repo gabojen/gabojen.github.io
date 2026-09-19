@@ -117,3 +117,12 @@ html.dark .rp-chip{background:var(--card)}
 
 /* 상세 화면 '여행지 · 날짜' 줄 — 누르면 고치기 */
 .topbar .kicker.tap{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+
+/* ── 2026-09-19 데스크톱(넓은 화면) 정렬 보정 ──
+   · 빈 홈: 자리표시 카드가 왼쪽에 붙고 글·버튼은 가운데라 어긋나 보였음 → 카드·버튼을 같은 축(가운데)으로.
+   · 내 여행·추억: 직계 버튼만 250px 로 좁혀 두어 카드(전체 폭)와 짝짝이 → 내용 폭에 맞는 알약 버튼으로 통일. */
+@media(min-width:900px){
+  .empty .blankcard{margin-left:auto;margin-right:auto}
+  .empty .btn{max-width:340px;margin-left:auto;margin-right:auto}
+  #trips>.btn,#history>.btn{width:auto;display:inline-flex;max-width:none;padding-left:22px;padding-right:22px;margin-right:10px}
+}
