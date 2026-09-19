@@ -342,7 +342,7 @@ function initial(name){return (name||"?").trim().charAt(0)||"?";}
 
 /* ---- 인증 화면 ---- */
 let authBusy=false;
-function authMode(m){if(authBusy)return;authTab=m; $("signupConsent").hidden=m!=="signup";
+function authMode(m){if(authBusy)return;authTab=m; $("signupConsent").hidden=m!=="signup"; if(m==='signup')signupTabAt=Date.now();
   $('tabLogin').classList.toggle('on',m==='login');$('tabSignup').classList.toggle('on',m==='signup');
   $('nameWrap').style.display=m==='signup'?'block':'none';
   $('authBtn').textContent=m==='signup'?'가입하고 시작하기':'로그인';$('authErr').innerHTML='';
@@ -364,15 +364,44 @@ function lockPanel(){$('authErr').innerHTML='<div class="err">비밀번호를 5�
 function okPanel(m){$('authErr').innerHTML='<div class="err" style="background:rgba(63,138,74,.12);color:#2f6b38">'+m+'</div>';}
 /* 가입만 하고 버리는 '일회용 메일' 주소는 막습니다.
    완벽한 차단은 아니지만(계속 새 도메인이 생깁니다), 손쉬운 대량 가입은 걸러집니다. */
-const TEMP_MAIL=['mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com','temp-mail.org',
-  'throwawaymail.com','yopmail.com','sharklasers.com','trashmail.com','getnada.com','maildrop.cc',
-  'dispostable.com','fakeinbox.com','mohmal.com','emailondeck.com','moakt.com','tempr.email',
-  'discard.email','mailnesia.com','inboxbear.com','1secmail.com','vpsmail.top','tempmailo.com'];
+const TEMP_MAIL=['mailinator.com','guerrillamail.com','guerrillamail.net','guerrillamail.org','guerrillamail.biz','guerrillamail.de','grr.la','sharklasers.com','guerrillamailblock.com',
+  '10minutemail.com','10minutemail.net','10minutemail.org','10minemail.com','20minutemail.com','tempmail.com','temp-mail.org','temp-mail.io','tempmail.net','tempmail.dev','tempmailo.com','tempr.email','tmpmail.org','tmpmail.net','tmpeml.com','tmail.ws',
+  'throwawaymail.com','throwam.com','yopmail.com','yopmail.fr','yopmail.net','cool.fr.nf','jetable.fr.nf','nospam.ze.tc','nomail.xl.cx','mega.zik.dj','speed.1s.fr','courriel.fr.nf','moncourrier.fr.nf','monemail.fr.nf','monmail.fr.nf',
+  'trashmail.com','trashmail.net','trashmail.me','trashmail.io','trash-mail.com','trashmail.at','trash-mail.at','trashmail.de','kurzepost.de','objectmail.com','proxymail.eu','rcpt.at','wegwerfmail.de','wegwerfmail.net','wegwerfmail.org',
+  'getnada.com','nada.email','maildrop.cc','dispostable.com','fakeinbox.com','mohmal.com','mohmal.in','mohmal.im','emailondeck.com','moakt.com','moakt.ws','moakt.cc','discard.email','discardmail.com','discardmail.de','spambog.com','spambog.de','spambog.ru',
+  'mailnesia.com','inboxbear.com','1secmail.com','1secmail.org','1secmail.net','vpsmail.top','mailinator.net','mailinator.org','mailinator2.com','binkmail.com','bobmail.info','chammy.info','devnullmail.com','letthemeatspam.com','mailinater.com','notmailinator.com','reallymymail.com','reconmail.com','safetymail.info','sendspamhere.com','sogetthis.com','spamherelots.com','spamhereplease.com','suremail.info','thisisnotmyrealemail.com','tradermail.info','veryrealemail.com','zippymail.info',
+  'mailcatch.com','mailexpire.com','mailforspam.com','mailfreeonline.com','mailmoat.com','mailnull.com','mailsac.com','mailtemp.info','mailtothis.com','mintemail.com','mytemp.email','mytrashmail.com','nowmymail.com','tempinbox.com','tempemail.net','temporaryemail.net','temporaryinbox.com','tempsky.com','fakemail.net','fakemailgenerator.com','emailtemporario.com.br','burnermail.io','burpcollaborator.net',
+  'getairmail.com','mailhazard.com','harakirimail.com','spamgourmet.com','spamex.com','spam4.me','spamfree24.org','incognitomail.com','anonbox.net','anonymbox.com','mailme.lv','dropmail.me','10mail.org','emltmp.com','minuteinbox.com','tempail.com','crazymailing.com','mailtemp.net','luxusmail.org','tempmailaddress.com','mail-temporaire.fr','yomail.info','filzmail.com','mailzilla.com','mailzilla.org','pookmail.com','armyspy.com','cuvox.de','dayrep.com','einrot.com','fleckens.hu','gustr.com','jourrapide.com','rhyta.com','superrito.com','teleworm.us'];
 function isTempMail(email){
   const d=String(email||'').split('@')[1];
   if(!d)return false;
   const dom=d.toLowerCase().trim();
   return TEMP_MAIL.some(x=>dom===x||dom.endsWith('.'+x));
+}
+/* ── 가입 어뷰징 방지 (2026-09-19) ──
+   서버가 없는 앱이라 여기서 하는 것은 '손쉬운 대량 가입'을 막는 장치입니다.
+   ① 일회용 메일 도메인 차단(위 목록·하위도메인 포함)  ② 별칭 주소(+태그) 차단 — 한 메일함으로 계정을 무한히 만드는 흔한 수법
+   ③ 봇 함정 칸(aWebsite)  ④ 가입 탭을 연 뒤 3초 안의 제출 거부(봇은 즉시 제출)  ⑤ 한 기기에서 하루 N개 계정까지
+   진짜 방어선은 Firebase 쪽입니다: 이메일 인증을 해야 여행을 만들거나 참여할 수 있고(보안 규칙),
+   Firebase 가 IP 당 가입 횟수를 제한합니다(콘솔 Authentication → 설정 → 가입 할당량에서 낮출 수 있음). */
+let signupTabAt=0;
+function emailShape(email){
+  const s=String(email||'').trim().toLowerCase();
+  if(!/^[a-z0-9][a-z0-9._%+-]{0,63}@[a-z0-9.-]+\.[a-z]{2,}$/.test(s))return '이메일 주소 형식을 확인해 주세요.';
+  if(/\+/.test(s.split('@')[0]))return '별칭 주소(+가 들어간 주소)로는 가입할 수 없어요. 기본 메일 주소를 입력해 주세요.';
+  if(/\.\./.test(s))return '이메일 주소 형식을 확인해 주세요.';
+  return '';
+}
+function signupLog(){try{const a=JSON.parse(localStorage.getItem('gbj_signups')||'[]');const cut=Date.now()-86400000;return Array.isArray(a)?a.filter(t=>t>cut):[];}catch(e){return [];}}
+function noteSignup(){try{localStorage.setItem('gbj_signups',JSON.stringify(signupLog().concat(Date.now())));}catch(e){}}
+function signupGuard(email){
+  const bot=$('aWebsite'); if(bot&&bot.value)return '가입 요청을 처리할 수 없어요. 잠시 후 다시 시도해 주세요.';
+  if(signupTabAt&&Date.now()-signupTabAt<3000)return '입력 내용을 한 번 더 확인한 뒤 가입해 주세요.';
+  const shape=emailShape(email); if(shape)return shape;
+  if(isTempMail(email))return '일회용 메일 주소로는 가입할 수 없어요. 평소 쓰시는 메일 주소를 입력해 주세요.';
+  const max=(window.GABOJEN_RELEASE&&GABOJEN_RELEASE.signupsPerDevice)||3;
+  if(signupLog().length>=max)return '이 기기에서는 오늘 더 이상 계정을 만들 수 없어요. 이미 만든 계정으로 로그인해 주세요.';
+  return '';
 }
 async function doAuth(){
   if(authBusy)return;
@@ -380,8 +409,7 @@ async function doAuth(){
   const email=$('aEmail').value.trim(),pw=$('aPw').value,name=($('aName').value||'').trim();
   if(!email||!pw){authError('이메일과 비밀번호를 입력해 주세요.');return;}
   if(authTab==='signup'&&(!name||name.length>100)){authError('이름은 1~100자로 입력해 주세요.');return;}
-  if(authTab==='signup'&&isTempMail(email)){
-    authError('일회용 메일 주소로는 가입할 수 없어요. 평소 쓰시는 메일 주소를 입력해 주세요.');return;}
+  if(authTab==='signup'){const why=signupGuard(email); if(why){authError(why);return;}}
   if(authTab==='signup'&&pw.length<8){
     authError('비밀번호를 8자 이상으로 만들어 주세요.');return;}
   if(!window.FB){authError('연결을 준비하고 있어요. 잠시 후 다시 시도해 주세요.');return;}
@@ -389,7 +417,7 @@ async function doAuth(){
   authBusy=true;
   $('authBtn').disabled=true;$('authBtn').textContent='처리 중…';
   try{
-    if(mode==='signup')await window.FB.signup(email,pw,name);
+    if(mode==='signup'){await window.FB.signup(email,pw,name);noteSignup();}
     else {await window.FB.login(email,pw);clearFails(email);}
   }catch(e){authError(window.FB.msg(e));}
   finally{authBusy=false;}
@@ -668,8 +696,9 @@ async function openAdmin(){
   try{ d=await window.FB.adminStats(); }
   catch(e){ const b=$('admBody'); if(b)b.innerHTML=`<div class="err">불러오지 못했습니다: ${esc((e&&e.code)||e)}</div>`; return; }
   if(!IS_ADMIN||ME.uid!==adminUid||!sheetIsCurrent(adminBox))return;
-  const su=d.summary||{};
-  const now=su.signups||0, out=su.leaves||0;
+  /* 2026-09-19: 앱에서 세던 누적 수치(가입·여행·사진·AI 호출)는 보안 규칙이 stats 쓰기를 막아 더 이상 쌓이지 않습니다.
+     관리자가 실제로 읽을 수 있는 자료(회원 목록·탈퇴 기록)에서 바로 셉니다. 여행·사진·AI 호출 수는 Firebase 콘솔에서 확인합니다. */
+  const out=(d.leaves||[]).length;
   const active30=(d.members||[]).filter(m=>{const n=daysAgo(m.seen); return n!==null&&n<=30;}).length;
   const active7 =(d.members||[]).filter(m=>{const n=daysAgo(m.seen); return n!==null&&n<=7;}).length;
   /* 탈퇴 통계 — 월별로 묶습니다 */
@@ -690,13 +719,10 @@ async function openAdmin(){
     </div>
     <div class="admgrid six">
       <div><b>${active30}</b><span>30일 접속</span></div>
-      <div><b>${now}</b><span>누적 가입</span></div>
-      <div><b>${out}</b><span>누적 탈퇴</span></div>
-      <div><b>${su.trips||0}</b><span>만든 여행</span></div>
-      <div><b>${su.photos||0}</b><span>올린 사진</span></div>
-      <div class="cost"><b>${su.aiCalls||0}</b><span>AI 호출</span></div>
+      <div><b>${out}</b><span>탈퇴 (익명)</span></div>
+      <div><b>${total-active30}</b><span>30일 넘게 미접속</span></div>
     </div>
-    <p class="muted small" style="margin:8px 2px 0;line-height:1.55">회원 목록은 최대 200명까지 조회합니다. 누적 수치는 과거에 기록된 값으로 최신 사용량과 다를 수 있어요. 실제 사용량과 요금은 Firebase·Google Cloud 콘솔에서 확인해 주세요.</p>
+    <p class="muted small" style="margin:8px 2px 0;line-height:1.55">회원 목록은 최대 200명까지 조회합니다. 여행·사진 수와 AI 호출량, 요금은 Firebase·Google Cloud 콘솔에서 확인해 주세요.</p>
 
     <div class="menu" style="margin-top:14px">
       ${d.membersErr
@@ -1956,6 +1982,27 @@ function renderDetail(){
   afterRender();
 }
 /* 추가 방법 선택 — 버튼 2개를 1개로 합쳐 화면을 단순하게 */
+/* ── AI 사용 한도 (2026-09-19) — 여행 1건당 구성원 1명 N회 ──
+   · 횟수는 여행 문서의 aiUse{uid:n} 에 저장돼 기기를 바꿔도 이어집니다. 성공한 호출만 셉니다.
+   · firebase.js 의 readText/readImage/askJson 이 호출 전 aiQuotaCheck(), 성공 후 aiQuotaConsume() 을 부릅니다.
+   · 앱 안에서 막는 장치라 정상 사용자에게만 유효합니다. 프로젝트 전체 상한은 Google Cloud 콘솔의 Gemini 할당량으로 겁니다. */
+const AI_PER_TRIP=(window.GABOJEN_RELEASE&&GABOJEN_RELEASE.aiPerTrip)||5;
+function aiUsed(t){return (t&&t.aiUse&&Number(t.aiUse[ME.uid]))||0;}
+function aiLeft(t){return Math.max(0,AI_PER_TRIP-aiUsed(t));}
+function aiQuotaNote(t){t=t||trip(curTrip); if(!t)return '';
+  const n=aiLeft(t);
+  return `<p class="muted small ai-quota" style="margin:0 2px 12px">${svg('i-spark')} 이 여행에서 남은 AI 사용 <b style="color:${n?'var(--ink)':'var(--brand-ink)'}">${n}/${AI_PER_TRIP}회</b>${n?'':' · 일정은 직접 추가할 수 있어요'}</p>`;}
+window.aiQuotaCheck=function(){
+  const t=trip(curTrip);
+  if(!t)throw Object.assign(new Error('여행을 연 뒤 AI 기능을 사용할 수 있어요.'),{code:'travel/quota'});
+  if(aiLeft(t)<=0)throw Object.assign(new Error(`이 여행에서 쓸 수 있는 AI ${AI_PER_TRIP}회를 모두 썼어요. 일정은 직접 추가할 수 있어요.`),{code:'travel/quota'});
+};
+window.aiQuotaConsume=function(){
+  const t=trip(curTrip); if(!t||!ME.uid)return;
+  t.aiUse=Object.assign({},t.aiUse||{},{[ME.uid]:aiUsed(t)+1});
+  document.querySelectorAll('.ai-quota').forEach(el=>el.outerHTML=aiQuotaNote(t));
+  window.FB.saveTrip(t).catch(()=>{});
+};
 /* ===== 사진(캡처)으로 일정 추가 : AI 비전 전용 ===== */
 var ocrDay=0, ocrGuess=[], ocrPlaces=[], ocrKind='flight';
 
@@ -2568,6 +2615,7 @@ function openPlanWizard(){
     ${base?`<p class="muted small" style="margin:-6px 2px 12px">거리는 <b>${esc(base)}</b> 기준으로 재고, <b>범위를 넘는 곳은 자동으로 빼</b> 드려요.</p>`
           :hintBox('i-info','숙소가 등록돼 있지 않아 거리를 정확히 재기 어려워요. 숙소를 먼저 넣으면 더 잘 골라 드려요.')}
     ${t.hasStudent?hintBox('i-users','<b>학생(자녀) 동행</b> 여행이라, 아이와 함께 가기 좋은 곳 위주로 골라 드려요.'):''}
+    ${aiQuotaNote(t)}
     <button class="btn brand" id="planBtn" onclick="runPlanAI()">${svg('i-spark','ic')} 2가지 안 만들기</button>
     <div id="planOut"></div>`);
   restorePlan();
@@ -2744,6 +2792,7 @@ function openGapSuggest(prevId){
       <div class="muted small" style="margin-top:3px">다음 일정 <b style="color:var(--ink)">${esc(tidyTitle(nx.title,22))}</b>${nx.place?' · '+esc(nx.place):''}</div>
     </div>
     ${hintBox('i-spark','앞 일정 장소 <b>근처</b>에서, 다음 일정 시각까지 <b>충분히 돌아올 수 있는</b> 곳으로 3가지를 추천해 드려요.')}
+    ${aiQuotaNote(t)}
     <button class="btn brand" id="gapBtn" onclick="runGapSuggest()">${svg('i-spark','ic')} 추천받기</button>
     <div id="gapOut"></div>`);
   restoreGap(prevId);
@@ -3195,6 +3244,7 @@ let parsed=null;
 function renderPaste(){parsed=null;
   $('paste').innerHTML=`<p class="muted small" style="margin:6px 2px 12px"><b style="color:var(--ink)">예약 확인 문자·메일</b>을 그대로 붙여넣으면 필요한 항목만 골라 자동 정리합니다.<br>항공·기차·버스·숙박·렌트카·입장권·공연·식당 예약 모두 됩니다.</p>
     <textarea class="input" id="pbox" placeholder="여기에 예약 확인 문자를 붙여넣으세요…"></textarea>
+    ${aiQuotaNote()}
     <button class="btn brand" onclick="aiPaste()">${svg('i-spark','ic')} AI로 정리하기</button>
     <div style="height:10px"></div>
     <div class="row" style="gap:10px"><button class="btn ghost" style="flex:1" onclick="$('pbox').value=SMS">예시 넣기</button>
@@ -4589,6 +4639,8 @@ async function doClone(){
   const t={id:tripId(),title,place:src.place,groupType:src.groupType,hasStudent:src.hasStudent,status:'active',
     start,end:days[days.length-1],members:[memberRec()],
     memberUids:[ME.uid],days:nd,pack:(src.pack||[]).map(p=>({title:p.title,sub:p.sub,done:false})),proposals:[],owner:ME.uid};
+  /* 2026-09-19: createUid·button 이 정의돼 있지 않아 저장은 됐는데 '복제 실패'가 뜨던 버그 수정 */
+  const createUid=ME.uid, button=document.querySelector('#ovc .btn.brand');
   try{await window.FB.saveTrip(t,true);   // 복제도 새 여행이라 통계에 셉니다
     if(ME.uid!==createUid)return;
     if(!trip(t.id))TRIPS.push(t);
@@ -5619,7 +5671,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.0.4 (2026-09-16)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.0.6 (2026-09-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

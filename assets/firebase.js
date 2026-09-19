@@ -156,6 +156,7 @@ window.FB={
   aiReady(){ return true; },
   async readText(text){
     const session=aiSession();
+    if(window.aiQuotaCheck)window.aiQuotaCheck();   // 여행 1건당 AI 사용 한도 (app.js)
     await window.requestAIConsent('text');
     assertAISession(session);
     const log=[]; let lastErr=null;
@@ -169,7 +170,7 @@ window.FB={
         window.__aiDebug.raw=txt; log.push(name+': 응답 '+txt.length+'자');
         const m=txt.match(/\{[\s\S]*\}/);
         if(!m)throw new Error('AI 응답이 JSON이 아닙니다');
-        const j=JSON.parse(m[0]); window.__aiDebug.ok=true; window.__aiDebug.model=name; return j;
+        const j=JSON.parse(m[0]); window.__aiDebug.ok=true; window.__aiDebug.model=name; if(window.aiQuotaConsume)window.aiQuotaConsume(); return j;
       }catch(e){assertAISession(session);if(e.code==='travel/cancelled')throw e;lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
     }
     const err=new Error(log.join(' / ')); err.detail=log; throw err;
@@ -177,6 +178,7 @@ window.FB={
   async readImage(file){
     const session=aiSession();
     if(!file||!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>10*1024*1024)throw new Error('JPG·PNG·WebP 사진을 10MB 이하로 선택해 주세요.');
+    if(window.aiQuotaCheck)window.aiQuotaCheck();
     await window.requestAIConsent('image');
     const part=await fileToPart(file);
     assertAISession(session);
@@ -194,6 +196,7 @@ window.FB={
         if(!m){ log.push(name+': JSON 형식 아님'); throw new Error('AI 응답이 JSON이 아닙니다'); }
         const j=JSON.parse(m[0]);
         window.__aiDebug.ok=true; window.__aiDebug.model=name;
+        if(window.aiQuotaConsume)window.aiQuotaConsume();
         return j;
       }catch(e){assertAISession(session);if(e.code==='travel/cancelled')throw e;lastErr=e; log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
     }
@@ -220,6 +223,7 @@ window.FB={
   /* images: 사진 data URL 배열 (없으면 글만 보냅니다) — 보고서에서 사진을 읽을 때 씁니다 */
   async askJson(prompt,images){
     const session=aiSession();
+    if(window.aiQuotaCheck)window.aiQuotaCheck();
     await window.requestAIConsent('plan');
     assertAISession(session);
     this.bump('aiCalls');
@@ -240,7 +244,7 @@ window.FB={
         const m=txt.match(/\{[\s\S]*\}/);
         if(!m)throw new Error('AI 응답이 JSON이 아닙니다');
         const j=JSON.parse(m[0]);
-        window.__aiDebug.ok=true; window.__aiDebug.model=name; return j;
+        window.__aiDebug.ok=true; window.__aiDebug.model=name; if(window.aiQuotaConsume)window.aiQuotaConsume(); return j;
       }catch(e){assertAISession(session);if(e.code==='travel/cancelled')throw e;log.push(name+' 실패: '+String((e&&e.message)||e).slice(0,400)); }
     }
     const err=new Error(log.join(' / ')); err.detail=log; throw err;
