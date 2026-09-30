@@ -38,10 +38,10 @@ function introShareVisual() {
 function introAiVisual() {
   return `<div class="intro-card intro-ai-card">
     <div class="intro-card-title">${svg('i-compass')} 어디로 떠나볼까요?</div>
-    <div class="intro-ideas"><span>${svg('i-wave')} 바다</span><span>${svg('i-tree')} 자연</span><span>${svg('i-city')} 도시</span></div>
-    <div class="intro-divider">여행 아이디어를 고른 다음</div>
+    <div class="intro-ideas"><span>${svg('i-wave')} 바다</span><span>${svg('i-tree')} 자연</span><span>${svg('i-city')} 도시</span><span>${svg('i-medal')} 문화</span></div>
+    <div class="intro-divider">분위기로 갈 곳을 고른 다음</div>
     <div class="intro-card-title">${svg('i-spark')} AI로 일정 짜기</div>
-    <div class="intro-tags"><span>여유롭게</span><span>자연 위주</span><span>렌터카</span></div>
+    <div class="intro-tags"><span>여유롭게</span><span>자연 + 맛집</span><span>렌터카</span></div>
     <div class="intro-options"><div><small>제안 A</small><strong>바다 따라 천천히</strong><span>해변 산책 · 카페</span></div><div><small>제안 B</small><strong>숲에서 쉬어가기</strong><span>숲길 · 전망대</span></div></div>
     <div class="intro-note-band">${svg('i-check')} 제안을 확인하고 일정에 추가해요</div>
   </div>`;
@@ -69,7 +69,7 @@ const INTRO = [
     body: '초대 링크로 구성원을 모으고, 함께 일정을 추가·수정해요. 가고 싶은 곳을 제안하고 의견도 남겨요.',
     hint: '여행 메뉴 → 멤버 초대', visual: introShareVisual },
   { label: '추천과 AI', title: '막막한 계획에는 아이디어를',
-    body: '여행 추천에서 갈 곳을 찾고, 여행 안에서 AI로 일정을 짜 보세요. 취향에 맞춘 제안 중 골라 담을 수 있어요.',
+    body: '여행 추천에서 바다·자연·도시·문화 분위기로 갈 곳을 찾고, 여행 안에서 AI로 일정을 짜 보세요. 취향은 2개까지 골라 섞을 수 있고, 제안 중 골라 담으면 돼요.',
     hint: '여행 추천 · 여행 안의 AI로 일정 짜기',
     note: 'AI 제안의 운영시간·이동시간·예약 가능 여부는 확인해 주세요.', visual: introAiVisual },
   { label: '예약 정리', title: '예약 정보도 일정 속으로',

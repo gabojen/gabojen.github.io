@@ -1616,6 +1616,18 @@ let NEWS=null, NEWS_STATE='idle';       // idle | loading | ok | none
 /* 2026-09-29: 회원 추천(다녀온 곳)·숙소 가까운 순 */
 let RECS=null, RECS_STATE='idle';       // idle | loading | ok | none
 let goSort='basic', goAnchorTried='', goRecLimit=4;
+/* 2026-09-30: '어디로 떠나볼까요?' 분위기 타일 — 장소 이름·소개의 낱말로 거릅니다 (주소는 제외: '부산'의 '산' 같은 오탐 방지) */
+let goMood='';
+const GO_MOODS=[
+  ['바다','i-wave', /해변|해수욕장|바다|해안|섬|등대|포구|갯벌|해상|요트|방파제|비치|해파랑|낙조|일출|항구|해녀|해상케이블/],
+  ['자연','i-tree', /산(?=[\s·(,)]|$)|산림|숲|계곡|호수|공원|정원|수목원|휴양림|둘레길|오름|폭포|습지|생태|국립공원|트레킹|자연|캠핑|천문대|동굴|온천/],
+  ['도시','i-city', /시장|거리|골목|타워|전망대|야경|광장|카페|맛집|브루어리|스트리트|테마파크|놀이공원|워터파크|아쿠아리움|쇼핑|백화점|야시장|먹거리|랜드|파크/],
+  ['문화','i-medal',/박물관|미술관|궁|사찰|사원|암자|한옥|유적|성곽|산성|읍성|서원|향교|전시|문화|기념관|역사|고택|가옥|종택|문학관|생가|마을|민속/],
+];
+function moodOf(name){return GO_MOODS.find(m=>m[0]===name)||null;}
+/* '부산·울산·안산…' 같은 도시 이름의 '산'은 지우고 봅니다 (자연 분위기 오탐 방지) */
+function moodMatch(mood,sp){if(!mood)return true;const text=(String(sp.title||'')+' '+String(sp.intro||'')).replace(/[부울안마군익경오아논서양괴예용송합노문일장성]산/g,'');return mood[2].test(text);}
+function goSetMood(m){ const box=$('go'),y=box?box.scrollTop:0; goMood=(goMood===m)?'':m; goPlaceLimit=6; renderGo(); if(box)box.scrollTop=y; }
 const REGION_LIST=['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주'];
 let goRegion=null;                       // 지금 보고 있는 지역 (null = 추천)
 
@@ -1775,7 +1787,11 @@ function renderGo(){
   const km=new Map();
   if(ageo&&ageo.lat)data.places.forEach(sp=>{const d=TravelCore.distanceKm(ageo,sp);if(d!=null)km.set(sp.id,d);});
   const ordered=(goSort==='near'&&km.size)?data.places.slice().sort((a,b)=>(km.has(a.id)?km.get(a.id):1e9)-(km.has(b.id)?km.get(b.id):1e9)):data.places;
-  const spots=ordered.slice(0,goPlaceLimit), festivals=data.festivals.slice(0,goFestivalLimit);
+  /* 분위기 타일이 켜져 있으면 그 분위기의 장소만 (자료 파일 안에서만 거릅니다) */
+  const mood=data.editorial?null:moodOf(goMood);
+  const shown=mood?ordered.filter(sp=>moodMatch(mood,sp)):ordered;
+  const moodRegions=mood?REGION_LIST.map(r=>[r,(grouped[r]||[]).filter(sp=>!['38','32','25'].includes(String(sp.contentTypeId||''))&&moodMatch(mood,sp)).length]).filter(x=>x[1]>0&&x[0]!==pickR).sort((a,b)=>b[1]-a[1]).slice(0,5):[];
+  const spots=shown.slice(0,goPlaceLimit), festivals=data.festivals.slice(0,goFestivalLimit);
   const recs=(RECS||[]).filter(r=>r.region===pickR);
   if(RECS_STATE==='idle')loadRecs();
   const fcard=f=>{
@@ -1787,17 +1803,22 @@ function renderGo(){
   const month=String(NEWS.month||'').slice(0,7), stale=month&&month<todayStr().slice(0,7);
   box.innerHTML=`<header class="page-lead go-lead"><span class="section-label">국내 여행 아이디어</span>
       <h2>다음 여행, 어디로 갈까요?</h2><p>갈 만한 곳부터 그 지역의 축제까지, 가볍게 둘러보세요.</p></header>
+    ${data.editorial?'':`<section class="mood-pick" aria-label="분위기로 고르기">
+      <div class="section-heading"><h3>어디로 떠나볼까요?</h3>${goMood?`<button class="lnk" onclick="goSetMood('')">전체 보기</button>`:'<span class="muted small">분위기로 고르기</span>'}</div>
+      <div class="mood-tiles">${GO_MOODS.map(([m,ic])=>`<button class="mood${goMood===m?' on':''}" aria-pressed="${goMood===m}" onclick="goSetMood('${m}')">${svg(ic,'ic')}<span>${m}</span></button>`).join('')}</div>
+      ${mood?`<div class="mood-regions"><span>${esc(goMood)} 분위기가 많은 곳</span>${moodRegions.map(([r,n])=>`<button class="rchip" onclick="goPick('${r}')">${r} <i>${n}</i></button>`).join('')||'<span class="muted small">다른 지역에도 아직 없어요</span>'}</div>`:''}
+    </section>`}
     <div class="region-picker"><label for="goRegionSelect">여행 지역</label><select class="input" id="goRegionSelect" onchange="goPick(this.value)">${REGION_LIST.map(r=>`<option value="${r}" ${r===pickR?'selected':''}>${r}</option>`).join('')}</select></div>
     <div class="season-regions"><span>${esc(seasonNow())} 추천</span>${(SEASON_PICK[seasonNow()]||[]).filter(([r])=>(grouped?.[r]||[]).length).map(([r])=>`<button class="rchip${r===pickR?' on':''}" aria-pressed="${r===pickR}" onclick="goPick('${r}')">${r}</button>`).join('')}</div>
     <section aria-labelledby="goPlacesTitle">
-      <div class="section-heading"><h3 id="goPlacesTitle">${esc(pickR)}, 이런 곳은 어때요?</h3><span class="muted small">${data.total}곳</span></div>
+      <div class="section-heading"><h3 id="goPlacesTitle">${mood?esc(pickR)+'의 '+esc(goMood)+' 분위기':esc(pickR)+', 이런 곳은 어때요?'}</h3><span class="muted small">${mood?shown.length+'곳':data.total+'곳'}</span></div>
       ${!goRegion?`<p class="muted small go-reason">${esc(rec.why)}</p>`:''}
       ${data.themes.length>2?`<div class="go-themes" aria-label="장소 종류">${data.themes.map(t=>`<button class="rchip${t===goTheme?' on':''}" aria-pressed="${t===goTheme}" onclick="goChooseTheme('${TravelCore.jsText(t)}')">${esc(t)}</button>`).join('')}</div>`:''}
       ${km.size?`<div class="go-near">${svg(anchor.kind==='숙소'?'i-bed':'i-pin')}<span>${esc(anchor.kind)} <b>${esc(anchor.name)}</b> 기준</span><button class="rchip${goSort==='near'?' on':''}" aria-pressed="${goSort==='near'}" onclick="goSetSort('near')">가까운 순</button><button class="rchip${goSort!=='near'?' on':''}" aria-pressed="${goSort!=='near'}" onclick="goSetSort('basic')">기본</button></div>`:''}
       <div class="place-grid">${spots.map(sp=>`<button class="place-card" data-place-id="${esc(sp.id)}" onclick="${data.editorial?`openEditorial('${TravelCore.jsText(sp.id)}')`:`openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')`}">
         <span class="place-photo">${(sp.img||sp.thumb||sp.image)?`<img src="${TravelCore.safeImage(sp.img||sp.thumb||sp.image)}" alt="" loading="lazy" decoding="async">`:svg('i-pin','ic')}</span>
-        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}${sp.pet===true?' · 반려동물 OK':''}${sp.stroller===true?' · 유모차 OK':''}</small><b>${esc(sp.title)}</b>${sp.intro?`<span class="place-intro">${esc(sp.intro)}</span>`:''}<em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}${km.has(sp.id)?` · <span class="place-dist">${esc(anchor.kind)}에서 ${kmLabelShort(km.get(sp.id))}</span>`:''}</em></span></button>`).join('')||'<p class="go-empty">이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.</p>'}</div>
-      ${data.places.length>spots.length?`<button class="btn ghost sm go-more" id="goPlaceMore" onclick="goShowMore('places')">장소 더 보기 · ${spots.length}/${data.places.length}</button>`:''}
+        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}${sp.pet===true?' · 반려동물 OK':''}${sp.stroller===true?' · 유모차 OK':''}</small><b>${esc(sp.title)}</b>${sp.intro?`<span class="place-intro">${esc(sp.intro)}</span>`:''}<em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}${km.has(sp.id)?` · <span class="place-dist">${esc(anchor.kind)}에서 ${kmLabelShort(km.get(sp.id))}</span>`:''}</em></span></button>`).join('')||`<p class="go-empty">${mood?esc(pickR)+'에는 '+esc(goMood)+' 분위기로 모은 장소가 아직 없어요. 위의 다른 지역을 눌러 보세요.':'이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.'}</p>`}</div>
+      ${shown.length>spots.length?`<button class="btn ghost sm go-more" id="goPlaceMore" onclick="goShowMore('places')">장소 더 보기 · ${spots.length}/${shown.length}</button>`:''}
     </section>
     ${data.courses.length?`<section class="course-section" aria-labelledby="goCoursesTitle">
       <div class="section-heading"><h3 id="goCoursesTitle">관광공사 추천 코스</h3><span class="muted small">${data.courses.length}개</span></div>
@@ -2803,11 +2824,14 @@ function freeWindows(d){
 }
 const PLAN_Q=[
   {k:'pace',  label:'여행 속도',   opts:[['여유','여유롭게 · 하루 2~3곳'],['알차게','알차게 · 하루 4~5곳']]},
-  {k:'taste', label:'주로 하고 싶은 것', opts:[['자연','자연·경치'],['맛집','맛집·카페'],['체험','체험·액티비티'],['실내','실내·전시·박물관']]},
+  {k:'taste', label:'주로 하고 싶은 것 · 2개까지', opts:[['자연','자연·경치'],['맛집','맛집·카페'],['체험','체험·액티비티'],['실내','실내·전시·박물관']]},
   {k:'move',  label:'이동 수단',   opts:[['렌터카','렌터카'],['대중교통','대중교통·도보']]},
   {k:'range', label:'숙소에서 얼마나 멀리까지', opts:[['50','50km 안'],['100','100km 안'],['150','150km 안']]},
 ];
-let planAns={pace:'여유',taste:'자연',move:'렌터카',range:'50',day:'all'};
+/* 2026-09-30: 취향(taste)은 배열 — 2개까지 골라 AI가 섞어서 배분합니다 */
+let planAns={pace:'여유',taste:['자연'],move:'렌터카',range:'50',day:'all'};
+function planTastes(){return Array.isArray(planAns.taste)?planAns.taste:[planAns.taste];}
+function tasteLabel(v){return (PLAN_Q[1].opts.find(o=>o[0]===v)||[v,v])[1];}
 /* 거리를 재는 기준점 — 숙소가 있으면 숙소, 없으면 여행지 */
 function planBase(t){
   let stay='';
@@ -2841,7 +2865,7 @@ function aiKeptBar(at,fn){
 
 function openPlanWizard(){
   const t=trip(curTrip); if(!t)return;
-  planAns={pace:'여유',taste:'자연',move:'렌터카',range:'50',day:'all'};
+  planAns={pace:'여유',taste:['자연'],move:'렌터카',range:'50',day:'all'};
   const base=planBase(t);
   const dayOpts=`<option value="all">여행 전체 (${(t.days||[]).length}일)</option>`
     +(t.days||[]).map((d,i)=>`<option value="${i}">DAY ${i+1} · ${mdLabel(d.date)}(${dowOf(d.date)})${(d.items||[]).length?'':' · 비어 있음'}</option>`).join('');
@@ -2850,8 +2874,8 @@ function openPlanWizard(){
     <label class="fld">어느 날짜를 짤까요</label>
     <select class="input" id="planDay" onchange="planAns.day=this.value">${dayOpts}</select>
     ${PLAN_Q.map(q=>`<label class="fld">${q.label}</label>
-      <div class="qrow" data-k="${q.k}">${q.opts.map((o,i)=>
-        `<button class="qopt${i===0?' on':''}" onclick="pickPlanOpt('${q.k}','${o[0]}',this)">${o[1]}</button>`).join('')}</div>`).join('')}
+      <div class="qrow" data-k="${q.k}">${q.opts.map((o,i)=>{const on=q.k==='taste'?planTastes().includes(o[0]):i===0;
+        return `<button class="qopt${on?' on':''}" data-v="${o[0]}" aria-pressed="${on}" onclick="pickPlanOpt('${q.k}','${o[0]}',this)">${o[1]}</button>`;}).join('')}</div>`).join('')}
     ${base?`<p class="muted small" style="margin:-6px 2px 12px">거리는 <b>${esc(base)}</b> 기준으로 재고, <b>범위를 넘는 곳은 자동으로 빼</b> 드려요.</p>`
           :hintBox('i-info','숙소가 등록돼 있지 않아 거리를 정확히 재기 어려워요. 숙소를 먼저 넣으면 더 잘 골라 드려요.')}
     ${t.hasStudent?hintBox('i-users','<b>학생(자녀) 동행</b> 여행이라, 아이와 함께 가기 좋은 곳 위주로 골라 드려요.'):''}
@@ -2867,8 +2891,16 @@ function restorePlan(){
   out.innerHTML=aiKeptBar(r.at,'freshPlan()')+r.data.html;
 }
 function freshPlan(){aiDrop('plan');window.__plans=null;runPlanAI();}
-function pickPlanOpt(k,v,el){planAns[k]=v;
-  const row=el.parentElement;[...row.children].forEach(c=>c.classList.remove('on'));el.classList.add('on');}
+function pickPlanOpt(k,v,el){
+  const row=el.parentElement;
+  if(k==='taste'){ /* 2개까지 겹쳐 고르기 — 마지막 하나는 풀 수 없음 */
+    let cur=planTastes().slice();
+    if(cur.includes(v)){ if(cur.length===1){toast('취향은 하나 이상 골라 주세요.');return;} cur=cur.filter(x=>x!==v); }
+    else { if(cur.length>=2){toast('취향은 2개까지 고를 수 있어요. 하나를 풀고 골라 주세요.');return;} cur.push(v); }
+    planAns.taste=cur;
+    [...row.children].forEach(c=>{const on=cur.includes(c.dataset.v);c.classList.toggle('on',on);c.setAttribute('aria-pressed',on);});
+    return; }
+  planAns[k]=v;[...row.children].forEach(c=>{c.classList.remove('on');c.setAttribute('aria-pressed','false');});el.classList.add('on');el.setAttribute('aria-pressed','true');}
 /* 이미 등록된 일정(도착·체크인 등)을 AI에게 알려 줘야 그 사이를 채울 수 있습니다 */
 function planContext(t,onlyIdx){
   return (t.days||[]).map((d,i)=>{
@@ -2904,7 +2936,7 @@ async function runPlanAI(){
 - 기간: ${t.start} ~ ${t.end}
 - 동행: ${who}
 - 원하는 속도: ${planAns.pace==='여유'?'여유롭게(하루 2~3곳)':'알차게(하루 4~5곳)'}
-- 주 관심사: ${planAns.taste}
+- 주 관심사: ${planTastes().map(tasteLabel).join(' + ')}${planTastes().length>1?' — 두 가지를 한쪽에 치우치지 않게 섞어라. 하루 안에서도 번갈아 넣고, 여러 날이면 날마다 균형 있게 배분하라. 2가지 안은 섞는 비율이나 순서가 서로 달라야 한다.':''}
 - 이동 수단: ${planAns.move}
 - 숙소(거리 기준점): ${base||'(없음)'}
 
@@ -5914,7 +5946,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.1.1 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.1.2 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

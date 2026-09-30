@@ -176,3 +176,17 @@ html.dark .rec-card,html.dark .course-card,html.dark .rec-items label{background
    화면·시트·안내 제목처럼 '읽어 주려고' 코드가 초점을 옮기는 요소(tabindex=-1)에는 테두리를 그리지 않습니다.
    버튼·입력칸·링크 등 실제로 누르는 요소의 :focus-visible 테두리는 그대로 둡니다 (design.md 규칙). */
 #introTitle:focus,#introTitle:focus-visible,#ovc:focus,#ovc:focus-visible,.screen:focus,.screen:focus-visible,#intro .intro-content:focus,#intro .intro-content:focus-visible{outline:none!important;box-shadow:none!important}
+
+/* ── 2026-09-30 [여행 추천] '어디로 떠나볼까요?' 분위기 타일 (첫 사용 안내 3장의 그림을 실제 화면으로) ── */
+.mood-pick{margin:0 0 18px}.mood-pick .section-heading{margin:0 0 10px}
+.mood-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mood-tiles .mood{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px 12px;border-radius:12px;background:var(--paper);border:1px solid var(--line);color:var(--teal);font-size:13px;font-weight:700;min-height:44px;cursor:pointer;line-height:1.3}
+.mood-tiles .mood .ic{width:26px;height:26px}
+.mood-tiles .mood:hover{border-color:var(--teal)}
+.mood-tiles .mood.on{background:var(--brand-bg);border-color:#d5a38e;color:var(--brand-ink)}
+.mood-regions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.mood-regions .rchip{min-height:34px;padding:5px 11px;font-size:12.5px;margin:0}.mood-regions .rchip i{font-style:normal;color:var(--brand-ink);margin-left:3px}
+html.dark .mood-tiles .mood{background:var(--card)}
+@media(max-width:360px){.mood-tiles{gap:6px}.mood-tiles .mood{font-size:12px;padding:12px 2px 10px}}
+@media(min-width:700px){.mood-tiles .mood{padding:18px 6px 15px;font-size:14px}.mood-tiles .mood .ic{width:30px;height:30px}}
+.intro-ideas>span{min-width:0}
