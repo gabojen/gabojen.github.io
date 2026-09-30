@@ -2162,8 +2162,16 @@ function renderDetail(){
         out+=`<div class="tl">${buildTimeline(its,t.days[di].date,di,nxId)}</div>`;
       } else {
         /* 접힌 줄과 펼친 줄이 같은 지면 위에 나란히 놓입니다 */
-        out+='<div class="tl rows">'+its.map(function(x){
-          return timelineNode(x,di,t.days[di].date,nxId,!!openRows[x._id]);
+        /* 2026-09-30: [전체] 탭에서도 줄을 펼치면 '다음 일정까지 가는 길'을 그 아래에 보여 줍니다.
+           (예전에는 날짜 탭이나 '자세히'에서만 보여 "이동 시간 항목이 사라졌다"로 보였음) */
+        out+='<div class="tl rows">'+its.map(function(x,k){
+          let h=timelineNode(x,di,t.days[di].date,nxId,!!openRows[x._id]);
+          const nx=its[k+1];
+          if(openRows[x._id]&&nx&&x.place&&nx.place&&x.place!==nx.place){
+            const gap=Math.round((dObj(t.days[di].date,nx.time)-dObj(t.days[di].date,x.time))/60000);
+            h+=`<div class="leg hidden" data-from="${esc(x.place)}" data-to="${esc(nx.place)}" data-gap="${gap}"></div>`;
+          }
+          return h;
         }).join('')+'</div>';
       }
       out+='</section>';
@@ -5948,7 +5956,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.1.3 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.1.4 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
