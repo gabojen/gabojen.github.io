@@ -1331,7 +1331,9 @@ async function mountLegs(){
     const gap=parseInt(el.getAttribute('data-gap'))||0;
     const tight=gap>0&&gap<t.min;
     el.className='leg';
-    el.innerHTML=`${svg(t.icon)} 약 ${t.km<1?Math.round(t.km*1000)+'m':t.km.toFixed(1)+'km'} · ${t.mode} ${t.min}분`+
+    /* 2026-09-30: 이 줄은 '다음 일정까지' 가는 길입니다. 앞 일정 카드 바로 아래에 놓여 그 일정의 거리로 오해되어 목적지를 함께 적습니다 */
+    const to=tidyTitle(el.getAttribute('data-to')||'',14);
+    el.innerHTML=`${svg(t.icon)} <b>${esc(to)}</b>까지 약 ${t.km<1?Math.round(t.km*1000)+'m':t.km.toFixed(1)+'km'} · ${t.mode} ${t.min}분`+
       (tight?` <span class="warn">· 일정이 빠듯해요 (${gap}분)</span>`:'');
   }}
 
@@ -5946,7 +5948,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.1.2 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.1.3 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
