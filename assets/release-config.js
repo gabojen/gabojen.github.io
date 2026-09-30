@@ -1,7 +1,7 @@
 /* Public settings only. Never put a Gemini/server secret in this file.
    Fill the operator fields and verify the deployed rules before release. */
 window.GABOJEN_RELEASE = Object.freeze({
-  version: '12.1.7',
+  version: '12.1.8',
   aiModel: 'gemini-3.1-flash-lite',
   supportEmail: 'aznail@hanmail.net',
   operatorName: '김광석',

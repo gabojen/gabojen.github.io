@@ -1305,7 +1305,7 @@ function buildTimeline(items,dateStr,dayIdx,nextId){
     const nx=items[idx+1];
     if(nx&&i.place&&nx.place&&i.place!==nx.place){
       const gap=Math.round((dObj(dateStr,nx.time)-dObj(dateStr,i.time))/60000);
-      out+=`<div class="leg hidden" data-from="${esc(i.place)}" data-to="${esc(nx.place)}" data-gap="${gap}"></div>`;
+      out+=`<div class="leg hidden" data-from="${esc(i.place)}" data-to="${esc(nx.place)}" data-name="${esc(nx.title||'')}" data-gap="${gap}"></div>`;
     }
     /* 아직 오지 않은 시간대에 크게 빈 곳이 있으면 그 자리에서 바로 추천을 권합니다.
        (지나간 시간은 채울 수 없으므로 띄우지 않습니다) */
@@ -1332,7 +1332,8 @@ async function mountLegs(){
     const tight=gap>0&&gap<t.min;
     el.className='leg';
     /* 2026-09-30: 이 줄은 '다음 일정까지' 가는 길입니다. 앞 일정 카드 바로 아래에 놓여 그 일정의 거리로 오해되어 목적지를 함께 적습니다 */
-    const to=tidyTitle(el.getAttribute('data-to')||'',14);
+    /* 목적지는 다음 일정의 이름으로 (장소 칸에 긴 주소가 들어 있으면 '강원특별자치도 평창군 봉…'처럼 잘렸음) */
+    const to=tidyTitle(el.getAttribute('data-name')||el.getAttribute('data-to')||'',16);
     el.innerHTML=`${svg(t.icon)} <b>${esc(to)}</b>까지 약 ${t.km<1?Math.round(t.km*1000)+'m':t.km.toFixed(1)+'km'} · ${t.mode} ${t.min}분`+
       (tight?` <span class="warn">· 일정이 빠듯해요 (${gap}분)</span>`:'');
   }}
@@ -1544,7 +1545,7 @@ function openItemMenu(id){const f=itemById(id);if(!f)return;const it=f.it;const 
     ${(it.cat==='transport'||it.cat==='stay'||it.cat==='rentcar')?`<button class="btn ghost" onclick="closeOv();goProvider('${id}')">${svg('i-ext','ic')} 예약처에서 확인·체크인</button><div style="height:10px"></div>`:''}
     ${it.place?`<button class="btn ghost" onclick="closeOv();openMap('${TravelCore.jsText(it.place)}')">${svg('i-pin','ic')} 지도에서 보기</button><div style="height:10px"></div>`:''}
     ${canReport?`<button class="btn" style="background:var(--teal)" onclick="openReportFor('${id}')">${svg('i-file','ic')} 이 장소로 체험학습 보고서</button><div style="height:10px"></div>`:''}
-    ${(ddayOf(t)==='종료'||t.status==='done')&&!t.hasStudent&&TravelCore.REC_CATS.includes(it.cat)?`<button class="btn" style="background:var(--teal)" onclick="closeOv();openRecCompose('${TravelCore.jsText(t.id)}','${TravelCore.jsText(id)}')">${svg('i-compass','ic')} 이 곳을 다른 회원에게 추천</button><div style="height:10px"></div>`:''}
+    ${(ddayOf(t)==='종료'||t.status==='done')&&TravelCore.REC_CATS.includes(it.cat)?`<button class="btn" style="background:var(--teal)" onclick="closeOv();openRecCompose('${TravelCore.jsText(t.id)}','${TravelCore.jsText(id)}')">${svg('i-compass','ic')} 이 곳을 다른 회원에게 추천</button><div style="height:10px"></div>`:''}
     <button class="btn ghost" onclick="closeOv();openEditItem('${id}')">${svg('i-edit','ic')} 수정</button>
     <div style="height:10px"></div>
     <button class="btn ghost" style="color:#B23B3B" onclick="closeOv();delItem('${id}')">${svg('i-trash','ic')} 삭제</button>`);}
@@ -1557,7 +1558,7 @@ function openTripMenu(){const t=trip(curTrip);if(!t)return;
     <div style="height:10px"></div>
     <button class="btn ghost" onclick="closeOv();openShare()">${svg('i-share','ic')} 멤버 초대</button>
     <div style="height:10px"></div>
-    ${(ddayOf(t)==='종료'||t.status==='done')&&!t.hasStudent?`<button class="btn ghost" onclick="closeOv();openRecCompose('${TravelCore.jsText(t.id)}')">${svg('i-compass','ic')} 다녀온 곳 추천하기 <em style="font-style:normal;opacity:.7">· 여행 추천 탭에 공개</em></button>
+    ${(ddayOf(t)==='종료'||t.status==='done')?`<button class="btn ghost" onclick="closeOv();openRecCompose('${TravelCore.jsText(t.id)}')">${svg('i-compass','ic')} 다녀온 곳 추천하기 <em style="font-style:normal;opacity:.7">· 여행 추천 탭에 공개</em></button>
     <div style="height:10px"></div>`:''}
     ${t.hasStudent?`<button class="btn ghost" onclick="openApply()">${svg('i-file','ic')} 체험학습 신청서 만들기 <em style="font-style:normal;opacity:.7">· 가기 전</em></button>
       <div style="height:10px"></div>
@@ -1816,7 +1817,7 @@ function renderGo(){
       <p class="muted small go-reason">여행을 다녀온 회원이 직접 추천한 장소예요. 이름·연락처 없이 장소와 이유만 올릴 수 있고, 운영자 검수를 거쳐 공개돼요.</p>
       <div class="rec-list">${recs.slice(0,goRecLimit).map(recCard).join('')||`<p class="go-empty">${RECS_STATE==='loading'?'회원 추천을 불러오는 중이에요.':RECS_STATE==='none'?'회원 추천은 아직 준비 중이에요.':'아직 '+esc(pickR)+' 추천이 없어요. 다녀온 여행에서 좋았던 곳을 첫 번째로 추천해 보세요.'}</p>`}</div>
       ${recs.length>goRecLimit?`<button class="btn ghost sm go-more" onclick="goMoreRecs()">추천 더 보기 · ${Math.min(goRecLimit,recs.length)}/${recs.length}</button>`:''}
-      ${RECS_STATE!=='none'&&doneTrips().some(t=>!t.hasStudent)?`<button class="btn ghost sm go-more" onclick="openRecCompose()">${svg('i-plus','ic')} 내가 다녀온 곳 추천하기</button>`:''}
+      ${RECS_STATE!=='none'&&doneTrips().length?`<button class="btn ghost sm go-more" onclick="openRecCompose()">${svg('i-plus','ic')} 내가 다녀온 곳 추천하기</button>`:''}
     </section>
     <section class="region-festivals" aria-labelledby="goFestivalsTitle">
       <div class="section-heading"><h3 id="goFestivalsTitle">${esc(pickR)}의 축제·행사</h3><span class="muted small">${data.editorial?'연결 필요':data.festivals.length+'개'}</span></div>
@@ -1981,10 +1982,11 @@ function openRec(id){
 /* 추천 올리기 — 다녀온 여행(학생 동행 제외)의 일정 중 장소·입장권·숙소 하나를 고릅니다 */
 function openRecCompose(tripId,itemId){
   if(needVerify())return;
-  const trips=doneTrips().filter(t=>!t.hasStudent);
+  /* 2026-09-30: 학생 동행 여행도 허용 — 추천에는 장소 이름·이유만 올라가고 학생 정보는 들어가지 않습니다 */
+  const trips=doneTrips();
   if(!trips.length){toast('다녀온 여행이 있어야 추천할 수 있어요.');return;}
   /* 2026-09-30: 추억·일정 메뉴에서 넘어오면 그 여행·그 일정이 미리 골라집니다 */
-  if(tripId&&!trips.some(t=>t.id===tripId)){toast(trip(tripId)&&trip(tripId).hasStudent?'학생 동행 여행의 일정은 추천에 올릴 수 없어요.':'다녀온 여행만 추천할 수 있어요.');return;}
+  if(tripId&&!trips.some(t=>t.id===tripId)){toast('다녀온 여행만 추천할 수 있어요.');return;}
   const first=trips.find(t=>t.id===tripId)||trips[0];
   openSheet(`<div class="grab"></div><h3>내가 다녀온 곳 추천하기</h3>
     <p class="muted small" style="margin:-6px 0 12px">장소 이름과 추천 이유만 올라가요. 이름·사진·날짜·연락처는 올라가지 않아요. 운영자 검수 뒤에 [여행 추천] 탭에 공개돼요.</p>
@@ -2199,7 +2201,7 @@ function renderDetail(){
           const nx=its[k+1];
           if(openRows[x._id]&&nx&&x.place&&nx.place&&x.place!==nx.place){
             const gap=Math.round((dObj(t.days[di].date,nx.time)-dObj(t.days[di].date,x.time))/60000);
-            h+=`<div class="leg hidden" data-from="${esc(x.place)}" data-to="${esc(nx.place)}" data-gap="${gap}"></div>`;
+            h+=`<div class="leg hidden" data-from="${esc(x.place)}" data-to="${esc(nx.place)}" data-name="${esc(nx.title||'')}" data-gap="${gap}"></div>`;
           }
           return h;
         }).join('')+'</div>';
@@ -4646,7 +4648,7 @@ function renderHistory(){
     <div class="grid">${cards}</div>
     <div class="eyebrow" style="margin-top:18px">${svg('i-camera','ic')} 여행 사진</div>
     ${photoBlock()}
-    ${done.some(t=>!t.hasStudent)?`<button class="btn ghost" style="margin-top:8px" onclick="openRecCompose()">${svg('i-compass','ic')} 다녀온 곳 다른 회원에게 추천하기</button>`:''}
+    ${done.length?`<button class="btn ghost" style="margin-top:8px" onclick="openRecCompose()">${svg('i-compass','ic')} 다녀온 곳 다른 회원에게 추천하기</button>`:''}
     <button class="btn ghost" style="margin-top:8px" onclick="openClone()">${svg('i-copy','ic')} 지난 여행 복제해서 새로 만들기</button>`;
   if(typeof axHistoryIn==='function')axHistoryIn();}
 
@@ -5987,7 +5989,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.1.7 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.1.8 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
