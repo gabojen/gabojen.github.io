@@ -525,7 +525,10 @@ window.FB={
         ids.push(r.id);
       }
       const clean=TravelCore.validateRec({...rec,photoIds:ids});
-      await setDoc(recRef,{...clean,uid:u.uid,tripId:String(tripId||'').slice(0,80),status:'pending',createdAt:today});
+      const body={...clean,uid:u.uid,tripId:String(tripId||'').slice(0,80),status:'pending',createdAt:today};
+      /* 사진이 없으면 thumbs·photoIds 를 아예 넣지 않습니다 — 옛 규칙(6판)에서도 글만 있는 추천은 통과하도록 */
+      if(!clean.thumbs.length){ delete body.thumbs; delete body.photoIds; }
+      await setDoc(recRef,body);
       return recRef.id;
     }catch(e){
       for(const id of ids){ try{ await deleteDoc(doc(db,'recPhotos',id)); }catch(_){} }
