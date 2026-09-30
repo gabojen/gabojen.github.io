@@ -30,7 +30,7 @@
 
 ## 콘솔에서만 하는 설정
 
-- **Firestore 규칙**: `firestore_보안규칙_붙여넣기.txt` (6판, 2026-09-29 — 회원 추천 게시판 `recs`·`reports` 추가). 컬렉션을 새로 만들면 규칙부터 쓴다.
+- **Firestore 규칙**: `firestore_보안규칙_붙여넣기.txt` (7판, 2026-09-30 — 회원 추천 `recs`·`reports`·사진 `recPhotos`). 컬렉션을 새로 만들면 규칙부터 쓴다.
 - **추천 검수**: 회원이 올린 '다녀온 곳' 추천은 검수 대기로 들어온다. 앱 [내 계정 → 운영 현황 → 추천 검수]에서 공개/숨김. 신고도 같은 화면에서 처리.
 - **관리자 지정**: Firestore `admins/{uid}` 문서를 콘솔에서 만든다.
 - **App Check**: reCAPTCHA Enterprise. AI Logic 에 적용(enforce)돼 있어야 남이 AI 할당량을 못 쓴다.
