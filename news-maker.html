@@ -68,7 +68,8 @@
     <div><label for="month">어느 달</label><select id="month"></select></div>
     <div style="flex:0 0 auto;width:46%"><button class="go" id="run">소식지 만들기</button></div>
   </div>
-  <p class="note">장소 400곳쯤의 소개글까지 받아서 <b>3~5분</b> 걸립니다. 화면을 닫지 말고 기다려 주세요. (하루 한도 1,000건 중 약 480건 사용 — 하루 한 번만)</p>
+  <p class="note">장소 340곳의 소개·이용시간·주차와 추천 코스까지 받아서 <b>5~8분</b> 걸립니다. 화면을 닫지 말고 기다려 주세요.<br>
+    하루 한도 1,000건 중 <b>첫 달은 약 950건</b>을 쓰고 950건에서 스스로 멈춥니다. 다음 달부터는 지난 파일에 이미 있는 장소를 다시 받지 않아 훨씬 적게 씁니다. (하루 한 번만)</p>
   <div id="log"></div>
 </div>
 
@@ -132,10 +133,14 @@ $('key').addEventListener('change',()=>{ try{ localStorage.setItem('gabojen_tour
 const ymd=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
 const https=u=>(u||'').replace(/^http:/,'https:');
 
+/* 하루 한도(1,000건) 안에서 멈추기 위해 실제로 보낸 요청 수를 셉니다(재시도 포함) */
+const BUDGET=950; let CALLS=0;
+const left=()=>BUDGET-CALLS;
 async function call(key,op,params){
   const q=new URLSearchParams({serviceKey:key,MobileOS:'WEB',MobileApp:'gabojen',_type:'json',...params});
   for(let a=1;a<=3;a++){
     try{
+      CALLS++;
       const res=await fetch(`${BASE}/${op}?${q}`,{signal:AbortSignal.timeout(20000)});
       const text=await res.text();
       if(text.includes('SERVICE_KEY_IS_NOT_REGISTERED'))
@@ -170,7 +175,8 @@ $('run').addEventListener('click',async()=>{
     const [y,mm]=$('month').value.split('-').map(Number);
     const first=new Date(y,mm-1,1), last=new Date(y,mm,0);
     log(`📅 ${y}-${String(mm).padStart(2,'0')} 소식지를 만듭니다`);
-    log(`ℹ️ 관광공사 호출 약 ${3+17*4+17*4*6}건 (하루 한도 1,000건)`);
+    CALLS=0;
+    log(`ℹ️ 관광공사 호출은 ${BUDGET}건에서 멈춥니다 (하루 한도 1,000건)`);
     log(`🔑 인증키 ${key.length}자 (${rawKey.includes('%')?'Encoding → 자동 변환':'Decoding'})`);
 
     /* ① 축제 */
@@ -194,13 +200,44 @@ $('run').addEventListener('click',async()=>{
       .sort((a,b)=>a.start.localeCompare(b.start));
     log(`✅ 축제 ${festivals.length}개`,'ok');
 
-    /* ② 지역별 갈 만한 곳 — 관광지·문화시설·레포츠·맛집 네 종류.
-       쇼핑(38)·숙박(32)·여행코스(25)는 '가볼 곳' 추천에 맞지 않아 모으지 않습니다. */
+    /* ♻️ 지난 파일 재사용 — 같은 장소의 소개·이용시간·사진은 다시 받지 않습니다 (호출 절약) */
+    const prev={spots:{},courses:{}};
+    try{
+      const r=await fetch('news/latest.json?x='+Date.now(),{cache:'no-store'});
+      if(r.ok){ const j=await r.json();
+        Object.values(j.spots||{}).flat().forEach(s=>{ if(s&&s.id)prev.spots[String(s.id)]=s; });
+        Object.values(j.courses||{}).flat().forEach(c=>{ if(c&&c.id)prev.courses[String(c.id)]=c; });
+        log(`♻️ 지난 파일에서 재사용: 장소 ${Object.keys(prev.spots).length}곳 · 코스 ${Object.keys(prev.courses).length}개`); }
+    }catch(e){ log('   (지난 파일 없음 — 처음부터 받습니다)'); }
+
+    /* 글 다듬기: HTML 제거, <br>는 ' · ' 로, 길이 제한 */
+    const clean=(raw,n)=>{ let t=String(raw||'').replace(/<br\s*\/?>/gi,' · ').replace(/<[^>]+>/g,'')
+        .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+        .replace(/\s+/g,' ').replace(/(\s*·\s*)+$/,'').trim();
+      return t.length>n?t.slice(0,n-1)+'…':t; };
+    /* '가능'·'불가' 같은 글을 참/거짓으로 (모르면 null) — '불가능'에 '가능'이 들어 있으니 불가를 먼저 봅니다 */
+    const yn=t=>{ const s=String(t||''); if(!s.trim())return null; if(/불가|없음|금지|안\s*됨|안\s*돼/.test(s))return false; if(/가능|허용|동반|있음|OK/i.test(s))return true; return null; };
+    const intro=(raw,n)=>{
+      const t=clean(raw,2000); if(!t)return '';
+      const parts=t.split(/(?<=[.!?。])\s+/); let out='';
+      for(const q of parts){ if((out+' '+q).trim().length>n)break; out=(out+' '+q).trim(); }
+      return out||t.slice(0,n-2)+'…';
+    };
+    /* 여러 개를 4개씩 동시에 처리 */
+    async function pool(items,fn,label){
+      const queue=items.slice(); let done=0;
+      await Promise.all(Array.from({length:4},async()=>{
+        while(queue.length){ const x=queue.shift(); await fn(x); if(++done%40===0)log(`   ${label} ${done}/${items.length}`); }
+      }));
+    }
+
+    /* ② 지역별 갈 만한 곳 — 관광지·문화시설·레포츠·맛집 네 종류 × 5곳.
+       쇼핑(38)·숙박(32)은 '가볼 곳' 추천에 맞지 않아 모으지 않습니다. 여행코스(25)는 별도 섹션(아래 ⑤). */
     const KINDS=[['12','관광지'],['14','문화시설'],['28','레포츠'],['39','맛집']];
-    const PER_KIND=6;
-    const spots={};
+    const PER_KIND=5;
+    const spots={}, courses={};
     for(const [code,name] of REGIONS){
-      spots[name]=[];
+      spots[name]=[]; courses[name]=[];
       for(const [type,label] of KINDS){
         try{
           const rows=await call(key,'areaBasedList2',{numOfRows:'10',pageNo:'1',arrange:'Q',
@@ -212,39 +249,83 @@ $('run').addEventListener('click',async()=>{
         }catch(e){ log(`   ${name} ${label} 건너뜀 (${e.message})`,'bad'); }
         await new Promise(r=>setTimeout(r,60));
       }
-      log(`   ${name} … ${spots[name].length}곳`);
+      /* 추천 코스 후보 3개 (사진 있는 것만) */
+      try{
+        const rows=await call(key,'areaBasedList2',{numOfRows:'8',pageNo:'1',arrange:'Q',contentTypeId:'25',lDongRegnCd:code});
+        courses[name]=rows.filter(x=>x.firstimage&&x.title).slice(0,3).map(x=>({
+          id:String(x.contentid),title:(x.title||'').trim(),addr:(x.addr1||'').trim(),
+          img:https(x.firstimage),thumb:https(x.firstimage2||x.firstimage),rights:x.cpyrhtDivCd||''}));
+      }catch(e){ log(`   ${name} 코스 건너뜀 (${e.message})`,'bad'); }
+      log(`   ${name} … 장소 ${spots[name].length}곳 · 코스 ${courses[name].length}개`);
     }
+    const all=Object.values(spots).flat(), allCourses=Object.values(courses).flat();
 
-    /* ③ 장소마다 한 줄 소개 — 공식 개요(overview)의 첫 문장만 짧게 */
-    const all=Object.values(spots).flat();
-    log(`📝 장소 ${all.length}곳의 소개글을 받습니다 (호출 ${all.length}건)`);
-    let done=0,miss=0;
-    const intro=raw=>{
-      let t=String(raw||'').replace(/<br\s*\/?>/gi,' ').replace(/<[^>]+>/g,'')
-        .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
-        .replace(/\s+/g,' ').trim();
-      if(!t)return '';
-      /* 문장 단위로 자르되 140자 안쪽 */
-      const parts=t.split(/(?<=[.!?。])\s+/); let out='';
-      for(const q of parts){ if((out+' '+q).trim().length>140)break; out=(out+' '+q).trim(); }
-      if(!out)out=t.slice(0,138)+'…';
-      return out;
-    };
-    const queue=all.slice();
-    await Promise.all(Array.from({length:4},async()=>{
-      while(queue.length){
-        const sp=queue.shift();
-        try{ const [row]=await call(key,'detailCommon2',{contentId:sp.id,numOfRows:'1',pageNo:'1'});
-          sp.intro=intro(row&&row.overview); if(!sp.intro)miss++;
-        }catch(e){ miss++; }
-        if(++done%40===0)log(`   소개글 ${done}/${all.length}`);
-      }
-    }));
-    log(`✅ 소개글 ${all.length-miss}곳 받음${miss?` · ${miss}곳은 공식 소개가 없음`:''}`,'ok');
+    /* ③ 장소마다 한 줄 소개 (지난 파일에 있으면 재사용) */
+    let reused=0, miss=0;
+    const needIntro=all.filter(sp=>{ const p=prev.spots[sp.id]; if(p&&typeof p.intro==='string'){sp.intro=p.intro;reused++;return false;} return true; });
+    log(`📝 소개글: ${reused}곳 재사용 · ${needIntro.length}곳 새로 받음`);
+    await pool(needIntro,async sp=>{
+      if(left()<=0){ miss++; return; }
+      try{ const [row]=await call(key,'detailCommon2',{contentId:sp.id,numOfRows:'1',pageNo:'1'});
+        sp.intro=intro(row&&row.overview,140); if(!sp.intro)miss++;
+      }catch(e){ miss++; }
+    },'소개글');
+    log(`✅ 소개글 ${all.length-miss}곳${miss?` · ${miss}곳은 공식 소개가 없거나 못 받음`:''}`,'ok');
+
+    /* ④ 이용시간·쉬는 날·주차·문의·반려동물·유모차·대표메뉴 (detailIntro2 — 종류마다 항목 이름이 다릅니다) */
+    const FIELDS={'12':['usetime','restdate','parking','infocenter'],'14':['usetimeculture','restdateculture','parkingculture','infocenterculture'],
+                  '28':['usetimeleports','restdateleports','parkingleports','infocenterleports'],'39':['opentimefood','restdatefood','parkingfood','infocenterfood']};
+    reused=0; let dmiss=0;
+    const needDetail=all.filter(sp=>{ const p=prev.spots[sp.id];
+      if(p&&typeof p.hours==='string'){ for(const k of ['hours','closed','parking','tel','menu','pet','petText','stroller','strollerText'])sp[k]=p[k]===undefined?(k==='pet'||k==='stroller'?null:''):p[k]; reused++; return false; }
+      return true; });
+    log(`🕘 이용시간·주차: ${reused}곳 재사용 · ${needDetail.length}곳 새로 받음`);
+    await pool(needDetail,async sp=>{
+      if(left()<=0){ dmiss++; return; }
+      try{ const [x]=await call(key,'detailIntro2',{contentId:sp.id,contentTypeId:sp.contentTypeId,numOfRows:'1',pageNo:'1'});
+        const [h,c,p,i]=FIELDS[sp.contentTypeId]||FIELDS['12']; x||={};
+        sp.hours=clean(x[h],160); sp.closed=clean(x[c],120); sp.parking=clean(x[p],120); sp.tel=clean(x[i],40);
+        sp.menu=sp.contentTypeId==='39'?clean(x.firstmenu,80):'';
+        const pet=x.chkpet??x.chkpetculture??x.chkpetleports??x.chkpetfood??'', baby=x.chkbabycarriage??x.chkbabycarriageculture??x.chkbabycarriageleports??'';
+        sp.pet=yn(pet); sp.petText=clean(pet,40); sp.stroller=yn(baby); sp.strollerText=clean(baby,40);
+      }catch(e){ dmiss++; }
+    },'이용시간');
+    log(`✅ 이용시간·주차 ${all.length-dmiss}곳${dmiss?` · ${dmiss}곳은 다음 달에 이어서`:''}`,'ok');
+
+    /* ⑤ 추천 코스 상세 — 코스 안의 장소 목록(detailInfo2) + 소개(detailCommon2) + 거리·소요시간(detailIntro2) */
+    reused=0; let cmiss=0;
+    const needCourse=allCourses.filter(c=>{ const p=prev.courses[c.id];
+      if(p&&Array.isArray(p.spots)&&p.spots.length){ c.spots=p.spots; c.intro=p.intro||''; c.distance=p.distance||''; c.taketime=p.taketime||''; reused++; return false; }
+      return true; });
+    log(`🧭 추천 코스: ${reused}개 재사용 · ${needCourse.length}개 새로 받음 (코스당 3건)`);
+    await pool(needCourse,async c=>{
+      if(left()<3){ cmiss++; c.spots=[]; return; }
+      try{
+        const rows=await call(key,'detailInfo2',{contentId:c.id,contentTypeId:'25',numOfRows:'20',pageNo:'1'});
+        c.spots=rows.filter(r=>r.subname).map(r=>({name:clean(r.subname,80),intro:intro(r.subdetailoverview,120)})).slice(0,12);
+        const [cm]=await call(key,'detailCommon2',{contentId:c.id,numOfRows:'1',pageNo:'1'}); c.intro=intro(cm&&cm.overview,200);
+        const [ci]=await call(key,'detailIntro2',{contentId:c.id,contentTypeId:'25',numOfRows:'1',pageNo:'1'}); c.distance=clean(ci&&ci.distance,40); c.taketime=clean(ci&&ci.taketime,40);
+      }catch(e){ cmiss++; c.spots=c.spots||[]; }
+    },'코스');
+    Object.keys(courses).forEach(r=>{ courses[r]=courses[r].filter(c=>c.spots&&c.spots.length); });
+    log(`✅ 추천 코스 ${Object.values(courses).flat().length}개${cmiss?` · ${cmiss}개는 다음 달에 이어서`:''}`,'ok');
+
+    /* ⑥ 관광지(12) 사진 여러 장 — 예산이 남을 때만, 없으면 다음 달에 */
+    reused=0; let imiss=0;
+    const needImg=all.filter(sp=>sp.contentTypeId==='12').filter(sp=>{ const p=prev.spots[sp.id]; if(p&&Array.isArray(p.images)){sp.images=p.images;reused++;return false;} return true; });
+    log(`🖼️ 사진: ${reused}곳 재사용 · ${needImg.length}곳 새로 받음 (예산 남은 만큼)`);
+    await pool(needImg,async sp=>{
+      if(left()<=0){ imiss++; return; }
+      try{ const rows=await call(key,'detailImage2',{contentId:sp.id,imageYN:'Y',numOfRows:'5',pageNo:'1'});
+        sp.images=rows.map(r=>https(r.originimgurl||r.smallimageurl)).filter(Boolean).filter(u=>u!==sp.img).slice(0,4);
+      }catch(e){ imiss++; }
+    },'사진');
+    log(`✅ 사진 ${needImg.length-imiss+reused}곳${imiss?` · ${imiss}곳은 다음 달에 이어서`:''}`,'ok');
+    log(`📊 오늘 관광공사 호출 ${CALLS}건 (한도 1,000)`);
 
     const [title,lead]=MONTH_NOTE[mm];
     RESULT={month:`${y}-${String(mm).padStart(2,'0')}`,title,lead,
-      madeAt:new Date().toISOString().slice(0,10),source:'한국관광공사 TourAPI',festivals,spots};
+      madeAt:new Date().toISOString().slice(0,10),source:'한국관광공사 TourAPI',festivals,spots,courses};
     const kb=Math.round(JSON.stringify(RESULT).length/1024);
     log(`\n🎉 다 됐습니다 — 축제 ${festivals.length}개 · ${kb}KB`,'ok');
     $('done').classList.add('on');
