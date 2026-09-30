@@ -1963,7 +1963,7 @@ function tripFromCourse(region,id){
 function recCard(r){
   const cat=CAT[r.cat]||CAT.plan;
   return `<button class="rec-card" onclick="openRec('${TravelCore.jsText(r.id)}')"><span class="rec-ic" style="color:${cat.color}">${svg(cat.icon,'ic')}</span>
-    <span><b>${esc(r.title)}</b><span class="rec-note">${esc(r.note)}</span><em>${r.month}월에 다녀왔어요 · ${esc(cat.name)}${r.mine?' · 내 추천':''}</em></span></button>`;
+    <span><b>${esc(r.title)}</b><span class="rec-note">${esc(r.note)}</span>${recThumbs(r)}<em>${r.month}월에 다녀왔어요 · ${esc(cat.name)}${r.mine?' · 내 추천':''}</em></span></button>`;
 }
 function openRec(id){
   const r=(RECS||[]).find(x=>x.id===id); if(!r)return;
@@ -1972,12 +1972,89 @@ function openRec(id){
     <p class="muted small" style="margin:0 2px;font-weight:700;color:var(--brand-ink)">회원 추천 · ${esc(r.region)} · ${esc(cat.name)}</p>
     <h3 style="margin-top:2px">${esc(r.title)}</h3>
     <p class="rec-note-full">${esc(r.note)}</p>
+    ${(r.thumbs||[]).length?`<div class="spot-pics rec-pics" id="recPics">${r.thumbs.map((t,i)=>`<img src="${TravelCore.safeImage(t)}" alt="" data-i="${i}" onclick="openRecPhotoBig(this)">`).join('')}</div>`:''}
     <p class="muted small" style="margin:8px 2px 0">${r.month}월에 다녀온 회원의 추천이에요. 운영시간·요금은 바뀔 수 있으니 방문 전 확인해 주세요.</p>
     <button class="btn brand" style="margin-top:14px" onclick="closeOv();window.__editorialPlace={title:'${TravelCore.jsText(r.title)}',region:'${TravelCore.jsText(r.region)}'};addEditorialToTrip()">${svg('i-pin','ic')} 내 여행 일정에 담기</button>
     <button class="btn ghost" style="margin-top:8px" onclick="closeOv();openMap('${TravelCore.jsText(r.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>
     <div class="row" style="justify-content:center;gap:14px;margin-top:12px">
       ${r.mine?`<button class="lnk" onclick="deleteMyRec('${TravelCore.jsText(r.id)}')">내 추천 삭제</button>`:`<button class="lnk" style="color:var(--muted)" onclick="openRecReport('${TravelCore.jsText(r.id)}')">${svg('i-info','ic')} 신고</button>`}
     </div>`);
+  loadRecPics(r);
+}
+/* 게시물의 작은 그림 띠 (목록용) */
+function recThumbs(r){const th=(r&&r.thumbs)||[];return th.length?`<span class="rec-thumbs">${th.map(t=>`<img src="${TravelCore.safeImage(t)}" alt="" loading="lazy">`).join('')}</span>`:'';}
+/* 큰 그림은 시트를 연 뒤 따로 받아 작은 그림을 바꿔 끼웁니다 (목록을 무겁게 하지 않기 위해) */
+async function loadRecPics(r){
+  if(!(r.photoIds||[]).length||!window.FB||!window.FB.recPhotos)return;
+  const box=$('recPics'); if(!box)return;
+  try{ const full=await window.FB.recPhotos(r.photoIds); const imgs=box.querySelectorAll('img');
+    full.forEach((p,i)=>{ if(imgs[i]&&p.u)imgs[i].src=TravelCore.safeImage(p.u); }); }catch(e){}
+}
+function openRecPhotoBig(img){ if(!img||!img.src)return; openModal(`<div class="row" style="justify-content:flex-end;margin-bottom:8px"><button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div><img src="${TravelCore.safeImage(img.src)}" alt="추천 사진" style="width:100%;border-radius:14px">`); }
+/* 관리자 검수용 — 게시물 번호로 큰 그림을 받아 봅니다 */
+async function openRecPhotoView(ids){
+  const list=String(ids||'').split(',').filter(Boolean); if(!list.length)return;
+  openModal(`<div class="row" style="justify-content:flex-end;margin-bottom:8px"><button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div><div id="recBigPics">${aiBusy('사진을 불러오는 중…')}</div>`);
+  try{ const full=await window.FB.recPhotos(list); const b=$('recBigPics'); if(b)b.innerHTML=full.map(p=>`<img src="${TravelCore.safeImage(p.u)}" alt="추천 사진" style="width:100%;border-radius:14px;margin-bottom:10px">`).join('')||'<p class="muted small">사진을 찾지 못했어요.</p>'; }
+  catch(e){ const b=$('recBigPics'); if(b)b.innerHTML='<p class="muted small">사진을 불러오지 못했어요.</p>'; }
+}
+/* ── 추천 사진 고르기 (2장까지) ── */
+let recPhotoSel=[];            // [{key, src}] key: 'item:번호' 또는 'up:번호'
+let recUploadSeq=0, recPhotoPollTimer=null;
+async function facesIn(src){
+  if(!('FaceDetector' in window))return null;
+  try{ const im=new Image(); await new Promise((ok,err)=>{im.onload=ok;im.onerror=err;im.src=src;});
+    const d=new window.FaceDetector({fastMode:true,maxDetectedFaces:3}); const f=await d.detect(im); return f.length; }
+  catch(e){ return null; }
+}
+function recSelectedItem(){ const pick=document.querySelector('input[name=recItem]:checked'); if(!pick)return null; const t=trip($('recTrip')?.value); let item=null; (t&&t.days||[]).forEach(d=>(d.items||[]).forEach(it=>{ if(it._id===pick.value)item=it; })); return item; }
+function recRenderPhotos(){
+  const box=$('recPhotos'); if(!box)return;
+  const item=recSelectedItem(); const list=item?photoList(item):[];
+  const tiles=[];
+  list.forEach((p,i)=>{ const key='item:'+i, on=recPhotoSel.some(x=>x.key===key);
+    if(p.loading){ tiles.push(`<div class="rp loading" aria-label="사진 불러오는 중"></div>`); return; }
+    const src=photoThumb(p); if(!src)return;
+    tiles.push(`<button type="button" class="rp${on?' on':''}" style="background-image:url('${src}')" aria-pressed="${on}" onclick="recTogglePhoto('${key}')"></button>`); });
+  recPhotoSel.filter(x=>x.key.startsWith('up:')).forEach(x=>tiles.push(`<button type="button" class="rp on" style="background-image:url('${x.src}')" aria-pressed="true" onclick="recTogglePhoto('${x.key}')"></button>`));
+  if(recPhotoSel.length<2)tiles.push(`<label class="rp add" for="recFile">${svg('i-camera','ic')}<span>직접 올리기</span></label>`);
+  box.innerHTML=tiles.join('')+`<input type="file" id="recFile" accept="image/*" multiple style="display:none" onchange="recAddUpload(event)">`;
+  const note=$('recPhotoNote'); if(note)note.textContent=recPhotoSel.length?`${recPhotoSel.length}/2장 골랐어요`:(list.length?'일정에 붙인 사진을 누르거나 직접 올려 주세요':'직접 올리거나, 사진 없이 올려도 돼요');
+  const agreeWrap=$('recPhotoAgreeWrap'); if(agreeWrap)agreeWrap.style.display=recPhotoSel.length?'flex':'none';
+  if(list.some(p=>p.loading)&&!recPhotoPollTimer){ let n=0; recPhotoPollTimer=setInterval(()=>{ n++; const b=$('recPhotos'); if(!b||n>10){clearInterval(recPhotoPollTimer);recPhotoPollTimer=null;return;} const l=recSelectedItem()?photoList(recSelectedItem()):[]; if(!l.some(p=>p.loading)){clearInterval(recPhotoPollTimer);recPhotoPollTimer=null;recRenderPhotos();} },500); }
+}
+async function recTogglePhoto(key){
+  const i=recPhotoSel.findIndex(x=>x.key===key);
+  if(i>=0){ recPhotoSel.splice(i,1); recRenderPhotos(); return; }
+  if(recPhotoSel.length>=2){ toast('사진은 2장까지 올릴 수 있어요.'); return; }
+  const item=recSelectedItem(); const idx=Number(key.split(':')[1]); const p=item?photoList(item)[idx]:null; const src=p?photoSrc(p):'';
+  if(!src)return;
+  const faces=await facesIn(src);
+  if(faces>0){ toast('사람 얼굴이 보이는 사진은 올릴 수 없어요.'); return; }
+  recPhotoSel.push({key,src}); recRenderPhotos();
+}
+async function recAddUpload(ev){
+  const files=[...(ev.target.files||[])]; ev.target.value='';
+  for(const f of files){
+    if(recPhotoSel.length>=2){ toast('사진은 2장까지 올릴 수 있어요.'); break; }
+    if(!/^image\//.test(f.type)){ toast('사진 파일만 올릴 수 있어요.'); continue; }
+    if(f.size>12*1024*1024){ toast('12MB 이하 사진을 골라 주세요.'); continue; }
+    try{ const src=await shrinkPhoto(f,1000,0.8);
+      const faces=await facesIn(src); if(faces>0){ toast('사람 얼굴이 보이는 사진은 올릴 수 없어요.'); continue; }
+      recPhotoSel.push({key:'up:'+(++recUploadSeq),src}); }
+    catch(e){ toast('사진을 열지 못했어요.'); }
+  }
+  recRenderPhotos();
+}
+/* 올릴 크기로 줄이기: 큰 그림 800px, 작은 그림 160px. 한도(큰 260,000자 · 작은 16,000자)를 넘으면 더 줄입니다 */
+async function recPreparePhotos(){
+  const out=[];
+  for(const x of recPhotoSel){
+    let full=await shrinkDataUrl(x.src,800,0.72); if(full.length>260000)full=await shrinkDataUrl(x.src,640,0.6); if(full.length>260000)full=await shrinkDataUrl(x.src,480,0.55);
+    let thumb=await shrinkDataUrl(x.src,160,0.55); if(thumb.length>16000)thumb=await shrinkDataUrl(x.src,120,0.5); if(thumb.length>16000)thumb=await shrinkDataUrl(x.src,96,0.45);
+    out.push({full,thumb});
+  }
+  return out;
 }
 /* 추천 올리기 — 다녀온 여행(학생 동행 제외)의 일정 중 장소·입장권·숙소 하나를 고릅니다 */
 function openRecCompose(tripId,itemId){
@@ -1994,13 +2071,18 @@ function openRecCompose(tripId,itemId){
     <select class="input" id="recTrip" onchange="recPickTrip(this.value)">${trips.map(t=>`<option value="${esc(t.id)}" ${t.id===first.id?'selected':''}>${esc(t.title)} (${esc(t.start)})</option>`).join('')}</select>
     <label class="fld">추천할 곳 <span class="muted" style="font-weight:500">· 장소·입장권·숙소 일정 중 하나</span></label>
     <div class="rec-items" id="recItems"></div>
+    <label class="fld">사진 <span class="muted" style="font-weight:500">· 선택 · 2장까지 · 사람 얼굴이 없는 사진만</span></label>
+    <div class="rec-photos" id="recPhotos"></div>
+    <p class="muted small" id="recPhotoNote" style="margin:-4px 2px 12px"></p>
     <label class="fld" for="recRegion">지역</label>
     <select class="input" id="recRegion">${REGION_LIST.map(r=>`<option value="${r}">${r}</option>`).join('')}</select>
     <label class="fld" for="recNote">왜 추천하나요? <span class="muted" style="font-weight:500">· 10~300자</span></label>
     <textarea class="input" id="recNote" rows="4" maxlength="300" placeholder="예: 오후 4시쯤 가면 사람이 적고 노을이 예뻐요. 주차는 입구 쪽이 편했어요."></textarea>
     ${hintBox('i-lock','<span class="t">올릴 수 없는 것</span>사람 이름, 전화번호, 이메일, 링크, 사진. 동행자나 다른 사람 이야기는 넣지 마세요. 이런 내용이 있으면 올라가지 않아요.')}
     <label class="fld" style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;margin-top:10px;font-weight:500;line-height:1.5"><input type="checkbox" id="recAgree" style="width:18px;height:18px;flex-shrink:0;margin-top:2px"> 내가 직접 다녀온 곳이며, 다른 사람의 개인정보가 들어 있지 않아요. 이 글이 앱의 회원들에게 표시되는 것에 동의해요.</label>
+    <label class="fld" id="recPhotoAgreeWrap" style="display:none;align-items:flex-start;gap:9px;cursor:pointer;margin-top:6px;font-weight:500;line-height:1.5"><input type="checkbox" id="recPhotoAgree" style="width:18px;height:18px;flex-shrink:0;margin-top:2px"> 고른 사진은 내가 찍었고, 사람 얼굴·차량 번호판·이름표가 나오지 않아요.</label>
     <button class="btn brand" id="recBtn" style="margin-top:12px" onclick="submitRec()">${svg('i-check','ic')} 추천 올리기</button>`);
+  recPhotoSel=[]; recUploadSeq=0;
   recPickTrip(first.id,itemId);
 }
 function recPickTrip(tripId,itemId){
@@ -2011,6 +2093,11 @@ function recPickTrip(tripId,itemId){
   box.innerHTML=rows.length?rows.map(r=>`<label><input type="radio" name="recItem" value="${esc(r.id)}" ${r.id===pick?'checked':''}> ${svg(CAT[r.cat].icon,'ic')} <span style="min-width:0;overflow-wrap:anywhere">${esc(tidyTitle(r.title,40))}</span><em>DAY ${r.di+1}</em></label>`).join('')
     :'<p class="muted small" style="margin:4px 2px">이 여행에는 추천할 장소·입장권·숙소 일정이 없어요.</p>';
   const reg=grabRegions(t.place).concat(grabRegions(t.title))[0]; const sel=$('recRegion'); if(sel&&reg)sel.value=reg;
+  /* 사진: 일정에 붙인 사진을 고를 수 있게 그 여행의 사진 문서를 불러옵니다. 일정을 바꾸면 고른 일정 사진은 풉니다 */
+  recPhotoSel=recPhotoSel.filter(x=>x.key.startsWith('up:'));
+  if(typeof watchTripPhotos==='function')watchTripPhotos(t.id);
+  box.querySelectorAll('input[name=recItem]').forEach(r=>r.addEventListener('change',()=>{recPhotoSel=recPhotoSel.filter(x=>x.key.startsWith('up:'));recRenderPhotos();}));
+  recRenderPhotos();
 }
 async function submitRec(){
   const tripId=$('recTrip')?.value, t=trip(tripId); if(!t)return;
@@ -2019,21 +2106,23 @@ async function submitRec(){
   (t.days||[]).forEach(d=>(d.items||[]).forEach(it=>{ if(it._id===pick.value){item=it;date=d.date;} }));
   if(!item){toast('추천할 곳을 골라 주세요.');return;}
   if(!$('recAgree').checked){toast('안내 내용을 확인하고 동의해 주세요.');return;}
+  if(recPhotoSel.length&&!$('recPhotoAgree').checked){toast('사진 안내를 확인하고 동의해 주세요.');return;}
   const rec={region:$('recRegion').value,cat:item.cat,title:String(item.title||'').slice(0,60),note:$('recNote').value,month:Number(String(date).slice(5,7))||new Date().getMonth()+1};
   try{TravelCore.validateRec(rec);}catch(e){toast(e.message);return;}
-  const b=$('recBtn'),who=ME.uid; b.disabled=true;
+  const b=$('recBtn'),who=ME.uid; b.disabled=true; b.textContent=recPhotoSel.length?'사진을 줄이는 중…':'올리는 중…';
   try{
     const mine=await window.FB.myRecs();
     if(mine.length>=30)throw new Error('추천은 30개까지 올릴 수 있어요. 오래된 추천을 지운 뒤 다시 올려 주세요.');
     if(mine.filter(x=>x.tripId===tripId).length>=5)throw new Error('한 여행에서는 5곳까지 추천할 수 있어요.');
     if(mine.some(x=>x.title===rec.title&&x.region===rec.region))throw new Error('같은 곳을 이미 추천하셨어요.');
-    await window.FB.addRec(rec,tripId);
+    const pics=await recPreparePhotos();
+    await window.FB.addRec({...rec,thumbs:pics.map(p=>p.thumb)},tripId,pics.map(p=>({u:p.full})));
     if(ME.uid!==who)return;
     closeOv(); toast('추천을 올렸어요. 운영자 검수 뒤에 공개돼요.');
   }catch(e){
     if(ME.uid!==who)return;
     toast(/permission|denied/i.test(String(e&&(e.code||e.message)))?'추천 게시판이 아직 열리지 않았어요. 잠시 후 다시 시도해 주세요.':(e&&e.message&&!/Firebase|[a-z]+\//i.test(e.message)?e.message:'올리지 못했어요. 연결을 확인해 주세요.'));
-  }finally{ if(b.isConnected)b.disabled=false; }
+  }finally{ if(b.isConnected){b.disabled=false;b.innerHTML=svg('i-check','ic')+' 추천 올리기';} }
 }
 async function deleteMyRec(id){
   if(!confirm('이 추천을 지울까요?'))return;
@@ -2058,7 +2147,7 @@ async function openMyRecs(){
   try{ list=await window.FB.myRecs(); }catch(e){ const b=$('myRecBox'); if(b)b.innerHTML='<p class="muted small">추천 게시판이 아직 열리지 않았어요.</p>'; return; }
   if(ME.uid!==who)return; const box=$('myRecBox'); if(!box)return;
   box.innerHTML=(list.map(r=>`<div class="admrow" style="align-items:flex-start;gap:10px">
-      <div style="flex:1;min-width:0"><b style="font-size:14px">${esc(r.title)}</b><div class="muted small" style="margin-top:2px">${esc(r.region)} · ${r.month}월 · ${esc(r.createdAt)}</div><div class="small" style="margin-top:4px;overflow-wrap:anywhere">${esc(r.note)}</div></div>
+      <div style="flex:1;min-width:0"><b style="font-size:14px">${esc(r.title)}</b><div class="muted small" style="margin-top:2px">${esc(r.region)} · ${r.month}월 · ${esc(r.createdAt)}</div><div class="small" style="margin-top:4px;overflow-wrap:anywhere">${esc(r.note)}</div>${recThumbs(r)}</div>
       <span class="rec-status ${esc(r.status)}">${esc(REC_STATUS[r.status]||r.status)}</span>
       <button class="ibtn" aria-label="삭제" onclick="deleteMyRec('${TravelCore.jsText(r.id)}')">${svg('i-trash','ic')}</button></div>`).join('')
     ||'<p class="muted small" style="padding:10px 2px">아직 올린 추천이 없어요. [여행 추천] 탭에서 다녀온 곳을 추천해 보세요.</p>')
@@ -2076,14 +2165,14 @@ async function openAdminRecs(){
   catch(e){ const b=$('admRecBox'); if(b)b.innerHTML=`<div class="err">불러오지 못했습니다 (${esc((e&&e.code)||e)}). 보안 규칙 6판이 게시됐는지 확인해 주세요.</div>`; return; }
   if(ME.uid!==who||!IS_ADMIN)return; const box=$('admRecBox'); if(!box)return;
   const row=(r,btns)=>`<div class="admrow" style="align-items:flex-start;gap:10px;flex-wrap:wrap">
-      <div style="flex:1;min-width:0"><b style="font-size:14px">${esc(r.title)}</b><div class="muted small" style="margin-top:2px">${esc(r.region||'')} · ${r.month?r.month+'월 · ':''}${esc(r.createdAt||'')}</div><div class="small" style="margin-top:4px;overflow-wrap:anywhere">${esc(r.note||'')}</div></div>
+      <div style="flex:1;min-width:0"><b style="font-size:14px">${esc(r.title)}</b><div class="muted small" style="margin-top:2px">${esc(r.region||'')} · ${r.month?r.month+'월 · ':''}${esc(r.createdAt||'')}</div><div class="small" style="margin-top:4px;overflow-wrap:anywhere">${esc(r.note||'')}</div>${(r.photoIds||[]).length?`<div class="rec-thumbs" role="button" tabindex="0" onclick="openRecPhotoView('${TravelCore.jsText((r.photoIds||[]).join(','))}')" title="크게 보기">${(r.thumbs||[]).map(t=>`<img src="${TravelCore.safeImage(t)}" alt="">`).join('')}<span class="muted small" style="align-self:center">사진 ${r.photoIds.length}장 · 눌러서 확인</span></div>`:''}</div>
       <div class="row" style="gap:6px;flex-shrink:0">${btns}</div></div>`;
   box.innerHTML=`<div class="eyebrow" style="margin-top:0">검수 대기 ${pending.length}건</div>
     <div class="admlist">${pending.map(r=>row(r,`<button class="btn ghost sm" style="width:auto" onclick="adminRecSet('${TravelCore.jsText(r.id)}','public')">공개</button><button class="btn ghost sm" style="width:auto" onclick="adminRecSet('${TravelCore.jsText(r.id)}','hidden')">숨김</button>`)).join('')||'<p class="muted small" style="padding:10px 2px">기다리는 추천이 없어요.</p>'}</div>
     <div class="eyebrow" style="margin-top:14px">신고 ${reports.length}건</div>
     <div class="admlist">${reports.map(x=>row({title:x.rec?x.rec.title:'(지워진 추천)',region:x.rec?x.rec.region:'',createdAt:x.createdAt,note:'신고 이유: '+x.reason+(x.rec?' · 현재 '+(REC_STATUS[x.rec.status]||x.rec.status):'')},
       (x.rec&&x.rec.status!=='hidden'?`<button class="btn ghost sm" style="width:auto" onclick="adminRecSet('${TravelCore.jsText(x.rec.id)}','hidden','${TravelCore.jsText(x.id)}')">숨김</button>`:'')+`<button class="btn ghost sm" style="width:auto" onclick="adminReportDone('${TravelCore.jsText(x.id)}')">처리 완료</button>`)).join('')||'<p class="muted small" style="padding:10px 2px">신고가 없어요.</p>'}</div>
-    <p class="muted small" style="margin:10px 2px 0">공개하면 모든 회원의 [여행 추천] 탭에 보여요. 숨기면 작성자만 자기 목록에서 봅니다. 개인정보·연락처가 있으면 반드시 숨겨 주세요.</p>`;
+    <p class="muted small" style="margin:10px 2px 0">공개하면 모든 회원의 [여행 추천] 탭에 보여요. 숨기면 작성자만 자기 목록에서 봅니다. 개인정보·연락처가 있거나 <b>사진에 사람 얼굴·번호판이 보이면 반드시 숨겨</b> 주세요.</p>`;
 }
 async function adminRecSet(id,status,reportId){
   try{ await window.FB.setRecStatus(id,status); if(reportId)await window.FB.deleteReport(reportId); RECS_STATE='idle'; RECS=null; toast(status==='public'?'공개했어요':'숨겼어요'); openAdminRecs(); }
@@ -5989,7 +6078,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.1.8 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.2.0 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

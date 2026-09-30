@@ -427,7 +427,7 @@ window.FB={
     }catch(e){}
     /* 탈퇴하면 올린 추천 게시물과 신고 기록도 함께 지웁니다 (처리방침 6조) */
     try{
-      for(const name of ['recs','reports']){
+      for(const name of ['recs','recPhotos','reports']){
         const mine=await getDocs(query(collection(db,name),where('uid','==',uid),limit(300)));
         for(let i=0;i<mine.docs.length;i+=400){const batch=writeBatch(db);mine.docs.slice(i,i+400).forEach(p=>batch.delete(p.ref));await batch.commit();}
       }
@@ -503,29 +503,51 @@ window.FB={
   async listRecs(){
     const me=auth.currentUser?.uid;
     const snap=await getDocs(query(collection(db,'recs'),where('status','==','public'),limit(300)));
-    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,createdAt:v.createdAt||'',mine:v.uid===me};})
+    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,createdAt:v.createdAt||'',mine:v.uid===me,thumbs:Array.isArray(v.thumbs)?v.thumbs.slice(0,2):[],photoIds:Array.isArray(v.photoIds)?v.photoIds.slice(0,2):[]};})
       .sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
   },
   async myRecs(){
     const u=auth.currentUser; if(!u)return [];
     const snap=await getDocs(query(collection(db,'recs'),where('uid','==',u.uid),limit(100)));
-    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,tripId:v.tripId||'',status:v.status,createdAt:v.createdAt||''};})
+    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,tripId:v.tripId||'',status:v.status,createdAt:v.createdAt||'',thumbs:Array.isArray(v.thumbs)?v.thumbs.slice(0,2):[],photoIds:Array.isArray(v.photoIds)?v.photoIds.slice(0,2):[]};})
       .sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
   },
-  async addRec(rec,tripId){
+  /* 사진(photos: [{u:큰 그림 data URL}])은 recPhotos 문서로 먼저 올리고, 게시물에는 번호(photoIds)와 작은 그림(thumbs)만 넣습니다.
+     게시물 저장이 실패하면 방금 올린 사진 문서는 지웁니다. */
+  async addRec(rec,tripId,photos){
     const u=auth.currentUser; if(!u?.emailVerified)throw new Error('이메일 인증이 필요합니다.');
-    const clean=TravelCore.validateRec(rec);
-    const r=await addDoc(collection(db,'recs'),{...clean,uid:u.uid,tripId:String(tripId||'').slice(0,80),status:'pending',createdAt:new Date().toISOString().slice(0,10)});
-    return r.id;
+    const today=new Date().toISOString().slice(0,10);
+    const recRef=doc(collection(db,'recs'));
+    const ids=[];
+    try{
+      for(const ph of (photos||[]).slice(0,2)){
+        const r=await addDoc(collection(db,'recPhotos'),{recId:recRef.id,uid:u.uid,u:String(ph.u||''),createdAt:today});
+        ids.push(r.id);
+      }
+      const clean=TravelCore.validateRec({...rec,photoIds:ids});
+      await setDoc(recRef,{...clean,uid:u.uid,tripId:String(tripId||'').slice(0,80),status:'pending',createdAt:today});
+      return recRef.id;
+    }catch(e){
+      for(const id of ids){ try{ await deleteDoc(doc(db,'recPhotos',id)); }catch(_){} }
+      throw e;
+    }
   },
-  async deleteRec(id){ await deleteDoc(doc(db,'recs',String(id))); },
+  async recPhotos(ids){
+    const out=[];
+    for(const id of (ids||[]).slice(0,2)){ try{ const s=await getDoc(doc(db,'recPhotos',String(id))); if(s.exists())out.push({id:s.id,u:s.data().u||''}); }catch(e){} }
+    return out;
+  },
+  async deleteRec(id){
+    try{ const snap=await getDocs(query(collection(db,'recPhotos'),where('recId','==',String(id)),limit(10))); for(const d of snap.docs){ try{ await deleteDoc(d.ref); }catch(_){} } }catch(_){}
+    await deleteDoc(doc(db,'recs',String(id)));
+  },
   async reportRec(recId,reason){
     const u=auth.currentUser; if(!u?.emailVerified)throw new Error('이메일 인증이 필요합니다.');
     await addDoc(collection(db,'reports'),{recId:String(recId).slice(0,80),reason:String(reason||'').slice(0,40),uid:u.uid,createdAt:new Date().toISOString().slice(0,10)});
   },
   async adminPendingRecs(){
     const snap=await getDocs(query(collection(db,'recs'),where('status','==','pending'),limit(200)));
-    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,createdAt:v.createdAt||''};});
+    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,createdAt:v.createdAt||'',thumbs:Array.isArray(v.thumbs)?v.thumbs.slice(0,2):[],photoIds:Array.isArray(v.photoIds)?v.photoIds.slice(0,2):[]};});
   },
   async adminReports(){
     const snap=await getDocs(query(collection(db,'reports'),limit(200)));

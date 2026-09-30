@@ -197,3 +197,13 @@ html.dark .mood-tiles .mood{background:var(--card)}
 .intro-ideas>span{min-width:0}
 /* '전체 보기' 링크가 44px 높이라 제목 줄이 22px 자라며 아래가 밀리던 것 — 오른쪽 자리를 고정 높이로 */
 #moodHead{display:inline-flex;align-items:center;height:24px;flex-shrink:0}#moodHead .lnk{min-height:24px;padding:0 4px;margin:0;font-size:13px}
+
+/* ── 2026-09-30 회원 추천 사진(2장) ── */
+.rec-thumbs{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.rec-thumbs img{width:64px;height:48px;object-fit:cover;border-radius:8px;background:var(--line)}
+.rec-card .rec-thumbs img{width:56px;height:42px}
+.rec-pics img{cursor:zoom-in}
+.rec-photos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:2px 0 10px}
+.rec-photos .rp{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;border:2px solid transparent;background:var(--paper) center/cover no-repeat;cursor:pointer;min-height:44px;padding:0;font-family:inherit}
+.rec-photos .rp.on{border-color:var(--teal)}.rec-photos .rp.on::after{content:'✓';position:absolute;right:4px;top:4px;width:20px;height:20px;border-radius:50%;background:var(--teal);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center}
+.rec-photos .rp.add{display:grid;place-items:center;align-content:center;gap:4px;border:1px dashed var(--line-2);color:var(--muted);font-size:11px;font-weight:700;text-align:center;line-height:1.3}.rec-photos .rp.add .ic{width:20px;height:20px}
+.rec-photos .rp.loading{opacity:.45;background:var(--line)}

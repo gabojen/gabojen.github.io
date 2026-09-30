@@ -68,7 +68,7 @@ function introRecommendVisual() {
     <div class="intro-row"><span class="intro-row-icon">${svg('i-pin')}</span><div><small>11:00 · DAY 1</small><strong>속초 해변</strong></div><span class="intro-more">${svg('i-more')}</span></div>
     <div class="intro-mock-btn">${svg('i-compass')} 이 곳을 다른 회원에게 추천</div>
     <div class="intro-message"><small>왜 추천하나요?</small><p>오후 늦게 가면 사람이 적고 노을이 예뻐요. 주차는 입구 쪽이 편했어요.</p></div>
-    <div class="intro-note-band">${svg('i-lock')} 이름·사진·연락처는 올라가지 않아요 · 운영자 확인 뒤 [여행 추천]에 공개</div>
+    <div class="intro-note-band">${svg('i-lock')} 이름·연락처는 올라가지 않아요 · 사진은 얼굴 없는 것만 2장 · 운영자 확인 뒤 공개</div>
   </div>`;
 }
 const INTRO = [
@@ -92,7 +92,7 @@ const INTRO = [
   { label: '다녀온 곳 추천', title: '좋았던 곳, 다른 회원에게도',
     body: '다녀온 여행의 일정에서 좋았던 장소 하나를 골라 이유만 적으면 돼요. 운영자가 확인한 뒤 [여행 추천] 탭의 "회원이 다녀온 곳"에 올라가요.',
     hint: '추억 → 지난 여행 → 일정 줄의 ⋯ → 이 곳을 다른 회원에게 추천',
-    note: '사람 이름·전화번호·링크·사진은 올릴 수 없어요. 장소 이름과 이유만 공개돼요.', visual: introRecommendVisual },
+    note: '사진은 2장까지, 사람 얼굴이 없는 내 사진만. 이름·전화번호·링크는 올릴 수 없어요.', visual: introRecommendVisual },
 ];
 
 let introPage = 0;

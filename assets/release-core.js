@@ -186,7 +186,13 @@
     if (note.length < 10 || note.length > 300) throw new Error('추천 이유를 10~300자로 적어 주세요.');
     if (PII.test(title) || PII.test(note)) throw new Error('전화번호·이메일·링크·연락 안내는 넣을 수 없어요. 장소와 이유만 적어 주세요.');
     if (!Number.isInteger(r.month) || r.month < 1 || r.month > 12) throw new Error('다녀온 달을 확인해 주세요.');
-    return {region:r.region, cat:r.cat, title, note, month:r.month};
+    // 2026-09-30: 사진 2장까지 — 목록용 작은 그림(thumbs)은 게시물 안에, 큰 그림은 recPhotos 문서에(photoIds)
+    const thumbs = (Array.isArray(r.thumbs) ? r.thumbs : []).slice(0, 2);
+    const photoIds = (Array.isArray(r.photoIds) ? r.photoIds : []).slice(0, 2);
+    if (thumbs.some(t => typeof t !== 'string' || !/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(t) || t.length > 16000)) throw new Error('사진을 다시 골라 주세요. (작은 그림 만들기 실패)');
+    if (photoIds.some(id => typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(id))) throw new Error('사진 정보가 올바르지 않아요.');
+    if (thumbs.length !== photoIds.length) throw new Error('사진 정보가 맞지 않아요. 다시 시도해 주세요.');
+    return {region:r.region, cat:r.cat, title, note, month:r.month, thumbs, photoIds};
   }
   // Only UID-attributed content can be safely removed automatically. Legacy names
   // are not identities: two members can have the same display name.
