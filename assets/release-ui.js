@@ -148,6 +148,14 @@ openPrivacy=function(){policyBody('개인정보 처리방침',`
   <h4>7. 아동과 사진</h4><p>만 14세 미만 아동은 가입할 수 없으며, 가입 시 만 14세 이상임을 확인받습니다. 자녀의 사진이나 학교 서류 정보는 보호자가 자신의 계정에서 입력하는 것으로, 학교 서류의 학생 정보는 서버에 보내지 않고 보호자의 기기에만 저장합니다. 자녀 사진을 올릴 때는 보호자가 동의한 범위에서만 올려 주세요.</p>
   <h4>8. 안전조치와 담당자</h4><p>인증, 여행 구성원 접근 규칙, 전송 구간 암호화, 기기 저장 최소화를 적용합니다. 외부 서비스별 보안 설정은 운영 과정에서 점검합니다.</p><p>운영자: ${esc(GABOJEN_RELEASE.operatorName||'공개 출시 전 확정 예정')}<br>개인정보 담당자: ${esc(GABOJEN_RELEASE.privacyContact||'공개 출시 전 확정 예정')}<br>문의: ${esc(GABOJEN_RELEASE.supportEmail||'공개 출시 전 확정 예정')}</p>
   <button class="btn ghost sm" onclick="openSupport()">개인정보 관련 문의</button><button class="btn ghost sm" style="margin-top:10px" onclick="clearLocalData()">기기에 저장된 입력 정보 지우기</button>`);};
+/* 2026-09-30: PC(마우스) 브라우저에서 날짜·시간 칸을 누르면 달력·시계 선택창을 바로 띄웁니다.
+   휴대폰은 원래 뜨므로 건드리지 않고, 지원하지 않는 브라우저에서는 조용히 넘어갑니다. */
+document.addEventListener('click',e=>{
+  const input=e.target.closest&&e.target.closest('input[type=date],input[type=time]');
+  if(!input||typeof input.showPicker!=='function'||input.disabled||input.readOnly)return;
+  if(!window.matchMedia('(pointer:fine)').matches)return;
+  try{input.showPicker();}catch(_){}
+});
 if('serviceWorker' in navigator&&location.protocol!=='file:'&&!location.pathname.endsWith('/preview.html')){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 }

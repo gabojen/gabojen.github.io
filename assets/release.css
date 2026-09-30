@@ -171,3 +171,8 @@ html.dark .rp-chip{background:var(--card)}
 .course-section{border-top:1px solid var(--line);margin-top:30px;padding-top:2px}
 @media(min-width:700px){.rec-list{grid-template-columns:1fr 1fr;gap:12px}.course-list{grid-template-columns:1fr 1fr}}
 html.dark .rec-card,html.dark .course-card,html.dark .rec-items label{background:var(--card)}
+
+/* ── 2026-09-30 초점 테두리 보정 ──
+   화면·시트·안내 제목처럼 '읽어 주려고' 코드가 초점을 옮기는 요소(tabindex=-1)에는 테두리를 그리지 않습니다.
+   버튼·입력칸·링크 등 실제로 누르는 요소의 :focus-visible 테두리는 그대로 둡니다 (design.md 규칙). */
+#introTitle:focus,#introTitle:focus-visible,#ovc:focus,#ovc:focus-visible,.screen:focus,.screen:focus-visible,#intro .intro-content:focus,#intro .intro-content:focus-visible{outline:none!important;box-shadow:none!important}
