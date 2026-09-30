@@ -1,9 +1,59 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
   <title>여행가보젠 — 함께 이어가는 여행</title>
-  <rect width="512" height="512" rx="120" fill="#BC482C"/>
-  <path d="M142 350c86 0 64-125 145-125h37" stroke="#FFF9EF" stroke-width="30" stroke-linecap="round"/>
-  <circle cx="142" cy="350" r="25" fill="#F7CC95"/>
-  <path d="M331 118c-43 0-74 30-74 70 0 50 74 108 74 108s74-58 74-108c0-40-31-70-74-70Z" fill="#FFF9EF"/>
-  <circle cx="331" cy="186" r="26" fill="#BC482C"/>
-  <path d="M221 362h3m29-2h3m28-7h3" stroke="#F7CC95" stroke-width="14" stroke-linecap="round"/>
+  <defs>
+    <!-- 바탕: 위는 밝은 벽돌색, 아래는 진한 벽돌색 — 단색보다 '물감'처럼 깊이가 생깁니다 -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D65B3B"/>
+      <stop offset="1" stop-color="#A33818"/>
+    </linearGradient>
+    <!-- 왼쪽 위에서 비치는 빛 한 겹 -->
+    <radialGradient id="light" cx="0.22" cy="0.12" r="0.9">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 핀·길 아래 그림자 -->
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="9"/>
+      <feOffset dy="10"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.28"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- 핀 안쪽의 은은한 입체감 -->
+    <linearGradient id="pin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFCF5"/>
+      <stop offset="1" stop-color="#F6E9D6"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F9EEDF"/>
+      <stop offset="1" stop-color="#FFFCF5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 바탕 -->
+  <rect width="512" height="512" rx="120" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="120" fill="url(#light)"/>
+  <!-- 가장자리 안쪽 얇은 밝은 선 — 유리처럼 보이는 마감 -->
+  <rect x="3" y="3" width="506" height="506" rx="117" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="3"/>
+
+  <!-- 지나온 길: 그림자 있는 굵은 선. 핀 바로 아래에서 끝나 핀이 덮습니다 (이음새가 안 보임) -->
+  <g filter="url(#shadow)">
+    <path d="M132 356 C 214 356, 200 236, 276 228 C 300 226, 316 236, 331 262"
+          stroke="url(#road)" stroke-width="30" stroke-linecap="round" fill="none"/>
+  </g>
+  <!-- 앞으로 갈 길: 점 세 개 (연한 살구색) -->
+  <circle cx="226" cy="367" r="7.5" fill="#F7CC95"/>
+  <circle cx="262" cy="362" r="7.5" fill="#F7CC95"/>
+  <circle cx="297" cy="353" r="7.5" fill="#F7CC95"/>
+  <!-- 출발점 -->
+  <circle cx="132" cy="356" r="27" fill="#F7CC95"/>
+  <circle cx="132" cy="356" r="27" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="3"/>
+
+  <!-- 핀 -->
+  <g filter="url(#shadow)">
+    <path d="M331 108 c-45 0-78 32-78 74 0 54 78 116 78 116 s78-62 78-116 c0-42-33-74-78-74Z" fill="url(#pin)"/>
+  </g>
+  <circle cx="331" cy="182" r="27" fill="#B5411F"/>
+  <circle cx="331" cy="182" r="27" stroke="#8E2E12" stroke-opacity="0.35" stroke-width="2"/>
+  <!-- 핀 위쪽의 작은 하이라이트 -->
+  <ellipse cx="308" cy="140" rx="16" ry="9" fill="#FFFFFF" fill-opacity="0.45" transform="rotate(-35 308 140)"/>
 </svg>

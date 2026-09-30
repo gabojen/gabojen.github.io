@@ -425,6 +425,13 @@ window.FB={
       await addDoc(collection(db,'leaveLog'),{date:today, daysUsed:used});   // 개인 식별 정보 없음
       this.bump('leaves');
     }catch(e){}
+    /* 탈퇴하면 올린 추천 게시물과 신고 기록도 함께 지웁니다 (처리방침 6조) */
+    try{
+      for(const name of ['recs','reports']){
+        const mine=await getDocs(query(collection(db,name),where('uid','==',uid),limit(300)));
+        for(let i=0;i<mine.docs.length;i+=400){const batch=writeBatch(db);mine.docs.slice(i,i+400).forEach(p=>batch.delete(p.ref));await batch.commit();}
+      }
+    }catch(e){ console.warn('[탈퇴] 추천·신고 정리 실패:',e&&e.code||e); }
     // Remove UID-attributed photos even if a user previously left that trip.
     const orphaned=await getDocs(query(collection(db,'photos'),where('uid','==',uid)));
     for(let i=0;i<orphaned.docs.length;i+=400){const batch=writeBatch(db);orphaned.docs.slice(i,i+400).forEach(p=>batch.delete(p.ref));await batch.commit();}
@@ -490,6 +497,46 @@ window.FB={
     await updateDoc(doc(db,'trips',invite.tripId),{memberUids:arrayUnion(u.uid),members:arrayUnion(member),_joinToken:code});
     return invite.tripId;
   },
+  /* ── 회원 추천 '다녀온 곳' (2026-09-29) ──
+     게시물에는 장소 이름·이유·분류·다녀온 달·지역만. 이름·연락처는 validateRec 이 막고 규칙(6판)이 다시 막습니다.
+     uid 는 본인 삭제·검수용으로만 저장하고 화면에는 절대 내지 않습니다. 공개 전에는 status 가 pending 입니다. */
+  async listRecs(){
+    const me=auth.currentUser?.uid;
+    const snap=await getDocs(query(collection(db,'recs'),where('status','==','public'),limit(300)));
+    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,createdAt:v.createdAt||'',mine:v.uid===me};})
+      .sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+  },
+  async myRecs(){
+    const u=auth.currentUser; if(!u)return [];
+    const snap=await getDocs(query(collection(db,'recs'),where('uid','==',u.uid),limit(100)));
+    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,tripId:v.tripId||'',status:v.status,createdAt:v.createdAt||''};})
+      .sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+  },
+  async addRec(rec,tripId){
+    const u=auth.currentUser; if(!u?.emailVerified)throw new Error('이메일 인증이 필요합니다.');
+    const clean=TravelCore.validateRec(rec);
+    const r=await addDoc(collection(db,'recs'),{...clean,uid:u.uid,tripId:String(tripId||'').slice(0,80),status:'pending',createdAt:new Date().toISOString().slice(0,10)});
+    return r.id;
+  },
+  async deleteRec(id){ await deleteDoc(doc(db,'recs',String(id))); },
+  async reportRec(recId,reason){
+    const u=auth.currentUser; if(!u?.emailVerified)throw new Error('이메일 인증이 필요합니다.');
+    await addDoc(collection(db,'reports'),{recId:String(recId).slice(0,80),reason:String(reason||'').slice(0,40),uid:u.uid,createdAt:new Date().toISOString().slice(0,10)});
+  },
+  async adminPendingRecs(){
+    const snap=await getDocs(query(collection(db,'recs'),where('status','==','pending'),limit(200)));
+    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,createdAt:v.createdAt||''};});
+  },
+  async adminReports(){
+    const snap=await getDocs(query(collection(db,'reports'),limit(200)));
+    const out=[];
+    for(const d of snap.docs){ const v=d.data(); let rec=null;
+      try{ const s=await getDoc(doc(db,'recs',String(v.recId))); if(s.exists()){const r=s.data();rec={id:s.id,title:r.title,note:r.note,status:r.status,region:r.region};} }catch(e){}
+      out.push({id:d.id,recId:v.recId,reason:v.reason||'',createdAt:v.createdAt||'',rec}); }
+    return out;
+  },
+  async setRecStatus(id,status){ await updateDoc(doc(db,'recs',String(id)),{status:String(status)}); },
+  async deleteReport(id){ await deleteDoc(doc(db,'reports',String(id))); },
   async leaveTrip(tripId){
     await runTransaction(db,async tx=>{const r=doc(db,'trips',tripId),s=await tx.get(r);if(!s.exists())return;const t=s.data(),uid=auth.currentUser.uid;if(t.owner===uid)throw new Error('여행 소유자는 나갈 수 없습니다.');tx.update(r,{memberUids:t.memberUids.filter(x=>x!==uid),members:t.members.filter(x=>x.uid!==uid)});});
   }

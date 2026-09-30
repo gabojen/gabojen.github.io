@@ -729,6 +729,7 @@ async function openAdmin(){
         ?`<div class="err" style="margin:0">회원 목록을 볼 권한이 없습니다 (${esc(d.membersErr)}). 보안 규칙에 관리자 조회 권한을 넣어 주세요.</div>`
         :menuRow('i-users',`회원 ${total}명`,'가입일 · 여행 수 · 마지막 접속','openAdminMembers()')}
       ${d.leavesErr?'':menuRow('i-out',`탈퇴 통계`, (Object.keys(byMonth).length?`최근 ${Object.keys(byMonth).length}개월 · 익명`:'아직 없음'),'openAdminLeaves()')}
+      ${menuRow('i-check','추천 검수','회원이 올린 다녀온 곳 · 신고 처리','closeOv();openAdminRecs()')}
     </div>
 
     <div class="hint" style="margin-top:14px"><div class="ht">${svg('i-info')}</div>
@@ -805,6 +806,7 @@ function openAccount(){
     ${menuRow('i-file','개인정보 처리방침','','openPrivacy()')}
     ${menuRow('i-info','문의 · 신고','','openSupport()')}
     ${menuRow('i-file','내 여행 데이터 내려받기','일정과 사진 참조를 JSON으로 보관','exportMyTrips()')}
+    ${menuRow('i-compass','내 추천 관리','여행 추천 탭에 올린 다녀온 곳','openMyRecs()')}
     ${IS_ADMIN?menuRow('i-camera','사진 보관소 점검','','runStorageDiag()'):''}
   </div>
   <div id="adminSlot">${IS_ADMIN?adminMenuHtml():''}</div>
@@ -1611,6 +1613,9 @@ function renderEmptyHome(){
      서버로 보내는 것은 없습니다.
    ============================================================================ */
 let NEWS=null, NEWS_STATE='idle';       // idle | loading | ok | none
+/* 2026-09-29: 회원 추천(다녀온 곳)·숙소 가까운 순 */
+let RECS=null, RECS_STATE='idle';       // idle | loading | ok | none
+let goSort='basic', goAnchorTried='', goRecLimit=4;
 const REGION_LIST=['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주'];
 let goRegion=null;                       // 지금 보고 있는 지역 (null = 추천)
 
@@ -1712,6 +1717,32 @@ function recommendRegion(been,spots){
 }
 function hasStudentTrip(){ return (TRIPS||[]).some(t=>t.hasStudent); }
 
+/* ── 숙소 가까운 순 (2026-09-29) ──
+   이 지역으로 갈 예정인 여행에서 숙소(없으면 장소가 적힌 첫 일정)를 기준점으로 삼습니다.
+   좌표는 카카오 검색으로 그때그때 구해 메모리(geoCache)에만 둡니다 — 저장하지 않습니다. */
+function goAnchorFor(region){
+  const t0=todayYmd();
+  const trips=(TRIPS||[]).filter(t=>t.status!=='done'&&String(t.end||t.start||'').replace(/-/g,'')>=t0
+    &&(grabRegions(t.place).includes(region)||grabRegions(t.title).includes(region)));
+  for(const t of (typeof sortTrips==='function'?sortTrips(trips):trips)){
+    const items=(t.days||[]).flatMap(d=>d.items||[]);
+    const it=items.find(i=>i.cat==='stay'&&(i.place||i.title))||items.find(i=>i.place);
+    if(it)return {name:String(it.place||it.title).trim(),kind:it.cat==='stay'?'숙소':'일정',trip:t.title};
+  }
+  return null;
+}
+function kmLabelShort(km){ return km==null?'':(km<1?Math.round(km*1000)+'m':(km<10?km.toFixed(1):Math.round(km))+'km'); }
+function goSetSort(s){ const box=$('go'),y=box?box.scrollTop:0; goSort=s; renderGo(); if(box)box.scrollTop=y; }
+/* 회원 추천 불러오기 — 공개(검수 통과)된 것만 서버가 내려줍니다 */
+async function loadRecs(){
+  if(RECS_STATE==='loading'||RECS_STATE==='ok')return;
+  if(!window.FB||!window.FB.listRecs){RECS_STATE='none';return;}
+  RECS_STATE='loading';
+  try{ RECS=await window.FB.listRecs(); RECS_STATE='ok'; }
+  catch(e){ RECS=[]; RECS_STATE='none'; console.warn('[회원 추천] 불러오기 실패:',e&&e.code||e); }
+  if(document.querySelector('.screen.active')?.id==='go'){const box=$('go'),y=box.scrollTop;renderGo();box.scrollTop=y;}
+}
+
 function renderGo(){
   const box=$('go'); if(!box)return;
   if(NEWS_STATE==='idle'){ loadNews(); }
@@ -1734,7 +1765,19 @@ function renderGo(){
   const rec=recommendRegion(visitedRegions(),grouped);
   const pickR=REGION_LIST.includes(goRegion)?goRegion:rec.region;
   const data=TravelCore.discoveryFor(NEWS,pickR,todayYmd(),goTheme);
-  const spots=data.places.slice(0,goPlaceLimit), festivals=data.festivals.slice(0,goFestivalLimit);
+  /* 숙소 기준 거리 — 좌표가 이미 있으면 바로, 없으면 한 번만 검색해 두고 다시 그립니다 */
+  const anchor=data.editorial?null:goAnchorFor(pickR);
+  const ageo=anchor?geoCache[anchor.name]:undefined;
+  if(anchor&&ageo===undefined&&goAnchorTried!==anchor.name&&kakaoReady){
+    goAnchorTried=anchor.name;
+    geocodeSafe(anchor.name,4000).then(g=>{ if(g&&g!=='timeout'&&document.querySelector('.screen.active')?.id==='go'){const b=$('go'),y=b.scrollTop;renderGo();b.scrollTop=y;} });
+  }
+  const km=new Map();
+  if(ageo&&ageo.lat)data.places.forEach(sp=>{const d=TravelCore.distanceKm(ageo,sp);if(d!=null)km.set(sp.id,d);});
+  const ordered=(goSort==='near'&&km.size)?data.places.slice().sort((a,b)=>(km.has(a.id)?km.get(a.id):1e9)-(km.has(b.id)?km.get(b.id):1e9)):data.places;
+  const spots=ordered.slice(0,goPlaceLimit), festivals=data.festivals.slice(0,goFestivalLimit);
+  const recs=(RECS||[]).filter(r=>r.region===pickR);
+  if(RECS_STATE==='idle')loadRecs();
   const fcard=f=>{
     const state=festState(f);
     return `<button class="fcard" data-region="${esc(f.region)}" onclick="openFestival('${TravelCore.jsText(f.id)}')">
@@ -1750,10 +1793,25 @@ function renderGo(){
       <div class="section-heading"><h3 id="goPlacesTitle">${esc(pickR)}, 이런 곳은 어때요?</h3><span class="muted small">${data.total}곳</span></div>
       ${!goRegion?`<p class="muted small go-reason">${esc(rec.why)}</p>`:''}
       ${data.themes.length>2?`<div class="go-themes" aria-label="장소 종류">${data.themes.map(t=>`<button class="rchip${t===goTheme?' on':''}" aria-pressed="${t===goTheme}" onclick="goChooseTheme('${TravelCore.jsText(t)}')">${esc(t)}</button>`).join('')}</div>`:''}
+      ${km.size?`<div class="go-near">${svg(anchor.kind==='숙소'?'i-bed':'i-pin')}<span>${esc(anchor.kind)} <b>${esc(anchor.name)}</b> 기준</span><button class="rchip${goSort==='near'?' on':''}" aria-pressed="${goSort==='near'}" onclick="goSetSort('near')">가까운 순</button><button class="rchip${goSort!=='near'?' on':''}" aria-pressed="${goSort!=='near'}" onclick="goSetSort('basic')">기본</button></div>`:''}
       <div class="place-grid">${spots.map(sp=>`<button class="place-card" data-place-id="${esc(sp.id)}" onclick="${data.editorial?`openEditorial('${TravelCore.jsText(sp.id)}')`:`openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')`}">
         <span class="place-photo">${(sp.img||sp.thumb||sp.image)?`<img src="${TravelCore.safeImage(sp.img||sp.thumb||sp.image)}" alt="" loading="lazy" decoding="async">`:svg('i-pin','ic')}</span>
-        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}</small><b>${esc(sp.title)}</b>${sp.intro?`<span class="place-intro">${esc(sp.intro)}</span>`:''}<em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}</em></span></button>`).join('')||'<p class="go-empty">이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.</p>'}</div>
+        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}${sp.pet===true?' · 반려동물 OK':''}${sp.stroller===true?' · 유모차 OK':''}</small><b>${esc(sp.title)}</b>${sp.intro?`<span class="place-intro">${esc(sp.intro)}</span>`:''}<em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}${km.has(sp.id)?` · <span class="place-dist">${esc(anchor.kind)}에서 ${kmLabelShort(km.get(sp.id))}</span>`:''}</em></span></button>`).join('')||'<p class="go-empty">이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.</p>'}</div>
       ${data.places.length>spots.length?`<button class="btn ghost sm go-more" id="goPlaceMore" onclick="goShowMore('places')">장소 더 보기 · ${spots.length}/${data.places.length}</button>`:''}
+    </section>
+    ${data.courses.length?`<section class="course-section" aria-labelledby="goCoursesTitle">
+      <div class="section-heading"><h3 id="goCoursesTitle">관광공사 추천 코스</h3><span class="muted small">${data.courses.length}개</span></div>
+      <p class="muted small go-reason">한국관광공사가 묶어 둔 ${esc(pickR)} 코스예요. 고르면 코스의 장소들이 일정으로 바로 들어가요.</p>
+      <div class="course-list">${data.courses.map(c=>`<button class="course-card" onclick="openCourse('${TravelCore.jsText(pickR)}','${TravelCore.jsText(c.id)}')">
+        <span class="cimg" style="${(c.thumb||c.img)?`background-image:url('${TravelCore.safeImage(c.thumb||c.img)}')`:''}"></span>
+        <span class="ctx"><b>${esc(c.title)}</b><em>${c.spots.length}곳${c.taketime?' · '+esc(c.taketime):''}${c.distance?' · '+esc(c.distance):''}</em>${c.spots.length?`<span>${esc(c.spots.map(s=>s.name).join(' → '))}</span>`:''}</span></button>`).join('')}</div>
+    </section>`:''}
+    <section class="member-recs" aria-labelledby="goRecsTitle">
+      <div class="section-heading"><h3 id="goRecsTitle">회원이 다녀온 곳</h3><span class="muted small">${RECS_STATE==='loading'?'불러오는 중':RECS_STATE==='ok'?recs.length+'곳':''}</span></div>
+      <p class="muted small go-reason">여행을 다녀온 회원이 직접 추천한 장소예요. 이름·연락처 없이 장소와 이유만 올릴 수 있고, 운영자 검수를 거쳐 공개돼요.</p>
+      <div class="rec-list">${recs.slice(0,goRecLimit).map(recCard).join('')||`<p class="go-empty">${RECS_STATE==='loading'?'회원 추천을 불러오는 중이에요.':RECS_STATE==='none'?'회원 추천은 아직 준비 중이에요.':'아직 '+esc(pickR)+' 추천이 없어요. 다녀온 여행에서 좋았던 곳을 첫 번째로 추천해 보세요.'}</p>`}</div>
+      ${recs.length>goRecLimit?`<button class="btn ghost sm go-more" onclick="goRecLimit+=6;goSetSort(goSort)">추천 더 보기 · ${Math.min(goRecLimit,recs.length)}/${recs.length}</button>`:''}
+      ${RECS_STATE!=='none'&&doneTrips().some(t=>!t.hasStudent)?`<button class="btn ghost sm go-more" onclick="openRecCompose()">${svg('i-plus','ic')} 내가 다녀온 곳 추천하기</button>`:''}
     </section>
     <section class="region-festivals" aria-labelledby="goFestivalsTitle">
       <div class="section-heading"><h3 id="goFestivalsTitle">${esc(pickR)}의 축제·행사</h3><span class="muted small">${data.editorial?'연결 필요':data.festivals.length+'개'}</span></div>
@@ -1772,7 +1830,7 @@ let goTheme='전체',goPlaceLimit=6,goFestivalLimit=3;
 function goPick(r){
   if(!REGION_LIST.includes(r))return;
   const box=$('go'), keep=box?box.scrollTop:0;
-  goRegion=r;goTheme='전체';goPlaceLimit=6;goFestivalLimit=3;
+  goRegion=r;goTheme='전체';goPlaceLimit=6;goFestivalLimit=3;goRecLimit=4;goSort='basic';
   renderGo();
   if(box)box.scrollTop=keep;                       /* 보던 위치 유지 */
   const sel=$('goRegionSelect'); if(sel)sel.value=r;   /* 드롭다운 값만 맞추고 열지는 않음 */
@@ -1811,14 +1869,173 @@ function openFestival(id){
 }
 function openSpot(region,id){
   const sp=(((NEWS&&NEWS.spots)||{})[region]||[]).find(x=>String(x.id)===String(id)); if(!sp)return;
+  /* 2026-09-29: 이용시간·쉬는 날·주차·문의·반려동물·유모차·대표메뉴·사진 여러 장 (자료가 있을 때만 줄이 생깁니다) */
+  const fact=(icon,label,val,html)=>val?`<li>${svg(icon,'ic')}<b>${label}</b>${html||esc(val)}</li>`:'';
+  const facts=[
+    fact('i-clock','이용시간',sp.hours), fact('i-cal','쉬는 날',sp.closed),
+    sp.menu?fact('i-star','대표 메뉴',sp.menu):'', fact('i-car','주차',sp.parking),
+    sp.pet!==null&&sp.pet!==undefined?fact('i-heart','반려동물',sp.pet?'동반 가능'+(sp.petText&&!/^가능$/.test(sp.petText)?' · '+sp.petText:''):'동반 불가'):'',
+    sp.stroller!==null&&sp.stroller!==undefined?fact('i-users','유모차',sp.stroller?'대여·이용 가능':'이용 어려움'):'',
+    sp.tel?fact('i-info','문의',sp.tel,`<a href="tel:${esc(sp.tel.replace(/[^\d+-]/g,''))}">${esc(sp.tel)}</a>`):'',
+  ].join('');
+  const pics=(sp.images||[]).length?`<div class="spot-pics" aria-label="사진">${sp.images.map(u=>`<img src="${TravelCore.safeImage(u)}" alt="" loading="lazy" decoding="async">`).join('')}</div>`:'';
   openSheet(`<div class="grab"></div>
     ${sp.img?`<div class="fbig" style="background-image:url('${TravelCore.safeImage(sp.img)}')"></div>`:''}
     <p class="muted small" style="margin:12px 2px 0;font-weight:700;color:var(--brand-ink)">${esc(TravelCore.placeTheme(sp))}</p>
     <h3 style="margin-top:2px">${esc(sp.title)}</h3>
     ${sp.intro?`<p class="spot-intro">${esc(sp.intro)}</p>`:''}
     ${sp.addr?`<p class="muted small" style="margin:4px 2px 0">${svg('i-pin')} ${esc(sp.addr)}</p>`:''}
-    <button class="btn ghost" style="margin-top:14px" onclick="closeOv();openMap('${TravelCore.jsText(sp.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>
-    <p class="muted small" style="margin:12px 2px 0">사진·정보: 한국관광공사</p>`);
+    ${facts?`<ul class="spot-facts">${facts}</ul>`:''}
+    ${pics}
+    <button class="btn brand" style="margin-top:14px" onclick="closeOv();window.__editorialPlace={title:'${TravelCore.jsText(sp.title)}',region:'${TravelCore.jsText(region)}'};addEditorialToTrip()">${svg('i-pin','ic')} 내 여행 일정에 담기</button>
+    <button class="btn ghost" style="margin-top:8px" onclick="closeOv();openMap('${TravelCore.jsText(sp.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>
+    <p class="muted small" style="margin:12px 2px 0">사진·정보: 한국관광공사 · 이용시간·요금은 방문 전 확인해 주세요.</p>`);
+}
+/* 관광공사 추천 코스 하나 — 장소 목록 + [이 코스로 여행 만들기] */
+function openCourse(region,id){
+  const c=(((NEWS&&NEWS.courses)||{})[region]||[]).find(x=>String(x.id)===String(id)); if(!c)return;
+  openSheet(`<div class="grab"></div>
+    ${c.img?`<div class="fbig" style="background-image:url('${TravelCore.safeImage(c.img)}')"></div>`:''}
+    <p class="muted small" style="margin:12px 2px 0;font-weight:700;color:var(--brand-ink)">추천 코스 · ${esc(region)}</p>
+    <h3 style="margin-top:2px">${esc(c.title)}</h3>
+    ${(c.taketime||c.distance)?`<p class="muted small" style="margin:4px 2px 0">${c.taketime?svg('i-clock')+' '+esc(c.taketime):''}${c.taketime&&c.distance?' · ':''}${c.distance?esc(c.distance):''}</p>`:''}
+    ${c.intro?`<p class="spot-intro">${esc(c.intro)}</p>`:''}
+    <ol class="course-stops">${c.spots.map(s=>`<li><div><b>${esc(s.name)}</b>${s.intro?`<span>${esc(s.intro)}</span>`:''}</div></li>`).join('')}</ol>
+    <button class="btn brand" style="margin-top:14px" onclick="closeOv();tripFromCourse('${TravelCore.jsText(region)}','${TravelCore.jsText(c.id)}')">${svg('i-plus','ic')} 이 코스로 여행 만들기</button>
+    <p class="muted small" style="margin:12px 2px 0">코스의 장소가 하루 4곳씩 일정에 들어가요. 시간과 순서는 만든 뒤 자유롭게 고칠 수 있어요.<br>사진·정보: 한국관광공사</p>`);
+}
+function tripFromCourse(region,id){
+  const c=(((NEWS&&NEWS.courses)||{})[region]||[]).find(x=>String(x.id)===String(id)); if(!c)return;
+  window.__tripSeed={title:c.title,place:region,start:'',end:'',items:c.spots.map(s=>({title:s.name,place:s.name,sub:s.intro||''}))};
+  openCreateTrip();
+}
+/* ── 회원 추천 '다녀온 곳' ── */
+function recCard(r){
+  const cat=CAT[r.cat]||CAT.plan;
+  return `<button class="rec-card" onclick="openRec('${TravelCore.jsText(r.id)}')"><span class="rec-ic" style="color:${cat.color}">${svg(cat.icon,'ic')}</span>
+    <span><b>${esc(r.title)}</b><span class="rec-note">${esc(r.note)}</span><em>${r.month}월에 다녀왔어요 · ${esc(cat.name)}${r.mine?' · 내 추천':''}</em></span></button>`;
+}
+function openRec(id){
+  const r=(RECS||[]).find(x=>x.id===id); if(!r)return;
+  const cat=CAT[r.cat]||CAT.plan;
+  openSheet(`<div class="grab"></div>
+    <p class="muted small" style="margin:0 2px;font-weight:700;color:var(--brand-ink)">회원 추천 · ${esc(r.region)} · ${esc(cat.name)}</p>
+    <h3 style="margin-top:2px">${esc(r.title)}</h3>
+    <p class="rec-note-full">${esc(r.note)}</p>
+    <p class="muted small" style="margin:8px 2px 0">${r.month}월에 다녀온 회원의 추천이에요. 운영시간·요금은 바뀔 수 있으니 방문 전 확인해 주세요.</p>
+    <button class="btn brand" style="margin-top:14px" onclick="closeOv();window.__editorialPlace={title:'${TravelCore.jsText(r.title)}',region:'${TravelCore.jsText(r.region)}'};addEditorialToTrip()">${svg('i-pin','ic')} 내 여행 일정에 담기</button>
+    <button class="btn ghost" style="margin-top:8px" onclick="closeOv();openMap('${TravelCore.jsText(r.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>
+    <div class="row" style="justify-content:center;gap:14px;margin-top:12px">
+      ${r.mine?`<button class="lnk" onclick="deleteMyRec('${TravelCore.jsText(r.id)}')">내 추천 삭제</button>`:`<button class="lnk" style="color:var(--muted)" onclick="openRecReport('${TravelCore.jsText(r.id)}')">${svg('i-info','ic')} 신고</button>`}
+    </div>`);
+}
+/* 추천 올리기 — 다녀온 여행(학생 동행 제외)의 일정 중 장소·입장권·숙소 하나를 고릅니다 */
+function openRecCompose(){
+  if(needVerify())return;
+  const trips=doneTrips().filter(t=>!t.hasStudent);
+  if(!trips.length){toast('다녀온 여행이 있어야 추천할 수 있어요.');return;}
+  openSheet(`<div class="grab"></div><h3>내가 다녀온 곳 추천하기</h3>
+    <p class="muted small" style="margin:-6px 0 12px">장소 이름과 추천 이유만 올라가요. 이름·사진·날짜·연락처는 올라가지 않아요. 운영자 검수 뒤에 [여행 추천] 탭에 공개돼요.</p>
+    <label class="fld" for="recTrip">다녀온 여행</label>
+    <select class="input" id="recTrip" onchange="recPickTrip(this.value)">${trips.map(t=>`<option value="${esc(t.id)}">${esc(t.title)} (${esc(t.start)})</option>`).join('')}</select>
+    <label class="fld">추천할 곳 <span class="muted" style="font-weight:500">· 장소·입장권·숙소 일정 중 하나</span></label>
+    <div class="rec-items" id="recItems"></div>
+    <label class="fld" for="recRegion">지역</label>
+    <select class="input" id="recRegion">${REGION_LIST.map(r=>`<option value="${r}">${r}</option>`).join('')}</select>
+    <label class="fld" for="recNote">왜 추천하나요? <span class="muted" style="font-weight:500">· 10~300자</span></label>
+    <textarea class="input" id="recNote" rows="4" maxlength="300" placeholder="예: 오후 4시쯤 가면 사람이 적고 노을이 예뻐요. 주차는 입구 쪽이 편했어요."></textarea>
+    ${hintBox('i-lock','<span class="t">올릴 수 없는 것</span>사람 이름, 전화번호, 이메일, 링크, 사진. 동행자나 다른 사람 이야기는 넣지 마세요. 이런 내용이 있으면 올라가지 않아요.')}
+    <label class="fld" style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;margin-top:10px;font-weight:500;line-height:1.5"><input type="checkbox" id="recAgree" style="width:18px;height:18px;flex-shrink:0;margin-top:2px"> 내가 직접 다녀온 곳이며, 다른 사람의 개인정보가 들어 있지 않아요. 이 글이 앱의 회원들에게 표시되는 것에 동의해요.</label>
+    <button class="btn brand" id="recBtn" style="margin-top:12px" onclick="submitRec()">${svg('i-check','ic')} 추천 올리기</button>`);
+  recPickTrip(trips[0].id);
+}
+function recPickTrip(tripId){
+  const t=trip(tripId), box=$('recItems'); if(!t||!box)return;
+  const rows=[];
+  (t.days||[]).forEach((d,di)=>(d.items||[]).forEach(it=>{ if(TravelCore.REC_CATS.includes(it.cat)&&String(it.title||'').trim())rows.push({id:it._id,title:it.title,cat:it.cat,date:d.date,di}); }));
+  box.innerHTML=rows.length?rows.map((r,i)=>`<label><input type="radio" name="recItem" value="${esc(r.id)}" ${i===0?'checked':''}> ${svg(CAT[r.cat].icon,'ic')} <span style="min-width:0;overflow-wrap:anywhere">${esc(tidyTitle(r.title,40))}</span><em>DAY ${r.di+1}</em></label>`).join('')
+    :'<p class="muted small" style="margin:4px 2px">이 여행에는 추천할 장소·입장권·숙소 일정이 없어요.</p>';
+  const reg=grabRegions(t.place).concat(grabRegions(t.title))[0]; const sel=$('recRegion'); if(sel&&reg)sel.value=reg;
+}
+async function submitRec(){
+  const tripId=$('recTrip')?.value, t=trip(tripId); if(!t)return;
+  const pick=document.querySelector('input[name=recItem]:checked'); if(!pick){toast('추천할 곳을 골라 주세요.');return;}
+  let item=null,date='';
+  (t.days||[]).forEach(d=>(d.items||[]).forEach(it=>{ if(it._id===pick.value){item=it;date=d.date;} }));
+  if(!item){toast('추천할 곳을 골라 주세요.');return;}
+  if(!$('recAgree').checked){toast('안내 내용을 확인하고 동의해 주세요.');return;}
+  const rec={region:$('recRegion').value,cat:item.cat,title:String(item.title||'').slice(0,60),note:$('recNote').value,month:Number(String(date).slice(5,7))||new Date().getMonth()+1};
+  try{TravelCore.validateRec(rec);}catch(e){toast(e.message);return;}
+  const b=$('recBtn'),who=ME.uid; b.disabled=true;
+  try{
+    const mine=await window.FB.myRecs();
+    if(mine.length>=30)throw new Error('추천은 30개까지 올릴 수 있어요. 오래된 추천을 지운 뒤 다시 올려 주세요.');
+    if(mine.filter(x=>x.tripId===tripId).length>=5)throw new Error('한 여행에서는 5곳까지 추천할 수 있어요.');
+    if(mine.some(x=>x.title===rec.title&&x.region===rec.region))throw new Error('같은 곳을 이미 추천하셨어요.');
+    await window.FB.addRec(rec,tripId);
+    if(ME.uid!==who)return;
+    closeOv(); toast('추천을 올렸어요. 운영자 검수 뒤에 공개돼요.');
+  }catch(e){
+    if(ME.uid!==who)return;
+    toast(/permission|denied/i.test(String(e&&(e.code||e.message)))?'추천 게시판이 아직 열리지 않았어요. 잠시 후 다시 시도해 주세요.':(e&&e.message&&!/Firebase|[a-z]+\//i.test(e.message)?e.message:'올리지 못했어요. 연결을 확인해 주세요.'));
+  }finally{ if(b.isConnected)b.disabled=false; }
+}
+async function deleteMyRec(id){
+  if(!confirm('이 추천을 지울까요?'))return;
+  try{ await window.FB.deleteRec(id); RECS=(RECS||[]).filter(x=>x.id!==id); closeOv(); toast('추천을 지웠어요'); if(document.querySelector('.screen.active')?.id==='go')goSetSort(goSort); }
+  catch(e){ toast('지우지 못했어요. 다시 시도해 주세요.'); }
+}
+function openRecReport(id){
+  openModal(`<h3>추천 신고</h3><p class="muted small">문제가 있는 추천을 운영자에게 알립니다. 확인 뒤 숨김 처리돼요.</p>
+    <label class="fld" for="repReason">이유</label>
+    <select class="input" id="repReason"><option>개인정보·연락처가 들어 있음</option><option>광고·홍보 글</option><option>장소와 관계없는 내용</option><option>사실과 다름</option><option>기타</option></select>
+    <button class="btn brand" style="margin-top:12px" onclick="sendRecReport('${TravelCore.jsText(id)}')">신고하기</button>
+    <button class="btn ghost" style="margin-top:8px" onclick="closeOv()">취소</button>`);
+}
+async function sendRecReport(id){
+  try{ await window.FB.reportRec(id,$('repReason').value); closeOv(); toast('신고를 접수했어요. 확인 뒤 처리할게요.'); }
+  catch(e){ toast('신고를 보내지 못했어요. 다시 시도해 주세요.'); }
+}
+const REC_STATUS={pending:'검수 중',public:'공개',hidden:'숨김'};
+async function openMyRecs(){
+  openSheet(`<div class="grab"></div><h3>내 추천 관리</h3><div id="myRecBox">${aiBusy('불러오는 중…')}</div>`);
+  const who=ME.uid; let list=[];
+  try{ list=await window.FB.myRecs(); }catch(e){ const b=$('myRecBox'); if(b)b.innerHTML='<p class="muted small">추천 게시판이 아직 열리지 않았어요.</p>'; return; }
+  if(ME.uid!==who)return; const box=$('myRecBox'); if(!box)return;
+  box.innerHTML=(list.map(r=>`<div class="admrow" style="align-items:flex-start;gap:10px">
+      <div style="flex:1;min-width:0"><b style="font-size:14px">${esc(r.title)}</b><div class="muted small" style="margin-top:2px">${esc(r.region)} · ${r.month}월 · ${esc(r.createdAt)}</div><div class="small" style="margin-top:4px;overflow-wrap:anywhere">${esc(r.note)}</div></div>
+      <span class="rec-status ${esc(r.status)}">${esc(REC_STATUS[r.status]||r.status)}</span>
+      <button class="ibtn" aria-label="삭제" onclick="deleteMyRec('${TravelCore.jsText(r.id)}')">${svg('i-trash','ic')}</button></div>`).join('')
+    ||'<p class="muted small" style="padding:10px 2px">아직 올린 추천이 없어요. [여행 추천] 탭에서 다녀온 곳을 추천해 보세요.</p>')
+    +'<p class="muted small" style="margin:10px 2px 0">검수 중인 추천은 운영자 확인 뒤 공개돼요. 지우면 바로 사라져요.</p>';
+}
+/* 관리자 — 검수 대기 추천과 신고 처리 */
+async function openAdminRecs(){
+  if(!IS_ADMIN){toast('관리자만 볼 수 있어요.');return;}
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <b style="font-size:16px">${svg('i-check','ic')} 추천 검수</b>
+      <button class="ibtn" onclick="closeOv();openAdmin()" aria-label="뒤로">${svg('i-left','ic')}</button></div>
+    <div id="admRecBox">${aiBusy('불러오는 중…')}</div>`);
+  const who=ME.uid; let pending=[],reports=[];
+  try{ [pending,reports]=await Promise.all([window.FB.adminPendingRecs(),window.FB.adminReports()]); }
+  catch(e){ const b=$('admRecBox'); if(b)b.innerHTML=`<div class="err">불러오지 못했습니다 (${esc((e&&e.code)||e)}). 보안 규칙 6판이 게시됐는지 확인해 주세요.</div>`; return; }
+  if(ME.uid!==who||!IS_ADMIN)return; const box=$('admRecBox'); if(!box)return;
+  const row=(r,btns)=>`<div class="admrow" style="align-items:flex-start;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:0"><b style="font-size:14px">${esc(r.title)}</b><div class="muted small" style="margin-top:2px">${esc(r.region||'')} · ${r.month?r.month+'월 · ':''}${esc(r.createdAt||'')}</div><div class="small" style="margin-top:4px;overflow-wrap:anywhere">${esc(r.note||'')}</div></div>
+      <div class="row" style="gap:6px;flex-shrink:0">${btns}</div></div>`;
+  box.innerHTML=`<div class="eyebrow" style="margin-top:0">검수 대기 ${pending.length}건</div>
+    <div class="admlist">${pending.map(r=>row(r,`<button class="btn ghost sm" style="width:auto" onclick="adminRecSet('${TravelCore.jsText(r.id)}','public')">공개</button><button class="btn ghost sm" style="width:auto" onclick="adminRecSet('${TravelCore.jsText(r.id)}','hidden')">숨김</button>`)).join('')||'<p class="muted small" style="padding:10px 2px">기다리는 추천이 없어요.</p>'}</div>
+    <div class="eyebrow" style="margin-top:14px">신고 ${reports.length}건</div>
+    <div class="admlist">${reports.map(x=>row({title:x.rec?x.rec.title:'(지워진 추천)',region:x.rec?x.rec.region:'',createdAt:x.createdAt,note:'신고 이유: '+x.reason+(x.rec?' · 현재 '+(REC_STATUS[x.rec.status]||x.rec.status):'')},
+      (x.rec&&x.rec.status!=='hidden'?`<button class="btn ghost sm" style="width:auto" onclick="adminRecSet('${TravelCore.jsText(x.rec.id)}','hidden','${TravelCore.jsText(x.id)}')">숨김</button>`:'')+`<button class="btn ghost sm" style="width:auto" onclick="adminReportDone('${TravelCore.jsText(x.id)}')">처리 완료</button>`)).join('')||'<p class="muted small" style="padding:10px 2px">신고가 없어요.</p>'}</div>
+    <p class="muted small" style="margin:10px 2px 0">공개하면 모든 회원의 [여행 추천] 탭에 보여요. 숨기면 작성자만 자기 목록에서 봅니다. 개인정보·연락처가 있으면 반드시 숨겨 주세요.</p>`;
+}
+async function adminRecSet(id,status,reportId){
+  try{ await window.FB.setRecStatus(id,status); if(reportId)await window.FB.deleteReport(reportId); RECS_STATE='idle'; RECS=null; toast(status==='public'?'공개했어요':'숨겼어요'); openAdminRecs(); }
+  catch(e){ toast('처리하지 못했어요: '+((e&&e.code)||e)); }
+}
+async function adminReportDone(id){
+  try{ await window.FB.deleteReport(id); toast('처리 완료'); openAdminRecs(); }catch(e){ toast('처리하지 못했어요'); }
 }
 /* 축제 날짜·장소를 채운 채로 여행 만들기 화면을 엽니다 */
 function tripFromFestival(id){
@@ -3154,8 +3371,10 @@ function openCreateTrip(){
   const y=new Date().getFullYear();
   /* [떠나기]의 축제에서 넘어왔으면 제목·여행지·날짜가 미리 채워집니다 */
   const seed=window.__tripSeed||null; window.__tripSeed=null;
+  /* 추천 코스에서 넘어오면 코스의 장소들이 일정으로 들어갑니다 (저장할 때 날짜별로 나눔) */
+  window.__seedItems=(seed&&Array.isArray(seed.items)&&seed.items.length)?seed.items:null;
   openSheet(`<div class="grab"></div><h3>새 여행 만들기</h3>
-    ${seed?`<p class="muted small" style="margin:-4px 2px 10px">${svg('i-compass')} <b>${esc(seed.title)}</b> 일정으로 채웠어요. 고치셔도 됩니다.</p>`:''}
+    ${seed?`<p class="muted small" style="margin:-4px 2px 10px">${svg('i-compass')} <b>${esc(seed.title)}</b>${window.__seedItems?` 코스의 장소 ${window.__seedItems.length}곳이 일정으로 들어가요. 날짜만 골라 주세요.`:' 일정으로 채웠어요. 고치셔도 됩니다.'}</p>`:''}
     <label class="fld">여행 제목</label><input class="input" id="cTitle" placeholder="예: 제주 여름 여행" value="${seed?esc(seed.title):''}">
     <label class="fld">여행지</label><input class="input" id="cPlace" placeholder="예: 제주도" value="${seed?esc(seed.place):''}">
     <label class="fld">함께 가는 그룹</label>
@@ -3179,6 +3398,15 @@ async function saveCreateTrip(){
     hasStudent:$('cStudent').checked,status:"active",start,end,   /* 표지는 저장하지 않고 coverArt()가 그때그때 그립니다 */
     members:[memberRec()],memberUids:[ME.uid],
     days:daysBetween(start,end).map(d=>({date:d,items:[]})),pack:[],proposals:[],owner:ME.uid};
+  /* 추천 코스의 장소를 하루 4곳씩 시간순으로 넣습니다 (10:00·12:30·14:30·16:30) */
+  const seedItems=window.__seedItems||[]; window.__seedItems=null;
+  if(seedItems.length){
+    const slots=['10:00','12:30','14:30','16:30'];
+    seedItems.forEach((s,i)=>{ const day=t.days[Math.min(t.days.length-1,Math.floor(i/slots.length))];
+      day.items.push({_id:uid(),cat:'plan',time:slots[i%slots.length],title:String(s.title||'').slice(0,200),place:String(s.place||s.title||'').slice(0,200),
+        sub:String(s.sub||'').slice(0,300),by:ME.name,createdBy:ME.uid,comments:[],map:true}); });
+    t.days.forEach(d=>d.items.sort((a,b)=>a.time.localeCompare(b.time)));
+  }
   try{await window.FB.saveTrip(t,true);      // true = 새로 만든 여행(통계용)
     /* 서버에서 목록이 다시 내려오길 기다리지 않고 바로 엽니다.
        (인터넷이 느리면 0.2초 안에 안 내려와서 엉뚱하게 [내 여행] 목록으로 튕기던 문제) */
@@ -5686,7 +5914,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.0.7 (2026-09-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.1.0 (2026-09-29)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

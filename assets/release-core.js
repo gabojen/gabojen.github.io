@@ -110,8 +110,23 @@
   function normalizeNews(value) {
     if (!record(value)) throw new Error('여행 정보 형식을 확인해 주세요.');
     const text = x => typeof x === 'string' ? x : '';
+    const plain = (x, n) => text(x).replace(/<br\s*\/?>/gi,' · ').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').replace(/(\s*·\s*)+$/,'').trim().slice(0, n);
     const card = x => record(x) && ['string','number'].includes(typeof x.id) && text(x.title).trim();
-    const images = x => ({...x,id:String(x.id),img:safeImage(x.img),thumb:safeImage(x.thumb),intro:text(x.intro).replace(/<[^>]+>/g,'').trim().slice(0,200)});
+    // 2026-09-29: 이용시간·쉬는 날·주차·문의·반려동물·유모차·대표메뉴·사진 여러 장 (없으면 빈 값)
+    const yn = x => x === true ? true : x === false ? false : null;
+    const details = x => ({
+      hours: plain(x.hours, 160), closed: plain(x.closed, 120), parking: plain(x.parking, 120), tel: plain(x.tel, 40), menu: plain(x.menu, 80),
+      pet: yn(x.pet), petText: plain(x.petText, 40), stroller: yn(x.stroller), strollerText: plain(x.strollerText, 40),
+      images: (Array.isArray(x.images) ? x.images : []).map(safeImage).filter(Boolean).slice(0, 4),
+    });
+    const images = x => ({...x,id:String(x.id),img:safeImage(x.img),thumb:safeImage(x.thumb),intro:plain(x.intro,200),...details(x)});
+    // 관광공사 여행코스: 코스 안의 장소 이름·소개만 (없어도 됨)
+    const course = x => ({
+      id:String(x.id), title:plain(x.title,80), intro:plain(x.intro,300), distance:plain(x.distance,40), taketime:plain(x.taketime,40),
+      img:safeImage(x.img), thumb:safeImage(x.thumb), rights:plain(x.rights,10),
+      spots:(Array.isArray(x.spots)?x.spots:[]).filter(s=>record(s)&&text(s.name).trim()).map(s=>({name:plain(s.name,80),intro:plain(s.intro,200)})).slice(0,12),
+    });
+    const courses = Object.fromEntries(Object.entries(record(value.courses)?value.courses:{}).filter(([r,a])=>r&&Array.isArray(a)).map(([r,a])=>[r,a.filter(card).map(course).filter(c=>c.spots.length)]));
     if (value.kind === 'editorial') {
       const places = (Array.isArray(value.places) ? value.places : []).filter(card).filter(p=>text(p.region).trim()).map(p=>({...p,id:String(p.id),image:safeImage(p.image),url:safeURL(p.url)}));
       if (!places.length) throw new Error('여행 아이디어가 없습니다.');
@@ -122,7 +137,7 @@
     const festivals = value.festivals.filter(card).filter(f=>ymd(f.start)&&ymd(f.end)&&f.end>=f.start).map(images);
     const spots = Object.fromEntries(Object.entries(value.spots).filter(([r,a])=>r&&Array.isArray(a)).map(([r,a])=>[r,a.filter(card).map(images)]));
     if (!festivals.length && !Object.values(spots).some(a=>a.length)) throw new Error('여행 소식이 없습니다.');
-    return {...value,festivals,spots};
+    return {...value,festivals,spots,courses};
   }
   const placeThemes = {'12':'관광·자연','14':'문화·전시','28':'레포츠','38':'시장·쇼핑','39':'맛집·카페'};
   function placeTheme(place) { return placeThemes[String(place.contentTypeId || '12')] || '관광·자연'; }
@@ -148,7 +163,30 @@
     const extended = f => millis(f.end)-millis(f.start) >= 60*86400000 ? 1 : 0;
     const festivals = unique(news?.festivals || []).filter(f=>f.region===region && f.end>=today)
       .sort((a,b)=>extended(a)-extended(b) || (a.start>today?1:0)-(b.start>today?1:0) || a.start.localeCompare(b.start) || String(a.id).localeCompare(String(b.id)));
-    return {places:theme==='전체'?places:places.filter(p=>placeTheme(p)===theme),themes:['전체',...groups.keys()],festivals,editorial,total:places.length};
+    const courses = editorial ? [] : unique(news?.courses?.[region] || []);
+    return {places:theme==='전체'?places:places.filter(p=>placeTheme(p)===theme),themes:['전체',...groups.keys()],festivals,courses,editorial,total:places.length};
+  }
+  // Distance helper for "near my stay" ordering. Pure: returns km or null.
+  function distanceKm(a, b) {
+    if (!a || !b || !Number.isFinite(+a.lat) || !Number.isFinite(+a.lng) || !Number.isFinite(+b.lat) || !Number.isFinite(+b.lng)) return null;
+    const R=6371, rad=Math.PI/180, dLat=(+b.lat-+a.lat)*rad, dLng=(+b.lng-+a.lng)*rad;
+    const s=Math.sin(dLat/2)**2+Math.cos(+a.lat*rad)*Math.cos(+b.lat*rad)*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.sqrt(s));
+  }
+  // Member place recommendations: what may be posted. Never includes names, contacts or links.
+  const REC_REGIONS=['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주'];
+  const REC_CATS=['plan','ticket','stay'];
+  const PII=/(\d[\d\-\s]{7,}\d)|@|https?:\/\/|www\.|\.(com|kr|net|org)\b|카톡|카카오톡|인스타|전화|연락/i;
+  function validateRec(r) {
+    if (!record(r)) throw new Error('추천 내용을 확인해 주세요.');
+    const title=String(r.title||'').replace(/\s+/g,' ').trim(), note=String(r.note||'').replace(/[\r\t]/g,' ').replace(/ {2,}/g,' ').trim();
+    if (!REC_REGIONS.includes(r.region)) throw new Error('지역을 골라 주세요.');
+    if (!REC_CATS.includes(r.cat)) throw new Error('장소·입장권·숙소 일정만 추천할 수 있어요.');
+    if (!title || title.length > 60) throw new Error('장소 이름은 1~60자로 적어 주세요.');
+    if (note.length < 10 || note.length > 300) throw new Error('추천 이유를 10~300자로 적어 주세요.');
+    if (PII.test(title) || PII.test(note)) throw new Error('전화번호·이메일·링크·연락 안내는 넣을 수 없어요. 장소와 이유만 적어 주세요.');
+    if (!Number.isInteger(r.month) || r.month < 1 || r.month > 12) throw new Error('다녀온 달을 확인해 주세요.');
+    return {region:r.region, cat:r.cat, title, note, month:r.month};
   }
   // Only UID-attributed content can be safely removed automatically. Legacy names
   // are not identities: two members can have the same display name.
@@ -178,5 +216,5 @@
     }
     return clashes;
   }
-  return { clone, merge, validDate, dateRange, safeURL, safeImage, jsText, validateTrip, normalizePlans, normalizeNews, placeTheme, discoveryFor, removeAuthoredContent, planConflicts };
+  return { clone, merge, validDate, dateRange, safeURL, safeImage, jsText, validateTrip, normalizePlans, normalizeNews, placeTheme, discoveryFor, distanceKm, validateRec, REC_REGIONS, REC_CATS, removeAuthoredContent, planConflicts };
 });
