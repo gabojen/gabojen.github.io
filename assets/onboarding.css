@@ -34,3 +34,7 @@
 @media(max-width:600px){#intro.service-intro{width:100%;height:100dvh;border:0;border-radius:0}.intro-header{padding-top:calc(12px + env(safe-area-inset-top));padding-left:22px;padding-right:22px}.intro-progress{padding:0 24px}.intro-content{padding:22px 24px 14px}.intro-content h2{font-size:26px}.intro-footer{padding:12px 24px calc(16px + env(safe-area-inset-bottom))}}
 @media(max-width:360px){.intro-content{padding-left:19px;padding-right:19px}.intro-content h2{font-size:24px}.intro-description{font-size:14px}.intro-card{padding:13px}.intro-options{gap:6px}.intro-options>div{padding:10px 7px}.intro-actions{grid-template-columns:78px 1fr}.intro-header{padding-left:19px;padding-right:16px}}
 @media(prefers-reduced-motion:reduce){#intro.service-intro,#intro.service-intro *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* 6장 '다녀온 곳 추천' 예시 화면 (2026-09-30) */
+.intro-rec-card .intro-row{position:relative;padding-right:34px}.intro-more{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)}.intro-more .ic{width:15px;height:15px}
+.intro-mock-btn{display:flex;align-items:center;justify-content:center;gap:7px;margin:12px 0;padding:12px;border-radius:11px;background:var(--teal);color:#fff;font-size:13px;font-weight:750}.intro-mock-btn .ic{width:16px;height:16px}
+.intro-rec-card .intro-message p{font-size:12.5px;line-height:1.7}

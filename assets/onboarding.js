@@ -61,6 +61,16 @@ function introMemoryVisual() {
     <div class="intro-memory-note">“같이 걸어서 더 좋았던 길.”<small>사진과 기록을 한 권의 여행책으로</small></div>
   </div>`;
 }
+/* 2026-09-30: 다녀온 곳 추천 — 어디를 눌러야 하는지 3단계로 */
+function introRecommendVisual() {
+  return `<div class="intro-card intro-rec-card">
+    <div class="intro-card-title">${svg('i-camera')} 추억 → 지난 여행 <span>일정 줄의 ⋯ 메뉴</span></div>
+    <div class="intro-row"><span class="intro-row-icon">${svg('i-pin')}</span><div><small>11:00 · DAY 1</small><strong>속초 해변</strong></div><span class="intro-more">${svg('i-more')}</span></div>
+    <div class="intro-mock-btn">${svg('i-compass')} 이 곳을 다른 회원에게 추천</div>
+    <div class="intro-message"><small>왜 추천하나요?</small><p>오후 늦게 가면 사람이 적고 노을이 예뻐요. 주차는 입구 쪽이 편했어요.</p></div>
+    <div class="intro-note-band">${svg('i-lock')} 이름·사진·연락처는 올라가지 않아요 · 운영자 확인 뒤 [여행 추천]에 공개</div>
+  </div>`;
+}
 const INTRO = [
   { label: '일정 한눈에', title: '여행에 필요한 것을 한곳에',
     body: '항공편과 숙소부터 갈 곳, 준비물까지. 날짜별 일정에서 필요한 정보를 바로 확인해요.',
@@ -69,8 +79,8 @@ const INTRO = [
     body: '초대 링크로 구성원을 모으고, 함께 일정을 추가·수정해요. 가고 싶은 곳을 제안하고 의견도 남겨요.',
     hint: '여행 메뉴 → 멤버 초대', visual: introShareVisual },
   { label: '추천과 AI', title: '막막한 계획에는 아이디어를',
-    body: '여행 추천에서 바다·자연·도시·문화 분위기로 갈 곳을 찾고, 여행 안에서 AI로 일정을 짜 보세요. 취향은 2개까지 골라 섞을 수 있고, 제안 중 골라 담으면 돼요.',
-    hint: '여행 추천 · 여행 안의 AI로 일정 짜기',
+    body: '여행 추천에서 바다·자연·도시·문화 분위기로 갈 곳을 찾고, 장소의 이용시간·주차까지 보세요. 관광공사 추천 코스는 그대로 여행으로 만들 수 있고, AI 일정 짜기는 취향을 2개까지 섞어 줘요.',
+    hint: '여행 추천 탭 · 여행 안의 AI로 일정 짜기',
     note: 'AI 제안의 운영시간·이동시간·예약 가능 여부는 확인해 주세요.', visual: introAiVisual },
   { label: '예약 정리', title: '예약 정보도 일정 속으로',
     body: '예약 문자나 사진에서 날짜·시간·장소를 정리해요. 읽어온 내용을 확인하고 일정에 추가하세요.',
@@ -79,16 +89,21 @@ const INTRO = [
   { label: '추억 기록', title: '다녀온 여행은 오래 기억해요',
     body: '함께 찍은 사진과 다녀온 장소, 남긴 기록을 모아 보세요. 추억에서 우리만의 여행책을 다시 펼칠 수 있어요.',
     hint: '추억 → 지난 여행 선택', visual: introMemoryVisual },
+  { label: '다녀온 곳 추천', title: '좋았던 곳, 다른 회원에게도',
+    body: '다녀온 여행의 일정에서 좋았던 장소 하나를 골라 이유만 적으면 돼요. 운영자가 확인한 뒤 [여행 추천] 탭의 "회원이 다녀온 곳"에 올라가요.',
+    hint: '추억 → 지난 여행 → 일정 줄의 ⋯ → 이 곳을 다른 회원에게 추천',
+    note: '사람 이름·전화번호·링크·사진은 올릴 수 없어요. 학생 동행 여행은 추천에 올라가지 않아요.', visual: introRecommendVisual },
 ];
 
 let introPage = 0;
 let introReturnFocus = null;
 let introDates = null;
+/* 안내 내용이 크게 바뀌면 키의 판(v2)을 올립니다 — 기존 회원도 한 번 더 봅니다 (2026-09-30: 6장 추천 안내 추가) */
 function introSeen() {
-  try { return localStorage.getItem('gbj_intro_' + (ME.uid || 'guest')) === '1'; } catch (_) { return true; }
+  try { return localStorage.getItem('gbj_intro_v2_' + (ME.uid || 'guest')) === '1'; } catch (_) { return true; }
 }
 function markIntroSeen() {
-  try { localStorage.setItem('gbj_intro_' + (ME.uid || 'guest'), '1'); } catch (_) {}
+  try { localStorage.setItem('gbj_intro_v2_' + (ME.uid || 'guest'), '1'); } catch (_) {}
 }
 function openIntro(explicit = false) {
   if (!explicit && (!ME.uid || location.hash.startsWith('#invite='))) return;
