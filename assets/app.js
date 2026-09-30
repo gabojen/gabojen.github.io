@@ -1544,6 +1544,7 @@ function openItemMenu(id){const f=itemById(id);if(!f)return;const it=f.it;const 
     ${(it.cat==='transport'||it.cat==='stay'||it.cat==='rentcar')?`<button class="btn ghost" onclick="closeOv();goProvider('${id}')">${svg('i-ext','ic')} 예약처에서 확인·체크인</button><div style="height:10px"></div>`:''}
     ${it.place?`<button class="btn ghost" onclick="closeOv();openMap('${TravelCore.jsText(it.place)}')">${svg('i-pin','ic')} 지도에서 보기</button><div style="height:10px"></div>`:''}
     ${canReport?`<button class="btn" style="background:var(--teal)" onclick="openReportFor('${id}')">${svg('i-file','ic')} 이 장소로 체험학습 보고서</button><div style="height:10px"></div>`:''}
+    ${(ddayOf(t)==='종료'||t.status==='done')&&!t.hasStudent&&TravelCore.REC_CATS.includes(it.cat)?`<button class="btn" style="background:var(--teal)" onclick="closeOv();openRecCompose('${TravelCore.jsText(t.id)}','${TravelCore.jsText(id)}')">${svg('i-compass','ic')} 이 곳을 다른 회원에게 추천</button><div style="height:10px"></div>`:''}
     <button class="btn ghost" onclick="closeOv();openEditItem('${id}')">${svg('i-edit','ic')} 수정</button>
     <div style="height:10px"></div>
     <button class="btn ghost" style="color:#B23B3B" onclick="closeOv();delItem('${id}')">${svg('i-trash','ic')} 삭제</button>`);}
@@ -1556,6 +1557,8 @@ function openTripMenu(){const t=trip(curTrip);if(!t)return;
     <div style="height:10px"></div>
     <button class="btn ghost" onclick="closeOv();openShare()">${svg('i-share','ic')} 멤버 초대</button>
     <div style="height:10px"></div>
+    ${(ddayOf(t)==='종료'||t.status==='done')&&!t.hasStudent?`<button class="btn ghost" onclick="closeOv();openRecCompose('${TravelCore.jsText(t.id)}')">${svg('i-compass','ic')} 다녀온 곳 추천하기 <em style="font-style:normal;opacity:.7">· 여행 추천 탭에 공개</em></button>
+    <div style="height:10px"></div>`:''}
     ${t.hasStudent?`<button class="btn ghost" onclick="openApply()">${svg('i-file','ic')} 체험학습 신청서 만들기 <em style="font-style:normal;opacity:.7">· 가기 전</em></button>
       <div style="height:10px"></div>
       <button class="btn ghost" onclick="openReportPicker()">${svg('i-file','ic')} 체험학습 보고서 만들기 <em style="font-style:normal;opacity:.7">· 다녀온 뒤</em></button>
@@ -1629,7 +1632,7 @@ const GO_MOODS=[
 function moodOf(name){return GO_MOODS.find(m=>m[0]===name)||null;}
 /* '부산·울산·안산…' 같은 도시 이름의 '산'은 지우고 봅니다 (자연 분위기 오탐 방지) */
 function moodMatch(mood,sp){if(!mood)return true;const text=(String(sp.title||'')+' '+String(sp.intro||'')).replace(/[부울안마군익경오아논서양괴예용송합노문일장성]산/g,'');return mood[2].test(text);}
-function goSetMood(m){ const box=$('go'),y=box?box.scrollTop:0; goMood=(goMood===m)?'':m; goPlaceLimit=6; renderGo(); if(box)box.scrollTop=y; }
+function goSetMood(m){ goMood=(goMood===m)?'':m; goPlaceLimit=6; goRefreshPlaces(); }
 const REGION_LIST=['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주'];
 let goRegion=null;                       // 지금 보고 있는 지역 (null = 추천)
 
@@ -1746,7 +1749,7 @@ function goAnchorFor(region){
   return null;
 }
 function kmLabelShort(km){ return km==null?'':(km<1?Math.round(km*1000)+'m':(km<10?km.toFixed(1):Math.round(km))+'km'); }
-function goSetSort(s){ const box=$('go'),y=box?box.scrollTop:0; goSort=s; renderGo(); if(box)box.scrollTop=y; }
+function goSetSort(s){ goSort=s; goRefreshPlaces(); }
 /* 회원 추천 불러오기 — 공개(검수 통과)된 것만 서버가 내려줍니다 */
 async function loadRecs(){
   if(RECS_STATE==='loading'||RECS_STATE==='ok')return;
@@ -1774,26 +1777,14 @@ function renderGo(){
     return;
   }
 
-  const grouped=NEWS.kind==='editorial'
-    ? Object.fromEntries(REGION_LIST.map(r=>[r,NEWS.places.filter(p=>p.region===r)])) : NEWS.spots;
-  const rec=recommendRegion(visitedRegions(),grouped);
-  const pickR=REGION_LIST.includes(goRegion)?goRegion:rec.region;
-  const data=TravelCore.discoveryFor(NEWS,pickR,todayYmd(),goTheme);
-  /* 숙소 기준 거리 — 좌표가 이미 있으면 바로, 없으면 한 번만 검색해 두고 다시 그립니다 */
-  const anchor=data.editorial?null:goAnchorFor(pickR);
-  const ageo=anchor?geoCache[anchor.name]:undefined;
+  const s=goState();
+  const {grouped,rec,pickR,data,anchor,ageo,km,mood,shown,moodRegions}=s;
+  /* 숙소 기준 거리 — 좌표가 이미 있으면 바로, 없으면 한 번만 검색해 두고 장소 부분만 다시 그립니다 */
   if(anchor&&ageo===undefined&&goAnchorTried!==anchor.name&&kakaoReady){
     goAnchorTried=anchor.name;
-    geocodeSafe(anchor.name,4000).then(g=>{ if(g&&g!=='timeout'&&document.querySelector('.screen.active')?.id==='go'){const b=$('go'),y=b.scrollTop;renderGo();b.scrollTop=y;} });
+    geocodeSafe(anchor.name,4000).then(g=>{ if(g&&g!=='timeout'&&document.querySelector('.screen.active')?.id==='go')goRefreshPlaces(); });
   }
-  const km=new Map();
-  if(ageo&&ageo.lat)data.places.forEach(sp=>{const d=TravelCore.distanceKm(ageo,sp);if(d!=null)km.set(sp.id,d);});
-  const ordered=(goSort==='near'&&km.size)?data.places.slice().sort((a,b)=>(km.has(a.id)?km.get(a.id):1e9)-(km.has(b.id)?km.get(b.id):1e9)):data.places;
-  /* 분위기 타일이 켜져 있으면 그 분위기의 장소만 (자료 파일 안에서만 거릅니다) */
-  const mood=data.editorial?null:moodOf(goMood);
-  const shown=mood?ordered.filter(sp=>moodMatch(mood,sp)):ordered;
-  const moodRegions=mood?REGION_LIST.map(r=>[r,(grouped[r]||[]).filter(sp=>!['38','32','25'].includes(String(sp.contentTypeId||''))&&moodMatch(mood,sp)).length]).filter(x=>x[1]>0&&x[0]!==pickR).sort((a,b)=>b[1]-a[1]).slice(0,5):[];
-  const spots=shown.slice(0,goPlaceLimit), festivals=data.festivals.slice(0,goFestivalLimit);
+  const festivals=data.festivals.slice(0,goFestivalLimit);
   const recs=(RECS||[]).filter(r=>r.region===pickR);
   if(RECS_STATE==='idle')loadRecs();
   const fcard=f=>{
@@ -1806,22 +1797,13 @@ function renderGo(){
   box.innerHTML=`<header class="page-lead go-lead"><span class="section-label">국내 여행 아이디어</span>
       <h2>다음 여행, 어디로 갈까요?</h2><p>갈 만한 곳부터 그 지역의 축제까지, 가볍게 둘러보세요.</p></header>
     ${data.editorial?'':`<section class="mood-pick" aria-label="분위기로 고르기">
-      <div class="section-heading"><h3>어디로 떠나볼까요?</h3>${goMood?`<button class="lnk" onclick="goSetMood('')">전체 보기</button>`:'<span class="muted small">분위기로 고르기</span>'}</div>
-      <div class="mood-tiles">${GO_MOODS.map(([m,ic])=>`<button class="mood${goMood===m?' on':''}" aria-pressed="${goMood===m}" onclick="goSetMood('${m}')">${svg(ic,'ic')}<span>${m}</span></button>`).join('')}</div>
-      ${mood?`<div class="mood-regions"><span>${esc(goMood)} 분위기가 많은 곳</span>${moodRegions.map(([r,n])=>`<button class="rchip" onclick="goPick('${r}')">${r} <i>${n}</i></button>`).join('')||'<span class="muted small">다른 지역에도 아직 없어요</span>'}</div>`:''}
+      <div class="section-heading"><h3>어디로 떠나볼까요?</h3><span id="moodHead">${goMood?`<button class="lnk" onclick="goSetMood('')">전체 보기</button>`:'<span class="muted small">분위기로 고르기</span>'}</span></div>
+      <div class="mood-tiles">${GO_MOODS.map(([m,ic])=>`<button class="mood${goMood===m?' on':''}" data-mood="${m}" aria-pressed="${goMood===m}" onclick="goSetMood('${m}')">${svg(ic,'ic')}<span>${m}</span></button>`).join('')}</div>
+      <div class="mood-regions">${goMoodRegionsHtml(s)}</div>
     </section>`}
     <div class="region-picker"><label for="goRegionSelect">여행 지역</label><select class="input" id="goRegionSelect" onchange="goPick(this.value)">${REGION_LIST.map(r=>`<option value="${r}" ${r===pickR?'selected':''}>${r}</option>`).join('')}</select></div>
     <div class="season-regions"><span>${esc(seasonNow())} 추천</span>${(SEASON_PICK[seasonNow()]||[]).filter(([r])=>(grouped?.[r]||[]).length).map(([r])=>`<button class="rchip${r===pickR?' on':''}" aria-pressed="${r===pickR}" onclick="goPick('${r}')">${r}</button>`).join('')}</div>
-    <section aria-labelledby="goPlacesTitle">
-      <div class="section-heading"><h3 id="goPlacesTitle">${mood?esc(pickR)+'의 '+esc(goMood)+' 분위기':esc(pickR)+', 이런 곳은 어때요?'}</h3><span class="muted small">${mood?shown.length+'곳':data.total+'곳'}</span></div>
-      ${!goRegion?`<p class="muted small go-reason">${esc(rec.why)}</p>`:''}
-      ${data.themes.length>2?`<div class="go-themes" aria-label="장소 종류">${data.themes.map(t=>`<button class="rchip${t===goTheme?' on':''}" aria-pressed="${t===goTheme}" onclick="goChooseTheme('${TravelCore.jsText(t)}')">${esc(t)}</button>`).join('')}</div>`:''}
-      ${km.size?`<div class="go-near">${svg(anchor.kind==='숙소'?'i-bed':'i-pin')}<span>${esc(anchor.kind)} <b>${esc(anchor.name)}</b> 기준</span><button class="rchip${goSort==='near'?' on':''}" aria-pressed="${goSort==='near'}" onclick="goSetSort('near')">가까운 순</button><button class="rchip${goSort!=='near'?' on':''}" aria-pressed="${goSort!=='near'}" onclick="goSetSort('basic')">기본</button></div>`:''}
-      <div class="place-grid">${spots.map(sp=>`<button class="place-card" data-place-id="${esc(sp.id)}" onclick="${data.editorial?`openEditorial('${TravelCore.jsText(sp.id)}')`:`openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')`}">
-        <span class="place-photo">${(sp.img||sp.thumb||sp.image)?`<img src="${TravelCore.safeImage(sp.img||sp.thumb||sp.image)}" alt="" loading="lazy" decoding="async">`:svg('i-pin','ic')}</span>
-        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}${sp.pet===true?' · 반려동물 OK':''}${sp.stroller===true?' · 유모차 OK':''}</small><b>${esc(sp.title)}</b>${sp.intro?`<span class="place-intro">${esc(sp.intro)}</span>`:''}<em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}${km.has(sp.id)?` · <span class="place-dist">${esc(anchor.kind)}에서 ${kmLabelShort(km.get(sp.id))}</span>`:''}</em></span></button>`).join('')||`<p class="go-empty">${mood?esc(pickR)+'에는 '+esc(goMood)+' 분위기로 모은 장소가 아직 없어요. 위의 다른 지역을 눌러 보세요.':'이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.'}</p>`}</div>
-      ${shown.length>spots.length?`<button class="btn ghost sm go-more" id="goPlaceMore" onclick="goShowMore('places')">장소 더 보기 · ${spots.length}/${shown.length}</button>`:''}
-    </section>
+    <section class="go-places" aria-labelledby="goPlacesTitle">${goPlacesHtml(s)}</section>
     ${data.courses.length?`<section class="course-section" aria-labelledby="goCoursesTitle">
       <div class="section-heading"><h3 id="goCoursesTitle">관광공사 추천 코스</h3><span class="muted small">${data.courses.length}개</span></div>
       <p class="muted small go-reason">한국관광공사가 묶어 둔 ${esc(pickR)} 코스예요. 고르면 코스의 장소들이 일정으로 바로 들어가요.</p>
@@ -1833,7 +1815,7 @@ function renderGo(){
       <div class="section-heading"><h3 id="goRecsTitle">회원이 다녀온 곳</h3><span class="muted small">${RECS_STATE==='loading'?'불러오는 중':RECS_STATE==='ok'?recs.length+'곳':''}</span></div>
       <p class="muted small go-reason">여행을 다녀온 회원이 직접 추천한 장소예요. 이름·연락처 없이 장소와 이유만 올릴 수 있고, 운영자 검수를 거쳐 공개돼요.</p>
       <div class="rec-list">${recs.slice(0,goRecLimit).map(recCard).join('')||`<p class="go-empty">${RECS_STATE==='loading'?'회원 추천을 불러오는 중이에요.':RECS_STATE==='none'?'회원 추천은 아직 준비 중이에요.':'아직 '+esc(pickR)+' 추천이 없어요. 다녀온 여행에서 좋았던 곳을 첫 번째로 추천해 보세요.'}</p>`}</div>
-      ${recs.length>goRecLimit?`<button class="btn ghost sm go-more" onclick="goRecLimit+=6;goSetSort(goSort)">추천 더 보기 · ${Math.min(goRecLimit,recs.length)}/${recs.length}</button>`:''}
+      ${recs.length>goRecLimit?`<button class="btn ghost sm go-more" onclick="goMoreRecs()">추천 더 보기 · ${Math.min(goRecLimit,recs.length)}/${recs.length}</button>`:''}
       ${RECS_STATE!=='none'&&doneTrips().some(t=>!t.hasStudent)?`<button class="btn ghost sm go-more" onclick="openRecCompose()">${svg('i-plus','ic')} 내가 다녀온 곳 추천하기</button>`:''}
     </section>
     <section class="region-festivals" aria-labelledby="goFestivalsTitle">
@@ -1846,6 +1828,51 @@ function renderGo(){
     ${stale?`<div class="news-stale">${esc(month)}에 수집한 정보예요. 최신 운영 여부는 주최 측에서 확인해 주세요.</div>`:''}
     <p class="muted small go-source">${data.editorial?'공식 관광 안내를 참고한 기본 여행 아이디어예요. 카드 사진은 분위기 이미지로 실제 장소와 다를 수 있어요.':'사진·정보: 한국관광공사 TourAPI · '+esc(NEWS.madeAt||month)+' 수집'}<br>운영시간·요금·행사 일정은 방문 전 공식 안내를 확인해 주세요.</p>`;
 }
+/* 화면에 필요한 값을 한 번에 계산 — 전체 그리기(renderGo)와 부분 갱신(goRefreshPlaces)이 같이 씁니다 (2026-09-30) */
+function goState(){
+  const grouped=NEWS.kind==='editorial'
+    ? Object.fromEntries(REGION_LIST.map(r=>[r,NEWS.places.filter(p=>p.region===r)])) : NEWS.spots;
+  const rec=recommendRegion(visitedRegions(),grouped);
+  const pickR=REGION_LIST.includes(goRegion)?goRegion:rec.region;
+  const data=TravelCore.discoveryFor(NEWS,pickR,todayYmd(),goTheme);
+  const anchor=data.editorial?null:goAnchorFor(pickR);
+  const ageo=anchor?geoCache[anchor.name]:undefined;
+  const km=new Map();
+  if(ageo&&ageo.lat)data.places.forEach(sp=>{const d=TravelCore.distanceKm(ageo,sp);if(d!=null)km.set(sp.id,d);});
+  const ordered=(goSort==='near'&&km.size)?data.places.slice().sort((a,b)=>(km.has(a.id)?km.get(a.id):1e9)-(km.has(b.id)?km.get(b.id):1e9)):data.places;
+  /* 분위기 타일이 켜져 있으면 그 분위기의 장소만 (자료 파일 안에서만 거릅니다) */
+  const mood=data.editorial?null:moodOf(goMood);
+  const shown=mood?ordered.filter(sp=>moodMatch(mood,sp)):ordered;
+  const moodRegions=mood?REGION_LIST.map(r=>[r,(grouped[r]||[]).filter(sp=>!['38','32','25'].includes(String(sp.contentTypeId||''))&&moodMatch(mood,sp)).length]).filter(x=>x[1]>0&&x[0]!==pickR).sort((a,b)=>b[1]-a[1]).slice(0,5):[];
+  return {grouped,rec,pickR,data,anchor,ageo,km,mood,shown,moodRegions};
+}
+/* 타일 아래 한 줄 — 분위기를 안 골랐을 때도 같은 높이를 차지해 화면이 출렁이지 않습니다 */
+function goMoodRegionsHtml(s){
+  if(!s.mood)return '<span class="muted small">분위기를 고르면 그 분위기가 많은 지역도 알려 드려요</span>';
+  return `<span>${esc(goMood)} 분위기가 많은 곳</span>`+(s.moodRegions.map(([r,n])=>`<button class="rchip" onclick="goPick('${r}')">${r} <i>${n}</i></button>`).join('')||'<span class="muted small">다른 지역에도 아직 없어요</span>');
+}
+/* '이런 곳은 어때요?' 섹션 안쪽 — 분위기·종류·정렬·더 보기는 이 부분만 다시 그립니다 (사진이 다시 뜨며 울렁이던 문제) */
+function goPlacesHtml(s){
+  const {data,rec,pickR,anchor,km,mood,shown}=s, spots=shown.slice(0,goPlaceLimit);
+  return `      <div class="section-heading"><h3 id="goPlacesTitle">${mood?esc(pickR)+'의 '+esc(goMood)+' 분위기':esc(pickR)+', 이런 곳은 어때요?'}</h3><span class="muted small">${mood?shown.length+'곳':data.total+'곳'}</span></div>
+      ${!goRegion?`<p class="muted small go-reason">${esc(rec.why)}</p>`:''}
+      ${data.themes.length>2?`<div class="go-themes" aria-label="장소 종류">${data.themes.map(t=>`<button class="rchip${t===goTheme?' on':''}" aria-pressed="${t===goTheme}" onclick="goChooseTheme('${TravelCore.jsText(t)}')">${esc(t)}</button>`).join('')}</div>`:''}
+      ${km.size?`<div class="go-near">${svg(anchor.kind==='숙소'?'i-bed':'i-pin')}<span>${esc(anchor.kind)} <b>${esc(anchor.name)}</b> 기준</span><button class="rchip${goSort==='near'?' on':''}" aria-pressed="${goSort==='near'}" onclick="goSetSort('near')">가까운 순</button><button class="rchip${goSort!=='near'?' on':''}" aria-pressed="${goSort!=='near'}" onclick="goSetSort('basic')">기본</button></div>`:''}
+      <div class="place-grid">${spots.map(sp=>`<button class="place-card" data-place-id="${esc(sp.id)}" onclick="${data.editorial?`openEditorial('${TravelCore.jsText(sp.id)}')`:`openSpot('${TravelCore.jsText(pickR)}','${TravelCore.jsText(sp.id)}')`}">
+        <span class="place-photo">${(sp.img||sp.thumb||sp.image)?`<img src="${TravelCore.safeImage(sp.img||sp.thumb||sp.image)}" alt="" loading="lazy" decoding="async">`:svg('i-pin','ic')}</span>
+        <span class="place-copy"><small>${esc(data.editorial?sp.tag:TravelCore.placeTheme(sp))}${sp.pet===true?' · 반려동물 OK':''}${sp.stroller===true?' · 유모차 OK':''}</small><b>${esc(sp.title)}</b>${sp.intro?`<span class="place-intro">${esc(sp.intro)}</span>`:''}<em>${esc((sp.addr||sp.region||pickR).split(' ').slice(0,3).join(' '))}${km.has(sp.id)?` · <span class="place-dist">${esc(anchor.kind)}에서 ${kmLabelShort(km.get(sp.id))}</span>`:''}</em></span></button>`).join('')||`<p class="go-empty">${mood?esc(pickR)+'에는 '+esc(goMood)+' 분위기로 모은 장소가 아직 없어요. 위의 다른 지역을 눌러 보세요.':'이 지역의 장소 정보를 준비하고 있어요. 다른 지역도 둘러보세요.'}</p>`}</div>
+      ${shown.length>spots.length?`<button class="btn ghost sm go-more" id="goPlaceMore" onclick="goShowMore('places')">장소 더 보기 · ${spots.length}/${shown.length}</button>`:''}
+`;
+}
+function goRefreshPlaces(){
+  const box=$('go'); if(!box||NEWS_STATE!=='ok'||!NEWS)return;
+  const s=goState();
+  box.querySelectorAll('.mood-tiles .mood').forEach(b=>{const on=b.dataset.mood===goMood;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);});
+  const head=box.querySelector('#moodHead'); if(head)head.innerHTML=goMood?`<button class="lnk" onclick="goSetMood('')">전체 보기</button>`:'<span class="muted small">분위기로 고르기</span>';
+  const mr=box.querySelector('.mood-regions'); if(mr)mr.innerHTML=goMoodRegionsHtml(s);
+  const sec=box.querySelector('.go-places'); if(sec)sec.innerHTML=goPlacesHtml(s); else renderGo();
+}
+function goMoreRecs(){ const box=$('go'),y=box?box.scrollTop:0; goRecLimit+=6; renderGo(); if(box)box.scrollTop=y; }
 let goTheme='전체',goPlaceLimit=6,goFestivalLimit=3;
 /* 지역 고르기.
    ⚠ 예전에는 고른 뒤 드롭다운에 포커스를 줘서 휴대폰에서 '지역 선택' 창이 저절로 열렸고,
@@ -1859,14 +1886,13 @@ function goPick(r){
   const sel=$('goRegionSelect'); if(sel)sel.value=r;   /* 드롭다운 값만 맞추고 열지는 않음 */
 }
 function goChooseTheme(theme){
-  goTheme=theme;goPlaceLimit=6;const box=$('go'),y=box.scrollTop,x=box.querySelector('.go-themes')?.scrollLeft||0;
-  renderGo();const chips=box.querySelector('.go-themes');if(chips){chips.scrollLeft=x;chips.querySelector('[aria-pressed=true]')?.focus({preventScroll:true});}box.scrollTop=y;
+  goTheme=theme;goPlaceLimit=6;const box=$('go'),x=box.querySelector('.go-themes')?.scrollLeft||0;
+  goRefreshPlaces();const chips=box.querySelector('.go-themes');if(chips){chips.scrollLeft=x;chips.querySelector('[aria-pressed=true]')?.focus({preventScroll:true});}
 }
 function goShowMore(kind){
   const box=$('go'),y=box.scrollTop;
   const selector=kind==='places'?'.place-card':'.fcard',count=box.querySelectorAll(selector).length;
-  if(kind==='places')goPlaceLimit+=6;else goFestivalLimit+=3;
-  renderGo();
+  if(kind==='places'){goPlaceLimit+=6;goRefreshPlaces();}else{goFestivalLimit+=3;renderGo();}
   const next=box.querySelectorAll(selector)[count];if(next)next.focus({preventScroll:true});
   box.scrollTop=y;
 }
@@ -1953,14 +1979,17 @@ function openRec(id){
     </div>`);
 }
 /* 추천 올리기 — 다녀온 여행(학생 동행 제외)의 일정 중 장소·입장권·숙소 하나를 고릅니다 */
-function openRecCompose(){
+function openRecCompose(tripId,itemId){
   if(needVerify())return;
   const trips=doneTrips().filter(t=>!t.hasStudent);
   if(!trips.length){toast('다녀온 여행이 있어야 추천할 수 있어요.');return;}
+  /* 2026-09-30: 추억·일정 메뉴에서 넘어오면 그 여행·그 일정이 미리 골라집니다 */
+  if(tripId&&!trips.some(t=>t.id===tripId)){toast(trip(tripId)&&trip(tripId).hasStudent?'학생 동행 여행의 일정은 추천에 올릴 수 없어요.':'다녀온 여행만 추천할 수 있어요.');return;}
+  const first=trips.find(t=>t.id===tripId)||trips[0];
   openSheet(`<div class="grab"></div><h3>내가 다녀온 곳 추천하기</h3>
     <p class="muted small" style="margin:-6px 0 12px">장소 이름과 추천 이유만 올라가요. 이름·사진·날짜·연락처는 올라가지 않아요. 운영자 검수 뒤에 [여행 추천] 탭에 공개돼요.</p>
     <label class="fld" for="recTrip">다녀온 여행</label>
-    <select class="input" id="recTrip" onchange="recPickTrip(this.value)">${trips.map(t=>`<option value="${esc(t.id)}">${esc(t.title)} (${esc(t.start)})</option>`).join('')}</select>
+    <select class="input" id="recTrip" onchange="recPickTrip(this.value)">${trips.map(t=>`<option value="${esc(t.id)}" ${t.id===first.id?'selected':''}>${esc(t.title)} (${esc(t.start)})</option>`).join('')}</select>
     <label class="fld">추천할 곳 <span class="muted" style="font-weight:500">· 장소·입장권·숙소 일정 중 하나</span></label>
     <div class="rec-items" id="recItems"></div>
     <label class="fld" for="recRegion">지역</label>
@@ -1970,13 +1999,14 @@ function openRecCompose(){
     ${hintBox('i-lock','<span class="t">올릴 수 없는 것</span>사람 이름, 전화번호, 이메일, 링크, 사진. 동행자나 다른 사람 이야기는 넣지 마세요. 이런 내용이 있으면 올라가지 않아요.')}
     <label class="fld" style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;margin-top:10px;font-weight:500;line-height:1.5"><input type="checkbox" id="recAgree" style="width:18px;height:18px;flex-shrink:0;margin-top:2px"> 내가 직접 다녀온 곳이며, 다른 사람의 개인정보가 들어 있지 않아요. 이 글이 앱의 회원들에게 표시되는 것에 동의해요.</label>
     <button class="btn brand" id="recBtn" style="margin-top:12px" onclick="submitRec()">${svg('i-check','ic')} 추천 올리기</button>`);
-  recPickTrip(trips[0].id);
+  recPickTrip(first.id,itemId);
 }
-function recPickTrip(tripId){
+function recPickTrip(tripId,itemId){
   const t=trip(tripId), box=$('recItems'); if(!t||!box)return;
   const rows=[];
   (t.days||[]).forEach((d,di)=>(d.items||[]).forEach(it=>{ if(TravelCore.REC_CATS.includes(it.cat)&&String(it.title||'').trim())rows.push({id:it._id,title:it.title,cat:it.cat,date:d.date,di}); }));
-  box.innerHTML=rows.length?rows.map((r,i)=>`<label><input type="radio" name="recItem" value="${esc(r.id)}" ${i===0?'checked':''}> ${svg(CAT[r.cat].icon,'ic')} <span style="min-width:0;overflow-wrap:anywhere">${esc(tidyTitle(r.title,40))}</span><em>DAY ${r.di+1}</em></label>`).join('')
+  const pick=rows.some(r=>r.id===itemId)?itemId:(rows[0]&&rows[0].id);
+  box.innerHTML=rows.length?rows.map(r=>`<label><input type="radio" name="recItem" value="${esc(r.id)}" ${r.id===pick?'checked':''}> ${svg(CAT[r.cat].icon,'ic')} <span style="min-width:0;overflow-wrap:anywhere">${esc(tidyTitle(r.title,40))}</span><em>DAY ${r.di+1}</em></label>`).join('')
     :'<p class="muted small" style="margin:4px 2px">이 여행에는 추천할 장소·입장권·숙소 일정이 없어요.</p>';
   const reg=grabRegions(t.place).concat(grabRegions(t.title))[0]; const sel=$('recRegion'); if(sel&&reg)sel.value=reg;
 }
@@ -4616,6 +4646,7 @@ function renderHistory(){
     <div class="grid">${cards}</div>
     <div class="eyebrow" style="margin-top:18px">${svg('i-camera','ic')} 여행 사진</div>
     ${photoBlock()}
+    ${done.some(t=>!t.hasStudent)?`<button class="btn ghost" style="margin-top:8px" onclick="openRecCompose()">${svg('i-compass','ic')} 다녀온 곳 다른 회원에게 추천하기</button>`:''}
     <button class="btn ghost" style="margin-top:8px" onclick="openClone()">${svg('i-copy','ic')} 지난 여행 복제해서 새로 만들기</button>`;
   if(typeof axHistoryIn==='function')axHistoryIn();}
 
@@ -5956,7 +5987,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.1.4 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.1.6 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

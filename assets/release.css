@@ -188,5 +188,12 @@ html.dark .rec-card,html.dark .course-card,html.dark .rec-items label{background
 .mood-regions .rchip{min-height:34px;padding:5px 11px;font-size:12.5px;margin:0}.mood-regions .rchip i{font-style:normal;color:var(--brand-ink);margin-left:3px}
 html.dark .mood-tiles .mood{background:var(--card)}
 @media(max-width:360px){.mood-tiles{gap:6px}.mood-tiles .mood{font-size:12px;padding:12px 2px 10px}}
-@media(min-width:700px){.mood-tiles .mood{padding:18px 6px 15px;font-size:14px}.mood-tiles .mood .ic{width:30px;height:30px}}
+/* 넓은 화면: 타일·안내 줄을 아래 '여행 지역' 상자(460px)와 같은 폭으로 맞춰 한 기둥으로 정렬 */
+@media(min-width:700px){.mood-pick .section-heading,.mood-tiles,.mood-regions{max-width:460px}.mood-tiles{gap:8px}.mood-tiles .mood{padding:12px 4px 10px;font-size:13px}.mood-tiles .mood .ic{width:24px;height:24px}}
+/* 타일 아래 줄은 항상 같은 높이 — 눌러도 아래 내용이 밀리지 않게 */
+.mood-regions{height:40px;min-height:0;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;white-space:nowrap}
+.mood-regions::-webkit-scrollbar{display:none}.mood-regions>span{flex-shrink:0}.mood-regions .rchip{flex-shrink:0;min-height:32px}
+.mood-tiles .mood{transition:background-color .15s,border-color .15s,color .15s}.mood-tiles .mood:active{transform:none}
 .intro-ideas>span{min-width:0}
+/* '전체 보기' 링크가 44px 높이라 제목 줄이 22px 자라며 아래가 밀리던 것 — 오른쪽 자리를 고정 높이로 */
+#moodHead{display:inline-flex;align-items:center;height:24px;flex-shrink:0}#moodHead .lnk{min-height:24px;padding:0 4px;margin:0;font-size:13px}
