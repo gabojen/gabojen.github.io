@@ -56,6 +56,8 @@ async function writeTripDraft(draft){
   if(!uid)throw Object.assign(new Error('로그인한 뒤 다시 저장해 주세요.'),{code:'travel/session-changed'});
   if(!navigator.onLine)throw Object.assign(new Error('인터넷에 연결한 뒤 다시 저장해 주세요.'),{code:'travel/offline'});
   const {local,base,isNew}=draft;
+  /* 카카오 로컬 API 결과(좌표)는 저장하지 않습니다 — 옛 데이터에 남은 geo 도 저장 때마다 걷어냅니다 (2026-09-30) */
+  (local.days||[]).forEach(d=>(d.items||[]).forEach(i=>{ if(i&&i.geo)delete i.geo; }));
   TravelCore.validateTrip(local);
   const ref=doc(db,'trips',local.id);
   const saved=await runTransaction(db,async tx=>{

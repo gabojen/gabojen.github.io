@@ -1083,7 +1083,7 @@ function mapThumb(place){const id='km'+(++mapSeq);
 /* ══ 장소 고르기 ══════════════════════════════════════════
    예전에는 입력한 글자로 카카오 검색 '1등'을 몰래 썼습니다. "강원도 봉평"의 1등이 휘닉스 평창이면
    지도·거리가 그리로 갑니다. 이제 입력하는 동안 후보를 보여 주고, 고른 장소의 좌표를
-   일정에 함께 저장(it.geo)해서 다시 검색하지 않습니다. */
+   좌표는 저장하지 않고(카카오 이용정책) 이번 접속 동안 메모리에만 둡니다. 다음에 열면 그 이름으로 다시 검색합니다. */
 function searchPlaces(q){return new Promise(res=>{
   if(!q||q.length<2||!kakaoReady)return res([]);
   try{
@@ -1129,15 +1129,19 @@ function attachPlacePicker(inputId){
 }
 /* 저장할 때: 고른 좌표가 있으면 일정에 붙이고, 없으면(직접 쓴 글자) 예전처럼 둡니다 */
 function takeGeo(inputId,it){
+  /* 2026-09-30: 카카오 로컬 API 이용정책(검색 결과 저장 금지)에 따라 좌표를 일정에 저장하지 않습니다.
+     고른 장소의 '정확한 이름'만 place 에 남기고, 좌표는 이번 접속 동안 메모리(geoCache)에만 둡니다.
+     다음에 열 때는 그 이름으로 다시 검색하므로 지도·거리는 그대로 맞습니다. 예전에 저장된 geo 는 지웁니다. */
   const inp=document.getElementById(inputId); if(!inp)return;
   const g=inp.dataset.geo?JSON.parse(inp.dataset.geo):null;
-  if(g&&g.lat)it.geo={name:g.name,addr:g.addr||'',lat:g.lat,lng:g.lng}; else delete it.geo;
+  if(g&&g.lat&&g.name)geoCache[g.name]={lat:g.lat,lng:g.lng,name:g.name,addr:g.addr||''};
+  delete it.geo;
 }
 /* 여행을 불러오면 저장된 좌표를 캐시에 미리 넣어 둡니다 — 다시 검색하지 않도록 */
 function seedGeoCache(trips){
-  (trips||[]).forEach(t=>(t.days||[]).forEach(d=>(d.items||[]).forEach(i=>{
-    if(i.geo&&i.geo.lat&&i.place)geoCache[i.place]={lat:i.geo.lat,lng:i.geo.lng,name:i.geo.name||i.place,addr:i.geo.addr||''};
-  })));
+  /* 2026-09-30: 저장된 좌표를 더 이상 쓰지 않습니다(카카오 이용정책). 남아 있는 옛 geo 는 메모리에서 지우고,
+     다음 저장 때 서버에서도 빠집니다(firebase.js 가 저장 직전에 제거). */
+  (trips||[]).forEach(t=>(t.days||[]).forEach(d=>(d.items||[]).forEach(i=>{ if(i&&i.geo)delete i.geo; })));
 }
 // 장소 이름 → 좌표 (키워드 검색 → 실패 시 주소 검색)
 function geocode(place){return new Promise(res=>{
@@ -3166,7 +3170,7 @@ function savePlan(pi){
     const di=dayIndexFor(t,d.date); if(di<0)return;
     d.items.forEach(x=>list.push({di,resv:'',obj:{_id:uid(),cat:x.kind,time:x.time,
       title:x.title,place:x.place,sub:x.why?('AI 추천 · '+x.why):'AI 추천',
-      by:ME.name,createdBy:ME.uid,comments:[],map:!!x.place,aiGenerated:true,...(x.geo?{geo:x.geo}:{})}}));
+      by:ME.name,createdBy:ME.uid,comments:[],map:!!x.place,aiGenerated:true}}));
   });
   if(!list.length){toast('저장할 일정이 없어요');return;}
   const res=screenDups(t,list);
@@ -3401,7 +3405,7 @@ function openEditItem(id){const f=itemById(id);if(!f)return;const it=f.it;const 
       <div style="flex:1;min-width:0"><label class="fld">시간</label><input class="input" id="eTime" type="time" value="${esc(it.time)}"></div></div>
     <label class="fld">제목</label><input class="input" id="eTitle" value="${esc(it.title)}">
     <label class="fld">장소</label><input class="input" id="ePlace" value="${esc(it.place||'')}" autocomplete="off"
-      ${it.geo&&it.geo.lat?`data-geo='${esc(JSON.stringify({name:it.geo.name||it.place,addr:it.geo.addr||'',lat:it.geo.lat,lng:it.geo.lng}))}'`:''}>
+      ${(geoCache[it.place]&&geoCache[it.place].lat)?`data-geo='${esc(JSON.stringify({name:geoCache[it.place].name||it.place,addr:geoCache[it.place].addr||'',lat:geoCache[it.place].lat,lng:geoCache[it.place].lng}))}'`:''}>
     <label class="fld">메모</label><input class="input" id="eSub" value="${esc(it.sub||'')}">
     <button class="btn brand" onclick="saveEditItem('${id}')">${svg('i-check','ic')} 저장</button>`);
   attachPlacePicker('ePlace');}
@@ -6078,7 +6082,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.2.1 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.2.2 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
