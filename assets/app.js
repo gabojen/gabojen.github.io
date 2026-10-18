@@ -924,7 +924,7 @@ function show(id,{title,kicker,back=false,nav=true,push=true}={}){
   $('topbar').classList.toggle('hidden',isLogin);
   $('nav').classList.toggle('hidden',isLogin||!nav);
   $('backBtn').style.display=back?'flex':'none';
-  $('moreBtn').style.display=(id==='detail')?'flex':'none';   // 여행 메뉴는 상세에서만
+  $('moreBtn').style.display=(id==='detail'||id==='album')?'flex':'none';   // 여행 메뉴는 상세·여행책에서
   $('acctBtn').style.display=(id==='detail')?'none':'flex';
   if(!isLogin){$('ptitle').textContent=title||'여행가보젠';$('kicker').textContent=kicker||'';}
   /* 상세 화면의 '여행지 · 날짜' 줄을 누르면 바로 고칠 수 있게 (2026-09-16) */
@@ -1016,6 +1016,8 @@ function routeTo(id,opt={}){
   else if(id==='report'){renderReport();show('report',{title:'체험학습 보고서',back:true,...opt});}
   else if(id==='apply'){renderApply();show('apply',{title:'체험학습 신청서',back:true,...opt});}
   else if(id==='album'){const t=trip(albumTrip); if(!t){switchTab('history');return;}
+    /* 2026-10-13: 여행책에서도 ⋯(여행 관리) 메뉴를 쓸 수 있게 — 추억에서 들어온 지난 여행을 지울 길이 없었음 */
+    curTrip=t.id; if(typeof watchTripPhotos==='function')watchTripPhotos(t.id);
     renderAlbum(); show('album',{kicker:'여행책',title:t.title,back:true,nav:false,...opt});}
   else show(id,opt);
 }
@@ -6082,7 +6084,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.2.2 (2026-09-30)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.2.3 (2026-10-13)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
