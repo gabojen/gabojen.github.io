@@ -119,7 +119,7 @@
       pet: yn(x.pet), petText: plain(x.petText, 40), stroller: yn(x.stroller), strollerText: plain(x.strollerText, 40),
       images: (Array.isArray(x.images) ? x.images : []).map(safeImage).filter(Boolean).slice(0, 4),
     });
-    const images = x => ({...x,id:String(x.id),img:safeImage(x.img),thumb:safeImage(x.thumb),intro:plain(x.intro,200),...details(x)});
+    const images = x => ({...x,id:String(x.id),img:safeImage(x.img),thumb:safeImage(x.thumb),intro:plain(x.intro,200),landmark:plain(x.landmark,40),...details(x)});
     // 관광공사 여행코스: 코스 안의 장소 이름·소개만 (없어도 됨)
     const course = x => ({
       id:String(x.id), title:plain(x.title,80), intro:plain(x.intro,300), distance:plain(x.distance,40), taketime:plain(x.taketime,40),
@@ -156,8 +156,10 @@
     // This is a display rule, not a popularity rating or a claim of suitability.
     const sightseeing = p => /공장|반려견|체육단지/.test(p.title)?-1:/공원|정원|식물원|수목원|숲|해수욕장|해변|오름|둘레길|호수/.test(p.title)?1:0;
     if (groups.has('관광·자연')) groups.get('관광·자연').sort((a,b)=>sightseeing(b)-sightseeing(a));
-    const places = [];
-    const queues = [...groups.values()].map(a=>a.slice());
+    // 대표 명소(landmark, 2026-10-18 — 불국사·석굴암처럼 누구나 아는 곳)는 종류 섞기 전에 맨 앞에 모두 둔다.
+    const marks = [...groups.values()].flat().filter(p=>p.landmark);
+    const places = marks.slice();
+    const queues = [...groups.values()].map(a=>a.filter(p=>!p.landmark));
     while (queues.some(a=>a.length)) queues.forEach(a=>{if(a.length)places.push(a.shift());});
     const millis = d => Date.parse(d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6)+'T00:00:00Z');
     const extended = f => millis(f.end)-millis(f.start) >= 60*86400000 ? 1 : 0;
