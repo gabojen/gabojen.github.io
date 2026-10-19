@@ -1,11 +1,13 @@
 /* 배포 전 정합성 검사 — 캐시 문자열·버전 표기·보안 규칙 컬렉션·문법.
    실행: node tests/check-release.mjs   (하나라도 어긋나면 종료 코드 1) */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = f => readFileSync(path.join(root, f), 'utf8');
+/* 맥에서 끌어 올린 한글 파일 이름은 자모 분리형(NFD)으로 저장될 수 있어, 글자 모양이 같으면 같은 파일로 찾습니다 */
+const findByName = (dir, name) => { const want = name.normalize('NFC'); const hit = readdirSync(path.join(root, dir)).find(f => f.normalize('NFC') === want); return hit ? path.join(root, dir, hit) : null; };
 const problems = [];
 const bad = m => problems.push(m);
 
@@ -34,7 +36,8 @@ if (appVer && vs[0] && !vs[0].startsWith(appVer)) bad(`캐시 문자열(${vs[0]}
 /* 4. 코드가 쓰는 Firestore 컬렉션마다 보안 규칙이 있는가 */
 const fb = read('assets/firebase.js');
 const used = new Set([...fb.matchAll(/(?:collection|doc)\(db,\s*'([A-Za-z_]+)'/g)].map(m => m[1]));
-const rulesTxt = existsSync(path.join(root, 'firestore_보안규칙_붙여넣기.txt')) ? read('firestore_보안규칙_붙여넣기.txt') : '';
+const rulesPath = findByName('.', 'firestore_보안규칙_붙여넣기.txt');
+const rulesTxt = rulesPath ? readFileSync(rulesPath, 'utf8') : '';
 if (!rulesTxt) bad('firestore_보안규칙_붙여넣기.txt 파일이 없습니다 — 저장소 루트에 함께 올려 주세요 (규칙 시험·자동 배포가 이 파일을 읽습니다)');
 const ruled = new Set([...rulesTxt.matchAll(/match \/([A-Za-z_]+)\/\{/g)].map(m => m[1]));
 if (rulesTxt) for (const c of used) if (!ruled.has(c)) bad(`컬렉션 '${c}' 를 코드가 쓰는데 보안 규칙 파일에 match 가 없습니다 (기본 차단 → 기능이 조용히 실패)`);
