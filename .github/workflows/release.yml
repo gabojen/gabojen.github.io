@@ -1,1 +1,110 @@
+# 여행가보젠 — 출시 안전장치 (2026-10-19)
+# main 에 파일이 올라오면 ① 검사(문법·단위시험·규칙 시험·화면 시험·버전 정합성) → ② 보안 규칙 자동 배포(비밀값 있을 때만)
+# → ③ 검사를 통과한 것만 GitHub Pages 에 배포. 하나라도 실패하면 사이트는 이전 버전 그대로이고 메일이 옵니다.
+# 사전 설정(한 번): 저장소 Settings → Pages → Build and deployment → Source 를 "GitHub Actions" 로.
+# 규칙 자동 배포(선택): Settings → Secrets and variables → Actions → New repository secret
+#   이름 FIREBASE_SERVICE_ACCOUNT, 값은 Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성(JSON 파일 내용 전체).
+#   없으면 규칙 배포 단계만 건너뛰고(규칙은 전처럼 콘솔에 붙여넣기) 나머지는 그대로 돕니다.
+name: release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  check:
+    name: 검사
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: 시험 도구 설치
+        working-directory: tests
+        run: npm install --no-audit --no-fund --loglevel=error
+      - name: ① 문법·버전·규칙 정합성 + 단위 시험
+        working-directory: tests
+        run: npm run unit
+      - name: ② 보안 규칙 시험 (에뮬레이터)
+        working-directory: tests
+        run: |
+          node extract-rules.mjs
+          npx --yes firebase-tools@14 emulators:exec --only firestore --project demo-gabojen "node rules.test.mjs"
+      - name: ③ 화면 시험 (폰 크기 브라우저)
+        working-directory: tests
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test --config playwright.config.mjs
+      - name: 화면 시험 결과 보관 (실패 시 확인용)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: |
+            tests/report
+            tests/test-results
+          retention-days: 7
+  rules:
+    name: 보안 규칙 배포
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 비밀값이 없으면 건너뜀
+        if: env.HAS_SA != 'true'
+        run: echo "FIREBASE_SERVICE_ACCOUNT 비밀값이 없어 규칙 자동 배포를 건너뜁니다. 규칙은 콘솔에 붙여넣어 주세요."
+      - name: 규칙 본문 추출
+        if: env.HAS_SA == 'true'
+        working-directory: tests
+        run: node extract-rules.mjs
+      - name: Firestore 규칙 배포 (happytravel-11758)
+        if: env.HAS_SA == 'true'
+        working-directory: tests
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx --yes firebase-tools@14 deploy --only firestore:rules --project happytravel-11758 --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
+  deploy:
+    name: 사이트 배포
+    needs: [check, rules]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 배포본 만들기 (시험·백업·작업 파일 제외)
+        run: |
+          mkdir -p _site
+          rsync -a --exclude '_site' --exclude '.git' --exclude '.github' --exclude 'tests' --exclude 'backup' \
+            --exclude 'node_modules' --exclude '.project' --exclude '*.jsonl' ./ _site/
+          ls _site | head -50
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
 
