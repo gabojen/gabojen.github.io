@@ -60,3 +60,10 @@ TOUR_API_KEY="발급받은키" node tools/make-news.mjs
 ## spots 항목의 `intro` (2026-09-16 추가)
 장소마다 한 줄 소개. 관광공사 detailCommon2 의 overview 첫 문장(HTML 제거, 140자 이내). 없으면 빈 문자열 — 앱은 그럴 때 소개 줄을 아예 안 그린다.
 `contentTypeId` 는 12 관광지 · 14 문화시설 · 28 레포츠 · 39 맛집만 모은다(38 쇼핑·32 숙박·25 코스 제외).
+
+## spots 의 `crowd`, `landmark`, `sg` (2026-10-18)
+- `landmark`: 대표 명소로 이름 검색해 넣은 곳(맨 앞에 보임)
+- `sg`: 시군구 코드 5자리(붐빔 예상 조회용)
+- `crowd`: {lv:high|mid|low, avg, we, wd, peak} — 관광공사 집중률 예측. 이름이 맞은 곳만
+## news/trend.json (깃허브 Actions 가 자동 생성)
+`items[장소id] = {kw, lv, g, up}` — lv 는 경복궁 대비 검색량(%), g 는 최근 4주/이전 8주, up 은 lv≥2 이고 g≥1.3
