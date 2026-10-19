@@ -1075,6 +1075,15 @@ function hintBox(icon,html,action){
   return '<div class="hint"><div class="ht">'+svg(icon)+'</div><div class="hb">'+html+'</div>'
     +(action?'<div class="ha">'+action+'</div>':'')+'</div>';}
 function catTile(cat,size=42){const c=CAT[cat];return `<div class="tile" style="width:${size}px;height:${size}px;background:${CAT_BG[cat]};color:${c.color}">${svg(c.icon)}</div>`;}
+/* 분류 고르기 — 드롭다운 대신 버튼 6개 (2026-10-19, 폰에서 한 번에 보이게). 값은 숨은 input(#id)에 들어가 기존 코드($('aCat').value)가 그대로 동작합니다 */
+function catPicker(id,val){
+  const cur=CAT[val]?val:'plan';
+  return `<input type="hidden" id="${id}" value="${cur}"><div class="cat-pick" role="radiogroup" aria-label="분류" data-for="${id}">${CAT_ORDER.map(k=>`<button type="button" class="cp${k===cur?' on':''}" data-cat="${k}" role="radio" aria-checked="${k===cur}" style="--cc:${CAT[k].color};--cb:${CAT_BG[k]}" onclick="catPickSet('${id}','${k}')">${svg(CAT[k].icon,'ic')}<span>${CAT[k].name}</span></button>`).join('')}</div>`;
+}
+function catPickSet(id,val){
+  const inp=document.getElementById(id); if(!inp||!CAT[val])return; inp.value=val;
+  document.querySelectorAll(`.cat-pick[data-for="${id}"] .cp`).forEach(b=>{const on=b.dataset.cat===val;b.classList.toggle('on',on);b.setAttribute('aria-checked',on);});
+}
 
 /* ============ 카카오맵 ============
    · SDK가 준비되면 실제 지도를 그립니다.
@@ -3571,7 +3580,7 @@ function openAddItem(dayIdx){const t=trip(curTrip);if(!t||!t.days.length){toast(
   const catOpts=CAT_ORDER.map(k=>`<option value="${k}">${CAT[k].name}</option>`).join('');
   const dayOpts=t.days.map((d,i)=>`<option value="${i}" ${i===dayIdx?'selected':''}>DAY ${i+1} · ${mdLabel(d.date)}(${dowOf(d.date)})</option>`).join('');
   openSheet(`<div class="grab"></div><h3>일정·예약 추가</h3>
-    <label class="fld">분류</label><select class="input" id="aCat">${catOpts}</select>
+    <label class="fld">분류</label>${catPicker('aCat','plan')}
     <label class="fld">날짜(Day)</label><select class="input" id="aDay">${dayOpts}</select>
     <label class="fld">시간</label><input class="input" id="aTime" type="time" value="09:00">
     <label class="fld">제목</label><input class="input" id="aTitle" placeholder="예: 성산일출봉 트레킹">
@@ -3605,7 +3614,7 @@ function openEditItem(id){const f=itemById(id);if(!f)return;const it=f.it;const 
   const dayOpts=((t&&t.days)||[]).map((d,i)=>
     `<option value="${i}" ${i===curIdx?'selected':''}>DAY ${i+1} · ${mdLabel(d.date)}(${dowOf(d.date)})</option>`).join('');
   openSheet(`<div class="grab"></div><h3>일정 수정</h3>
-    <label class="fld">분류</label><select class="input" id="eCat">${catOpts}</select>
+    <label class="fld">분류</label>${catPicker('eCat',it.cat)}
     <div class="row" style="gap:10px">
       <div style="flex:1.4;min-width:0"><label class="fld">날짜(Day)</label><select class="input" id="eDay">${dayOpts}</select></div>
       <div style="flex:1;min-width:0"><label class="fld">시간</label><input class="input" id="eTime" type="time" value="${esc(it.time)}"></div></div>
@@ -6288,7 +6297,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.3.2 (2026-10-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.3.3 (2026-10-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

@@ -344,7 +344,10 @@ window.FB={
       if(!current())throw e;
       if(!releaseState.failed.has(t.id))releaseState.failed.set(t.id,draft);
       setSyncStatus('error',e.code==='travel/conflict'?'다른 구성원의 수정과 겹쳐 저장을 멈췄어요':'변경 내용을 저장하지 못했어요');
-      toast(e.code==='travel/conflict'?'다른 구성원의 수정과 겹쳤어요. 상단에서 미저장 내용을 확인해 주세요.':'저장하지 못했어요. 입력한 내용은 상단에서 확인할 수 있어요.');
+      /* 2026-10-19: 앞서 실패한 변경이 남아 있으면 그 뒤의 모든 저장(삭제 포함)이 여기서 막힙니다.
+         "저장하지 못했어요" 문구만으로는 알 수 없어 삭제가 안 된다는 보고가 있었음 → 바로 처리 창을 엽니다. */
+      if(e.code==='travel/pending-draft'){toast('먼저 저장하지 못한 변경을 처리해야 해요 (다시 저장 또는 버리기).');if(typeof reviewUnsaved==='function')setTimeout(reviewUnsaved,350);}
+      else toast(e.code==='travel/conflict'?'다른 구성원의 수정과 겹쳤어요. 상단에서 미저장 내용을 확인해 주세요.':('저장하지 못했어요. 입력한 내용은 상단에서 확인할 수 있어요.'+(e&&e.code?' ('+e.code+')':(e&&e.message&&!/^[a-z]+\//.test(e.message)?' — '+String(e.message).slice(0,60):''))));
       throw e;
     }finally{if(current())releaseState.pending=Math.max(0,releaseState.pending-1);if(saveQueues.get(t.id)===work)saveQueues.delete(t.id);if(current()&&!releaseState.pending)refreshConnection();}
   },

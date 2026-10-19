@@ -240,3 +240,12 @@ html.dark .sig.crowd-high{background:#5a2a1c;color:#ffc8b4}html.dark .sig.crowd-
 @media(min-width:700px){.pick-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.pick-card{flex:none;max-width:none}}
 html.dark .pick-card{background:var(--card);border-color:#5a4538}html.dark .ext-links .ext{background:var(--card)}
 .place-sigs .sig.pop{background:#fff1e8;color:var(--brand-ink)}html.dark .place-sigs .sig.pop{background:#4a3328;color:#ffc9ad}
+
+/* ── 2026-10-19 일정 분류 버튼 (드롭다운 대신) ── */
+.cat-pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0 0 12px}
+.cat-pick .cp{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 6px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;line-height:1.2}
+.cat-pick .cp .ic{width:17px;height:17px;color:var(--cc);flex-shrink:0}
+.cat-pick .cp.on{background:var(--cb);border-color:var(--cc);color:var(--ink)}
+.cat-pick .cp:hover{border-color:var(--cc)}
+@media(min-width:700px){.cat-pick{grid-template-columns:repeat(6,minmax(0,1fr))}.cat-pick .cp{font-size:12.5px;gap:5px;padding:8px 4px;white-space:nowrap}}
+@media(max-width:360px){.cat-pick{gap:6px}.cat-pick .cp{font-size:12px;padding:8px 4px}}
