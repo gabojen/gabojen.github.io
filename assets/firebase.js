@@ -319,6 +319,8 @@ window.FB={
     const uid=auth.currentUser?.uid,generation=authGeneration;
     const current=()=>uid&&auth.currentUser?.uid===uid&&generation===authGeneration;
     const local=TravelCore.clone(t),base=tripBases.get(t);
+    /* 좌표(geo)는 저장하지 않으므로 기준본을 잡기 전에 먼저 걷어냅니다 — 기준본에만 geo 가 남으면 서버본과 달라져 겹침으로 오판 (2026-10-19) */
+    (local.days||[]).forEach(d=>(d.items||[]).forEach(i=>{ if(i&&i.geo)delete i.geo; }));
     /* 2026-10-19: 기준본이 없는 객체(옛 참조 등)는 예전엔 조용히 실패해 화면엔 보이는데 저장은 안 되는 일이 생겼음.
        이제는 서버본을 기준본으로 삼아 저장하고(내 변경이 우선), 진단 기록에 남깁니다. */
     if(!isNew&&!base)saveLog('base-missing',t.id,{code:'travel/base-missing',message:'기준본 없음 — 서버본 기준으로 저장'});
@@ -337,6 +339,9 @@ window.FB={
     saveQueues.set(t.id,work);
     try{
       const result=await work;
+      /* 기준본은 '기록하려던 내용'이 아니라 '실제로 기록된 내용'(병합 결과)이어야 합니다. 둘이 다르면(서버 변경 반영·좌표 제거 등)
+         다음 저장에서 서버본이 기준본과 달라 보여, 혼자 쓰는 여행에서도 삭제가 "다른 구성원과 겹침"으로 막혔음 (2026-10-19) */
+      if(result&&tripBases.has(t))tripBases.set(t,TravelCore.clone(result));
       if(isNew)rememberTrip(t);
       return result;
     }catch(e){

@@ -44,6 +44,26 @@ test('의견(comments) 동시 추가는 둘 다 남는다', () => {
 test('memberUids(문자열 배열) 동시 추가', () => {
   eq(C.merge({ m: ['a'] }, { m: ['a', 'b'] }, { m: ['a', 'c'] }).m, ['a', 'c', 'b']);
 });
+/* 2026-10-19 실사용 버그: 서버는 필드를 알파벳순으로 돌려주고 앱은 만든 순서로 들고 있음. 순서만 달라도 "겹침"이 됐음 */
+const appOrder = { _id: 'a', cat: 'plan', time: '10:00', title: '속초', place: '', sub: '', by: '나', createdBy: 'u1', comments: [], map: false };
+const serverOrder = { _id: 'a', by: '나', cat: 'plan', comments: [], createdBy: 'u1', map: false, place: '', sub: '', time: '10:00', title: '속초' };
+test('필드 순서만 다른 기준본·서버본: 혼자 쓰는 여행에서 삭제가 겹침이 되지 않는다', () => {
+  const base = { days: [{ date: 'd', items: [appOrder] }] }, remote = { days: [{ date: 'd', items: [serverOrder] }] };
+  eq(C.merge(base, { days: [{ date: 'd', items: [] }] }, remote).days[0].items, []);
+});
+test('필드 순서만 다른 기준본·서버본: 수정도 겹침 없이 반영된다', () => {
+  const base = { days: [{ date: 'd', items: [appOrder] }] }, remote = { days: [{ date: 'd', items: [serverOrder] }] };
+  const local = { days: [{ date: 'd', items: [{ ...appOrder, time: '11:00' }] }] };
+  eq(C.merge(base, local, remote).days[0].items[0].time, '11:00');
+});
+test('기준본에만 남은 좌표(geo)처럼 undefined 로 비운 값은 없는 것과 같게 본다', () => {
+  const base = { days: [{ date: 'd', items: [{ ...serverOrder, geo: undefined }] }] }, remote = { days: [{ date: 'd', items: [serverOrder] }] };
+  eq(C.merge(base, { days: [{ date: 'd', items: [] }] }, remote).days[0].items, []);
+});
+test('진짜 충돌은 여전히 잡는다: 내가 지운 항목을 남이 고쳤으면 겹침', () => {
+  const base = { days: [{ date: 'd', items: [serverOrder] }] }, remote = { days: [{ date: 'd', items: [{ ...serverOrder, title: '남이 고침' }] }] };
+  throws(() => C.merge(base, { days: [{ date: 'd', items: [] }] }, remote), /다른 구성원이 수정/);
+});
 test('기준본이 서버본과 같으면 내 변경이 그대로 반영된다 (기준본 없을 때의 대체 경로)', () => {
   const remote = { title: '여행', days: [{ date: 'd', items: [it('a', '10:00'), it('x', '09:00')] }] };
   const local = { title: '여행', days: [{ date: 'd', items: [it('a', '10:00'), it('x', '09:00'), it('b', '12:00')] }] };

@@ -6,7 +6,12 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
-  const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  // 2026-10-19: 서버(Firestore)는 필드를 알파벳순으로 돌려주고 앱은 만든 순서로 들고 있어, 순서만 다른 같은 내용을
+  // '다른 구성원이 고친 것'으로 오판 → 혼자 쓰는 여행에서도 삭제가 "겹침"으로 막혔음. 키 순서와 무관하게 비교합니다.
+  const canon = v => Array.isArray(v) ? '[' + v.map(canon).join(',') + ']'
+    : (v !== null && typeof v === 'object') ? '{' + Object.keys(v).filter(k => v[k] !== undefined).sort().map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}'
+    : JSON.stringify(v === undefined ? null : v);
+  const equal = (a, b) => (a === undefined) === (b === undefined) && canon(a) === canon(b);
   const record = x => x !== null && typeof x === 'object' && !Array.isArray(x);
   function conflict(path) {
     const error = new Error('같은 내용을 다른 구성원이 수정했습니다. 최신 내용을 확인해 주세요.');
