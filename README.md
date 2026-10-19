@@ -28,6 +28,30 @@
 4. GitHub 저장소에 고친 파일 + `index.html` 을 올린다.
 5. 폰에서 [내 계정] 맨 아래 버전 표시로 새 파일이 적용됐는지 확인한다.
 
+## 출시 안전장치 (2026-10-19부터)
+
+파일을 올리면 `.github/workflows/release.yml` 이 자동으로 돈다. 검사를 **전부 통과한 것만** 사이트에 올라가고, 하나라도 실패하면 사이트는 이전 버전 그대로이고 GitHub 에서 실패 메일이 온다.
+
+| 단계 | 무엇을 보나 | 파일 |
+|---|---|---|
+| ① 정합성 | 자바스크립트 문법, `?v=` 캐시 문자열 9개 일치, 버전 표기 3곳 일치, 코드가 쓰는 Firestore 컬렉션마다 규칙 존재, 필수 파일, 비밀값 유출 | `tests/check-release.mjs` |
+| ① 단위 시험 | 3자 병합(동시 추가·삭제·충돌), 여행·추천 검증, 소식지 형식 | `tests/core.test.mjs` |
+| ② 규칙 시험 | 실제 보안 규칙을 에뮬레이터에 올려 구성원/남/미인증의 읽기·쓰기, 일정 추가·삭제 저장, 초대·참여·나가기, 추천·도움돼요·담은 횟수·이달의 추천 허용/거부 22항목 | `tests/rules.test.mjs` |
+| ③ 화면 시험 | 폰 크기 브라우저로 실제 `index.html` 을 열어 로그인 화면·가입 보호·분류 버튼·일정 추가/실패 되돌림/중복 확인/삭제·여행 추천 화면·추천 올리기·AI 한도·여행책 삭제·가로 넘침 11항목 | `tests/smoke.spec.mjs` |
+| 규칙 배포 | 비밀값 `FIREBASE_SERVICE_ACCOUNT` 가 있으면 `firestore_보안규칙_붙여넣기.txt` 본문을 Firestore 에 자동 게시(없으면 건너뜀 → 콘솔에 붙여넣기) | `tests/extract-rules.mjs` |
+| 사이트 배포 | `tests/`·`backup/`·`.github/` 를 뺀 나머지를 GitHub Pages 로 | — |
+
+처음 한 번 할 일: 저장소 **Settings → Pages → Build and deployment → Source** 를 **GitHub Actions** 로 바꾼다. (이전 "Deploy from a branch" 로 두면 검사와 무관하게 바로 올라간다.)
+규칙 자동 배포까지 하려면: Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → **새 비공개 키 생성** → 받은 JSON 파일 내용 전체를 GitHub **Settings → Secrets and variables → Actions → New repository secret** 에 이름 `FIREBASE_SERVICE_ACCOUNT` 로 넣는다. 이 JSON 은 서버 비밀키이므로 저장소 파일에는 절대 넣지 않는다.
+
+내 컴퓨터에서 미리 돌려 보기 (Node 20 · Java 21 · firebase-tools 필요):
+
+```bash
+cd tests && npm install && npm run unit && npm run rules && npm run smoke
+```
+
+실패 결과는 GitHub → Actions → 실패한 실행 → 아래 `smoke-report` 에서 화면 캡처와 함께 볼 수 있다.
+
 ## 콘솔에서만 하는 설정
 
 - **Firestore 규칙**: `firestore_보안규칙_붙여넣기.txt` (8판, 2026-10-19 — 회원 추천 `recs`·`reports`·사진 `recPhotos`·도움돼요 `recVotes`·담은 횟수 `placeStats`·이달의 추천 `picks`). 컬렉션을 새로 만들면 규칙부터 쓴다.
