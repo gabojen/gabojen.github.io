@@ -1,0 +1,15 @@
+{
+  "name": "gabojen-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "unit": "node core.test.mjs && node check-release.mjs",
+    "smoke": "playwright test --config playwright.config.mjs",
+    "rules": "node extract-rules.mjs && firebase emulators:exec --only firestore --project demo-gabojen \"node rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@firebase/rules-unit-testing": "^4.0.0",
+    "firebase": "^11.0.0"
+  }
+}
