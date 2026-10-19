@@ -240,10 +240,11 @@ $('run').addEventListener('click',async()=>{
     log(`✅ 축제 ${festivals.length}개`,'ok');
 
     /* ♻️ 지난 파일 재사용 — 같은 장소의 소개·이용시간·사진은 다시 받지 않습니다 (호출 절약) */
-    const prev={spots:{},courses:{}};
+    const prev={spots:{},courses:{},byRegion:{}};
     try{
       const r=await fetch('news/latest.json?x='+Date.now(),{cache:'no-store'});
       if(r.ok){ const j=await r.json();
+        Object.entries(j.spots||{}).forEach(([region,list])=>{ if(Array.isArray(list))prev.byRegion[region]=list.filter(s=>s&&s.id); });
         Object.values(j.spots||{}).flat().forEach(s=>{ if(s&&s.id)prev.spots[String(s.id)]=s; });
         Object.values(j.courses||{}).flat().forEach(c=>{ if(c&&c.id)prev.courses[String(c.id)]=c; });
         log(`♻️ 지난 파일에서 재사용: 장소 ${Object.keys(prev.spots).length}곳 · 코스 ${Object.keys(prev.courses).length}개`); }
@@ -270,27 +271,38 @@ $('run').addEventListener('click',async()=>{
       }));
     }
 
-    /* ② 지역별 갈 만한 곳 — 관광지·문화시설·레포츠·맛집 네 종류 × 5곳.
-       쇼핑(38)·숙박(32)은 '가볼 곳' 추천에 맞지 않아 모으지 않습니다. 여행코스(25)는 별도 섹션(아래 ⑤). */
-    const KINDS=[['12','관광지'],['14','문화시설'],['28','레포츠'],['39','맛집']];
-    const PER_KIND=5;
+    /* ② 지역별 갈 만한 곳 — 쇼핑(38)·숙박(32)은 '가볼 곳' 추천에 맞지 않아 모으지 않습니다. 여행코스(25)는 별도 섹션(아래 ⑤).
+       2026-10-19: 종류별 5곳(전국 맛집 85곳)은 "제주에 맛집이 3곳뿐"이라 신뢰가 떨어진다는 지적 →
+       지역마다 관광지 12 · 문화시설 8 · 레포츠 8 · 맛집/카페 20 (최대 48곳). 목록 호출은 40건을 받아도 1건이라 비용이 같고,
+       비용은 장소마다 소개·이용시간 2건입니다. 지난 파일에 있던 장소는 유지(상세 재사용)하고 빈자리만 새로 채우며,
+       정원의 30%는 매달 새 장소에 비워 둡니다. 처음 한두 달만 호출이 많고(예산에 걸리면 다음 날/다음 달에 이어서), 그 뒤엔 적습니다. */
+    const KINDS=[['12','관광지',12],['14','문화시설',8],['28','레포츠',8],['39','맛집·카페',20]];
     const spots={}, courses={};
     REGIONS.forEach(([,name])=>{ spots[name]=[]; courses[name]=[]; });
+    const fromRow=(x,type)=>({id:String(x.contentid),title:(x.title||'').trim(),addr:(x.addr1||'').trim(),contentTypeId:type,sg:sgOf(x),
+      img:https(x.firstimage),thumb:https(x.firstimage2||x.firstimage),rights:x.cpyrhtDivCd||'',lat:x.mapy?+x.mapy:null,lng:x.mapx?+x.mapx:null});
+    const fromPrev=(s,type)=>({id:String(s.id),title:String(s.title||'').trim(),addr:String(s.addr||'').trim(),contentTypeId:type,sg:s.sg||'',
+      img:s.img||'',thumb:s.thumb||s.img||'',rights:s.rights||'',lat:s.lat??null,lng:s.lng??null});
+    let keptPrev=0, addedNew=0;
     for(const area of AREAS){
       const code=area.code, many=area.regions.length>1;   // 통합 지역은 넉넉히 받아 주소로 나눕니다
       const put=(bucket,row,obj,limit)=>{ const r=many?regionOfAddr(row.addr1):area.regions[0];
         if(bucket[r]&&bucket[r].length<limit&&!bucket[r].some(x=>x.id===obj.id))bucket[r].push(obj); };
-      for(const [type,label] of KINDS){
+      for(const [type,label,cap] of KINDS){
         try{
-          const rows=await call(key,'areaBasedList2',{numOfRows:many?'30':'10',pageNo:'1',arrange:'Q',
+          const rows=await call(key,'areaBasedList2',{numOfRows:many?'80':'40',pageNo:'1',arrange:'Q',
             contentTypeId:type,lDongRegnCd:code});
-          const cnt={}; 
-          rows.filter(x=>x.firstimage&&x.title).forEach(x=>{
-            const r=many?regionOfAddr(x.addr1):area.regions[0]; cnt[r]=(cnt[r]||0);
-            if(!spots[r]||cnt[r]>=PER_KIND)return; cnt[r]++;
-            spots[r].push({id:String(x.contentid),title:(x.title||'').trim(),addr:(x.addr1||'').trim(),contentTypeId:type,sg:sgOf(x),
-              img:https(x.firstimage),thumb:https(x.firstimage2||x.firstimage),
-              rights:x.cpyrhtDivCd||'',lat:x.mapy?+x.mapy:null,lng:x.mapx?+x.mapx:null}); });
+          const fresh=rows.filter(x=>x.firstimage&&x.title), freshIds=new Set(fresh.map(x=>String(x.contentid)));
+          const cnt={}; const room=r=>spots[r]&&(cnt[r]||0)<cap;
+          const add=(r,obj,isPrev)=>{ if(!room(r)||spots[r].some(x=>x.id===obj.id))return; cnt[r]=(cnt[r]||0)+1; spots[r].push(obj); if(isPrev)keptPrev++; else addedNew++; };
+          /* 1) 지난 파일의 같은 지역·종류 장소를 먼저 (상세가 이미 있어 호출이 들지 않음) — 이번 목록에도 있는 곳 우선, 정원의 70%까지 */
+          for(const r of area.regions){
+            const olds=(prev.byRegion[r]||[]).filter(s=>String(s.contentTypeId)===type&&s.img&&!s.landmark)
+              .sort((a,b)=>(freshIds.has(String(b.id))?1:0)-(freshIds.has(String(a.id))?1:0));
+            olds.slice(0,Math.floor(cap*0.7)).forEach(s=>add(r,fromPrev(s,type),true));
+          }
+          /* 2) 빈자리는 이번 목록(최근 수정순)의 새 장소로 */
+          fresh.forEach(x=>{ const r=many?regionOfAddr(x.addr1):area.regions[0]; if(spots[r])add(r,fromRow(x,type),false); });
         }catch(e){ log(`   ${area.name} ${label} 건너뜀 (${e.message})`,'bad'); }
         await new Promise(r=>setTimeout(r,60));
       }
@@ -303,6 +315,7 @@ $('run').addEventListener('click',async()=>{
       }catch(e){ log(`   ${area.name} 코스 건너뜀 (${e.message})`,'bad'); }
       log(`   ${area.regions.map(r=>`${r} … 장소 ${spots[r].length}곳 · 코스 ${courses[r].length}개`).join(' / ')}`);
     }
+    log(`📍 장소 ${Object.values(spots).flat().length}곳 (지난 파일 유지 ${keptPrev} · 새로 ${addedNew})`);
     /* ②-1 대표 명소 — 2026-10-18.
        위 목록(arrange=Q)은 '최근에 정보가 고쳐진 순'이라 인기와 무관합니다. 그래서 경북인데 불국사·석굴암이
        하나도 없고 작은 향교·문화원만 나오는 일이 생겼습니다(관광공사 API 에는 인기순 정렬이 없음).
@@ -346,38 +359,33 @@ $('run').addEventListener('click',async()=>{
 
     const all=Object.values(spots).flat(), allCourses=Object.values(courses).flat();
 
-    /* ③ 장소마다 한 줄 소개 (지난 파일에 있으면 재사용) */
-    let reused=0, miss=0;
-    const needIntro=all.filter(sp=>{ const p=prev.spots[sp.id]; if(p&&!sp.sg&&p.sg)sp.sg=p.sg; if(p&&typeof p.intro==='string'){sp.intro=p.intro;reused++;return false;} return true; });
-    log(`📝 소개글: ${reused}곳 재사용 · ${needIntro.length}곳 새로 받음`);
-    await pool(needIntro,async sp=>{
-      if(left()<=0){ miss++; return; }
-      try{ const [row]=await call(key,'detailCommon2',{contentId:sp.id,numOfRows:'1',pageNo:'1'});
-        sp.intro=intro(row&&row.overview,140); if(!sp.intro)miss++;
-        if(!sp.sg&&row)sp.sg=sgOf(row);
-      }catch(e){ miss++; }
-    },'소개글');
-    log(`✅ 소개글 ${all.length-miss}곳${miss?` · ${miss}곳은 공식 소개가 없거나 못 받음`:''}`,'ok');
-
-    /* ④ 이용시간·쉬는 날·주차·문의·반려동물·유모차·대표메뉴 (detailIntro2 — 종류마다 항목 이름이 다릅니다) */
+    /* ③·④ 장소마다 한 줄 소개(detailCommon2) + 이용시간·쉬는 날·주차·문의·반려동물·유모차·대표메뉴(detailIntro2).
+       지난 파일에 있으면 재사용. 2026-10-19: 두 단계를 장소 단위로 묶고 우선순위(대표 명소 → 맛집·카페 → 관광지 → 문화시설 → 레포츠)대로 받아,
+       예산이 모자라도 '소개만 있고 이용시간 없는' 반쪽 장소 대신 완성된 장소가 앞에서부터 쌓입니다. 못 받은 곳은 소개 없이 실리고 다음에 채웁니다. */
     const FIELDS={'12':['usetime','restdate','parking','infocenter'],'14':['usetimeculture','restdateculture','parkingculture','infocenterculture'],
                   '28':['usetimeleports','restdateleports','parkingleports','infocenterleports'],'39':['opentimefood','restdatefood','parkingfood','infocenterfood']};
-    reused=0; let dmiss=0;
-    const needDetail=all.filter(sp=>{ const p=prev.spots[sp.id];
-      if(p&&typeof p.hours==='string'){ for(const k of ['hours','closed','parking','tel','menu','pet','petText','stroller','strollerText'])sp[k]=p[k]===undefined?(k==='pet'||k==='stroller'?null:''):p[k]; reused++; return false; }
-      return true; });
-    log(`🕘 이용시간·주차: ${reused}곳 재사용 · ${needDetail.length}곳 새로 받음`);
-    await pool(needDetail,async sp=>{
-      if(left()<=0){ dmiss++; return; }
-      try{ const [x]=await call(key,'detailIntro2',{contentId:sp.id,contentTypeId:sp.contentTypeId,numOfRows:'1',pageNo:'1'});
-        const [h,c,p,i]=FIELDS[sp.contentTypeId]||FIELDS['12']; x||={};
-        sp.hours=clean(x[h],160); sp.closed=clean(x[c],120); sp.parking=clean(x[p],120); sp.tel=clean(x[i],40);
-        sp.menu=sp.contentTypeId==='39'?clean(x.firstmenu,80):'';
-        const pet=x.chkpet??x.chkpetculture??x.chkpetleports??x.chkpetfood??'', baby=x.chkbabycarriage??x.chkbabycarriageculture??x.chkbabycarriageleports??'';
-        sp.pet=yn(pet); sp.petText=clean(pet,40); sp.stroller=yn(baby); sp.strollerText=clean(baby,40);
-      }catch(e){ dmiss++; }
-    },'이용시간');
-    log(`✅ 이용시간·주차 ${all.length-dmiss}곳${dmiss?` · ${dmiss}곳은 다음 달에 이어서`:''}`,'ok');
+    const PRIO={'39':0,'12':1,'14':2,'28':3};
+    let reused=0, miss=0, dmiss=0, newly=0;
+    const ordered=all.slice().sort((a,b)=>(b.landmark?1:0)-(a.landmark?1:0)||(PRIO[a.contentTypeId]??9)-(PRIO[b.contentTypeId]??9));
+    const needWork=ordered.filter(sp=>{ const p=prev.spots[sp.id]; let needI=true, needD=true;
+      if(p&&!sp.sg&&p.sg)sp.sg=p.sg;
+      if(p&&typeof p.intro==='string'){ sp.intro=p.intro; needI=false; }
+      if(p&&typeof p.hours==='string'){ for(const k of ['hours','closed','parking','tel','menu','pet','petText','stroller','strollerText'])sp[k]=p[k]===undefined?(k==='pet'||k==='stroller'?null:''):p[k]; needD=false; }
+      if(!needI&&!needD){ reused++; return false; } sp._needI=needI; sp._needD=needD; return true; });
+    log(`📝 소개·이용시간: ${reused}곳 재사용 · ${needWork.length}곳 새로 받음 (장소당 최대 2건, 예산 ${left()}건)`);
+    await pool(needWork,async sp=>{
+      const needI=sp._needI, needD=sp._needD; delete sp._needI; delete sp._needD;
+      if(left()<(needI?1:0)+(needD?1:0)){ if(needI)miss++; if(needD)dmiss++; return; }
+      if(needI){ try{ const [row]=await call(key,'detailCommon2',{contentId:sp.id,numOfRows:'1',pageNo:'1'});
+          sp.intro=intro(row&&row.overview,140); if(!sp.intro)miss++; if(!sp.sg&&row)sp.sg=sgOf(row); }catch(e){ miss++; } }
+      if(needD){ try{ const [x0]=await call(key,'detailIntro2',{contentId:sp.id,contentTypeId:sp.contentTypeId,numOfRows:'1',pageNo:'1'});
+          const [h,c,p,i]=FIELDS[sp.contentTypeId]||FIELDS['12']; const x=x0||{};
+          sp.hours=clean(x[h],160); sp.closed=clean(x[c],120); sp.parking=clean(x[p],120); sp.tel=clean(x[i],40);
+          sp.menu=sp.contentTypeId==='39'?clean(x.firstmenu,80):'';
+          const pet=x.chkpet??x.chkpetculture??x.chkpetleports??x.chkpetfood??'', baby=x.chkbabycarriage??x.chkbabycarriageculture??x.chkbabycarriageleports??'';
+          sp.pet=yn(pet); sp.petText=clean(pet,40); sp.stroller=yn(baby); sp.strollerText=clean(baby,40); newly++; }catch(e){ dmiss++; } }
+    },'소개·이용시간');
+    log(`✅ 소개 ${all.length-miss}곳${miss?` · ${miss}곳은 공식 소개가 없거나 못 받음`:''} / 이용시간·주차 ${all.length-dmiss}곳${dmiss?` · ${dmiss}곳은 다음에 이어서 (내일 한 번 더 돌리면 채워집니다)`:''}`,'ok');
 
     /* ⑤ 추천 코스 상세 — 코스 안의 장소 목록(detailInfo2) + 소개(detailCommon2) + 거리·소요시간(detailIntro2) */
     reused=0; let cmiss=0;

@@ -1673,10 +1673,12 @@ let MY_VOTES=null;                       // Set(추천 번호)
 /* 바깥에서 최신 반응 보기 — 앱은 아무것도 저장하지 않고 링크만 엽니다 */
 function tagOf(name){return String(name||'').replace(/\(.*?\)/g,'').replace(/[^0-9A-Za-z가-힣]/g,'');}
 function extLinks(name,region){
-  const q=encodeURIComponent(String(name||'').trim()), tag=encodeURIComponent(tagOf(name));
+  const q=encodeURIComponent(String(name||'').trim());
+  /* 2026-10-19: '티피'·'바람'처럼 짧고 흔한 이름은 해시태그로 쓸모가 없어 "결과 없음"이 떴음 → 3자 이하면 지역을 붙입니다(#제주바람) */
+  const tagText=tagOf(name).length<=3?tagOf((region||'')+tagOf(name)):tagOf(name), tag=encodeURIComponent(tagText);
   const q2=encodeURIComponent(((region?region+' ':'')+String(name||'')+' 여행').trim());
   return `<div class="ext-links" aria-label="바깥에서 보기">
-    <button class="ext" onclick="openExt('https://www.instagram.com/explore/tags/${tag}/')">${svg('i-camera','ic')}인스타그램<small>#${esc(tagOf(name).slice(0,12))}</small></button>
+    <button class="ext" onclick="openExt('https://www.instagram.com/explore/tags/${tag}/')">${svg('i-camera','ic')}인스타그램<small>#${esc(tagText.slice(0,12))}</small></button>
     <button class="ext" onclick="openExt('https://search.naver.com/search.naver?where=blog&query=${q}')">${svg('i-file','ic')}블로그 후기<small>네이버</small></button>
     <button class="ext" onclick="openExt('https://www.youtube.com/results?search_query=${q2}')">${svg('i-ext','ic')}영상<small>유튜브</small></button>
   </div><p class="muted small" style="margin:6px 2px 0">요즘 반응은 바깥에서 직접 확인해요. 앱은 아무것도 저장하지 않아요.</p>`;
@@ -6297,7 +6299,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.3.4 (2026-10-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.3.5 (2026-10-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
