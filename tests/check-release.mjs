@@ -34,11 +34,13 @@ if (appVer && vs[0] && !vs[0].startsWith(appVer)) bad(`캐시 문자열(${vs[0]}
 /* 4. 코드가 쓰는 Firestore 컬렉션마다 보안 규칙이 있는가 */
 const fb = read('assets/firebase.js');
 const used = new Set([...fb.matchAll(/(?:collection|doc)\(db,\s*'([A-Za-z_]+)'/g)].map(m => m[1]));
-const rulesTxt = read('firestore_보안규칙_붙여넣기.txt');
+const rulesTxt = existsSync(path.join(root, 'firestore_보안규칙_붙여넣기.txt')) ? read('firestore_보안규칙_붙여넣기.txt') : '';
+if (!rulesTxt) bad('firestore_보안규칙_붙여넣기.txt 파일이 없습니다 — 저장소 루트에 함께 올려 주세요 (규칙 시험·자동 배포가 이 파일을 읽습니다)');
 const ruled = new Set([...rulesTxt.matchAll(/match \/([A-Za-z_]+)\/\{/g)].map(m => m[1]));
-for (const c of used) if (!ruled.has(c)) bad(`컬렉션 '${c}' 를 코드가 쓰는데 보안 규칙 파일에 match 가 없습니다 (기본 차단 → 기능이 조용히 실패)`);
+if (rulesTxt) for (const c of used) if (!ruled.has(c)) bad(`컬렉션 '${c}' 를 코드가 쓰는데 보안 규칙 파일에 match 가 없습니다 (기본 차단 → 기능이 조용히 실패)`);
 const start = rulesTxt.indexOf('▼▼▼ 여기부터'), end = rulesTxt.indexOf('▲▲▲ 여기까지');
-if (start < 0 || end < 0 || end < start) bad('보안 규칙 파일에 ▼▼▼ / ▲▲▲ 표시가 없습니다');
+if (!rulesTxt) { /* 위에서 이미 알림 */ }
+else if (start < 0 || end < 0 || end < start) bad('보안 규칙 파일에 ▼▼▼ / ▲▲▲ 표시가 없습니다');
 else {
   const body = rulesTxt.slice(start, end);
   if (!/rules_version = '2'/.test(body)) bad('보안 규칙 본문에 rules_version 이 없습니다');

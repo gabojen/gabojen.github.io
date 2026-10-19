@@ -1,0 +1,276 @@
+═══════════════════════════════════════════════════════════════
+  여행가보젠 · Firestore 보안 규칙  (그대로 복사해서 붙여넣으세요)
+  ※ 2026-10-19 8판 — 도움돼요(recVotes)·일정에 담은 횟수(placeStats)·운영자 이달의 추천(picks) 추가.
+     콘솔에 다시 붙여넣고 [게시]해야 이 기능들이 열립니다.
+═══════════════════════════════════════════════════════════════
+
+■ 어디에 붙여넣나요?
+  1) Firebase 콘솔 → 왼쪽 [빌드] → [Firestore Database]
+  2) 상단 탭 중 [규칙] (Rules) 클릭
+  3) 기존 내용을 '전체 선택(Ctrl+A / ⌘A) 후 삭제'
+  4) 아래 ▼▼▼ ~ ▲▲▲ 사이 내용을 전부 붙여넣기
+  5) [게시] (Publish) 버튼 클릭
+
+■ 8판에서 달라진 것 (2026-10-19)
+  · recs.helpful — 공개된 추천에 '도움돼요' 카운터. 한 번에 +1만, 같은 사람의 표시 문서(recVotes/{추천번호_uid})가
+    같은 쓰기 안에 함께 만들어질 때만 허용(existsAfter). 같은 사람이 두 번 누르면 거부.
+  · recVotes/{추천번호_uid} — 표시 문서. 본인만 만들고 읽음. 화면에는 쓰지 않음.
+  · placeStats/{지역_장소번호} — '일정에 담은 횟수'. 숫자·장소 이름·지역만, +1 씩만. 누가 담았는지는 없음.
+  · picks/{id} — 운영자 '이달의 추천'. 관리자만 쓰고 로그인한 사람은 읽음.
+
+■ 7판에서 달라진 것 (2026-09-30)
+  · recs 에 thumbs(작은 그림 2장, 각 16,000자 이하)·photoIds(사진 문서 번호 2개) 필드 허용.
+  · recPhotos/{id} — 추천 사진 큰 그림(jpeg data URL 260,000자 이하). 인증 회원이 자기 uid 로만 만들고,
+    로그인한 사람은 읽을 수 있으며, 올린 본인·관리자만 지움. 수정 불가.
+
+■ 6판에서 달라진 것 (2026-09-29)
+  · recs/{id} — 회원이 올린 '다녀온 곳' 추천. 이메일 인증 회원만 올리고, 올릴 때는 반드시 검수 대기(pending).
+    필드는 지역·장소 이름(60자)·이유(10~300자)·분류·달·여행번호·상태·날짜로 제한. 이유·이름에 @·http·www 가 있으면 거부.
+    공개(public)된 글만 모두가 읽고, 검수 대기·숨김 글은 작성자와 관리자만. 상태 변경은 관리자만, 삭제는 작성자·관리자.
+  · reports/{id} — 추천 신고. 인증 회원이 만들고, 관리자가 읽고 지움. 신고자 본인도 자기 것만 읽고 지울 수 있음(탈퇴 정리용).
+
+■ 5판에서 달라진 것 (4판 2026-08-24 → 5판, v12 초대 링크 구조에 맞춤)
+  · invites/{token} — 초대 링크. 40자 무작위 토큰이 문서 ID. 여행 주인만 만들고,
+    7일 안에 만료되며, 취소(revoked)만 가능. 인증(이메일)된 사람만 조회.
+  · trips 참여(joining) — 초대 토큰이 유효한지 서버가 직접 확인한 뒤 '나 한 명'만 추가 허용.
+    참여 전에 여행 본문을 읽을 수 없음.
+  · trips 나가기(leaving) — 주인이 아닌 구성원이 자기만 빼는 것만 허용.
+  · trips 일반 수정 — 구성원만, _rev 가 정확히 1 증가할 때만(동시 수정 보호), 구성원 목록 변경 불가.
+  · trips 만들기 — 이메일 인증 필수, 구성원은 본인 1명으로만 시작. 구성원 최대 30명.
+  · users — 저장 가능한 필드를 목록으로 제한(이름 100자, 사진 150KB).
+  · photos — 이메일 인증 필수, 사진 문서 700KB 이하, 여행 주인도 삭제 가능.
+  · stats — 앱에서 쓰기 금지(앱이 세는 숫자는 조작 가능해 운영 지표로 쓰지 않음).
+  · leaveLog — date·daysUsed 두 필드만 허용.
+
+■ 관리자 등록 방법 (한 번만)
+  1) Firebase 콘솔 → [Firestore Database] → [데이터] 탭
+  2) [컬렉션 시작] → 컬렉션 ID에  admins  입력
+  3) 문서 ID에 → 본인 계정의 UID 를 넣습니다 (앱 [내 계정]에서 복사 가능)
+  4) 필드는 아무거나 하나 넣으면 됩니다. 예:  ok (boolean) = true
+  5) 저장하면 앱 [내 계정]에 '운영 현황'이 나타납니다.
+
+▼▼▼ 여기부터 복사 ▼▼▼
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function verified() { return signedIn() && request.auth.token.email_verified == true; }
+    function admin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function trip(tripId) { return get(/databases/$(database)/documents/trips/$(tripId)).data; }
+    function member(tripId) { return signedIn() && request.auth.uid in trip(tripId).memberUids; }
+    function owner(tripId) { return signedIn() && trip(tripId).owner == request.auth.uid; }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && uid == request.auth.uid;
+      allow list, write: if false;
+    }
+    match /users/{uid} {
+      allow read: if signedIn() && (uid == request.auth.uid || admin());
+      allow create, update: if signedIn() && uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['name','email','photo','createdAt','lastSeen','tripCount','updatedAt','policyVersion','acceptedAt','age14Confirmed'])
+        && request.resource.data.get('name','') is string
+        && request.resource.data.get('name','').size() <= 100
+        && request.resource.data.get('photo','') is string
+        && request.resource.data.get('photo','').size() <= 150000;
+      allow delete: if signedIn() && uid == request.auth.uid;
+    }
+    // Client-generated counters are not a trustworthy source of operational metrics.
+    match /stats/{id} { allow read: if admin(); allow write: if false; }
+    match /leaveLog/{id} {
+      allow read: if admin();
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['date','daysUsed'])
+        && request.resource.data.date is string && request.resource.data.date.size() == 10
+        && (request.resource.data.daysUsed == null || (request.resource.data.daysUsed is int && request.resource.data.daysUsed >= 0));
+      allow update, delete: if false;
+    }
+    // An invite reveals only its trip reference and expiry, never the private trip body.
+    match /invites/{token} {
+      allow get: if verified();
+      allow list: if verified() && resource.data.createdBy == request.auth.uid;
+      allow create: if verified() && token.matches('^[a-f0-9]{40}$')
+        && request.resource.data.keys().hasOnly(['tripId','createdBy','expiresAt','revoked'])
+        && owner(request.resource.data.tripId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.revoked == false
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(7,'d');
+      allow update: if owner(resource.data.tripId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked'])
+        && request.resource.data.revoked == true;
+      allow delete: if owner(resource.data.tripId);
+    }
+    match /photos/{photoId} {
+      allow read: if member(resource.data.tripId) || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if verified() && member(request.resource.data.tripId)
+        && request.resource.data.keys().hasOnly(['tripId','u','by','uid','at'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.u is string && request.resource.data.u.size() <= 700000
+        && request.resource.data.by is string && request.resource.data.by.size() <= 100;
+      allow delete: if signedIn() && (resource.data.uid == request.auth.uid || owner(resource.data.tripId));
+      allow update: if false;
+    }
+    match /trips/{tripId} {
+      function isMember() { return signedIn() && request.auth.uid in resource.data.memberUids; }
+      function shape() {
+        let d=request.resource.data;
+        return d.id == tripId && d.title is string && d.title.size() > 0 && d.title.size() <= 100
+          && d.place is string && d.place.size() <= 200
+          && d.start is string && d.start.matches('^\\d{4}-\\d{2}-\\d{2}$')
+          && d.end is string && d.end.matches('^\\d{4}-\\d{2}-\\d{2}$') && d.end >= d.start
+          && d.days is list && d.days.size() > 0 && d.days.size() <= 90
+          && d.members is list && d.memberUids is list
+          && d.memberUids.size() > 0 && d.memberUids.size() <= 30
+          && d.memberUids.toSet().size() == d.memberUids.size()
+          && d.members.size() == d.memberUids.size() && d.owner in d.memberUids;
+      }
+      function ownProfileOnly() {
+        let added=request.resource.data.members.removeAll(resource.data.members);
+        let removed=resource.data.members.removeAll(request.resource.data.members);
+        return (added.size()==0 && removed.size()==0)
+          || (added.size()==1 && removed.size()==1 && added[0].uid == request.auth.uid && removed[0].uid == request.auth.uid);
+      }
+      function joining() {
+        let d=request.resource.data;
+        let added=d.members.removeAll(resource.data.members);
+        let invite=get(/databases/$(database)/documents/invites/$(d._joinToken)).data;
+        return verified() && !(request.auth.uid in resource.data.memberUids)
+          && d.diff(resource.data).affectedKeys().hasOnly(['members','memberUids','_joinToken'])
+          && d._joinToken.matches('^[a-f0-9]{40}$')
+          && invite.tripId == tripId && invite.revoked == false && invite.expiresAt > request.time
+          && d.memberUids.toSet() == resource.data.memberUids.toSet().union([request.auth.uid].toSet())
+          && added.size()==1 && added[0].uid == request.auth.uid
+          && d.members.removeAll(added) == resource.data.members;
+      }
+      function leaving() {
+        let d=request.resource.data;
+        let removed=resource.data.members.removeAll(d.members);
+        return isMember() && resource.data.owner != request.auth.uid
+          && d.diff(resource.data).affectedKeys().hasOnly(['members','memberUids'])
+          && d.memberUids == resource.data.memberUids.removeAll([request.auth.uid])
+          && removed.size()==1 && removed[0].uid==request.auth.uid
+          && d.members == resource.data.members.removeAll(removed);
+      }
+      // A transaction may check a new random ID before creating a document.
+      allow get: if isMember() || (verified() && !exists(/databases/$(database)/documents/trips/$(tripId)));
+      allow list: if isMember();
+      allow create: if verified() && shape() && request.resource.data.owner == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid]
+        && request.resource.data.members[0].uid == request.auth.uid;
+      allow update: if shape() && request.resource.data.owner == resource.data.owner
+        && ((isMember() && request.resource.data.memberUids == resource.data.memberUids
+          && request.resource.data.get('_joinToken','') == resource.data.get('_joinToken','')
+          && request.resource.data.get('_rev',0) == resource.data.get('_rev',0) + 1
+          && ownProfileOnly()) || joining() || leaving());
+      allow delete: if signedIn() && resource.data.owner == request.auth.uid;
+    }
+    // 회원 추천 '다녀온 곳' — 이름·연락처는 앱이 먼저 막고 여기서 다시 막습니다 (6판)
+    match /recs/{id} {
+      allow read: if signedIn() && (resource.data.status == 'public' || resource.data.uid == request.auth.uid || admin());
+      allow create: if verified() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid','region','title','note','cat','month','tripId','status','createdAt','thumbs','photoIds'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.get('thumbs', []) is list && request.resource.data.get('thumbs', []).size() <= 2
+        && request.resource.data.get('photoIds', []) is list && request.resource.data.get('photoIds', []).size() <= 2
+        && request.resource.data.get('photoIds', []).size() == request.resource.data.get('thumbs', []).size()
+        && (request.resource.data.get('thumbs', []).size() < 1 || (request.resource.data.thumbs[0] is string && request.resource.data.thumbs[0].size() <= 16000))
+        && (request.resource.data.get('thumbs', []).size() < 2 || (request.resource.data.thumbs[1] is string && request.resource.data.thumbs[1].size() <= 16000))
+        && request.resource.data.region in ['서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주']
+        && request.resource.data.cat in ['plan','ticket','stay']
+        && request.resource.data.title is string && request.resource.data.title.size() >= 1 && request.resource.data.title.size() <= 60
+        && request.resource.data.note is string && request.resource.data.note.size() >= 10 && request.resource.data.note.size() <= 300
+        && !request.resource.data.title.matches('(?s).*(@|https?://|www\\.).*')
+        && !request.resource.data.note.matches('(?s).*(@|https?://|www\\.).*')
+        && request.resource.data.month is int && request.resource.data.month >= 1 && request.resource.data.month <= 12
+        && request.resource.data.tripId is string && request.resource.data.tripId.size() <= 80
+        && request.resource.data.createdAt is string && request.resource.data.createdAt.size() == 10;
+      allow update: if (admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && request.resource.data.status in ['public','hidden','pending'])
+        || (verified() && resource.data.status == 'public'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['helpful'])
+          && request.resource.data.helpful == resource.data.get('helpful', 0) + 1
+          && !exists(/databases/$(database)/documents/recVotes/$(id + '_' + request.auth.uid))
+          && existsAfter(/databases/$(database)/documents/recVotes/$(id + '_' + request.auth.uid)));
+      allow delete: if signedIn() && (resource.data.uid == request.auth.uid || admin());
+    }
+    match /recVotes/{vid} {
+      allow read: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if verified() && request.resource.data.uid == request.auth.uid
+        && vid == request.resource.data.recId + '_' + request.auth.uid
+        && request.resource.data.keys().hasOnly(['recId','uid','createdAt'])
+        && request.resource.data.recId is string && request.resource.data.recId.size() <= 80
+        && request.resource.data.createdAt is string && request.resource.data.createdAt.size() == 10;
+      allow update: if false;
+      allow delete: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+    match /placeStats/{key} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['count','title','region','updatedAt'])
+        && request.resource.data.count == 1
+        && request.resource.data.title is string && request.resource.data.title.size() <= 80
+        && request.resource.data.region is string && request.resource.data.region.size() <= 10
+        && request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() == 10;
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count','updatedAt','title'])
+        && request.resource.data.count == resource.data.count + 1;
+      allow delete: if admin();
+    }
+    match /picks/{id} {
+      allow read: if signedIn();
+      allow create, update: if admin()
+        && request.resource.data.keys().hasOnly(['title','region','reason','month','order','link','createdAt'])
+        && request.resource.data.title is string && request.resource.data.title.size() >= 1 && request.resource.data.title.size() <= 80
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 300
+        && request.resource.data.month is string && request.resource.data.month.size() == 7;
+      allow delete: if admin();
+    }
+    match /recPhotos/{id} {
+      allow read: if signedIn();
+      allow create: if verified() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['recId','uid','u','createdAt'])
+        && request.resource.data.recId is string && request.resource.data.recId.size() <= 80
+        && request.resource.data.u is string && request.resource.data.u.size() <= 260000
+        && request.resource.data.u.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]*')
+        && request.resource.data.createdAt is string && request.resource.data.createdAt.size() == 10;
+      allow update: if false;
+      allow delete: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+    match /reports/{id} {
+      allow read: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if verified() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['recId','reason','uid','createdAt'])
+        && request.resource.data.recId is string && request.resource.data.recId.size() <= 80
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 40
+        && request.resource.data.createdAt is string && request.resource.data.createdAt.size() == 10;
+      allow update: if false;
+      allow delete: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
+
+▲▲▲ 여기까지 복사 ▲▲▲
+
+═══════════════════════════════════════════════════════════════
+  이 규칙이 지키는 것 (2026-10-19 점검)
+═══════════════════════════════════════════════════════════════
+  · 여행 본문은 구성원(memberUids)만 읽을 수 있습니다. 초대 링크를 모르는 사람은
+    여행 ID를 알아도 읽지 못합니다.
+  · 초대 링크는 40자 무작위 토큰(약 1.5×10^48 가지)이라 추측이 불가능하고, 7일 뒤 자동 만료,
+    주인이 언제든 중지할 수 있습니다. 토큰 문서에는 여행 ID와 만료일만 있고 일정·사진은 없습니다.
+  · 참여할 때 서버가 토큰의 유효성(여행 일치·미취소·미만료)을 직접 확인하고, 추가되는 사람이
+    '요청자 본인 한 명'인지까지 확인합니다. 남을 끼워 넣거나 다른 구성원을 지울 수 없습니다.
+  · 구성원 목록·주인은 일반 수정으로 바꿀 수 없습니다. 주인만 여행을 지울 수 있습니다.
+  · 사진은 그 여행 구성원만 읽고, 올린 본인 또는 여행 주인만 지울 수 있습니다.
+  · 탈퇴 기록에는 날짜·사용일수 외에 어떤 필드도 넣을 수 없습니다.
+  · 앱이 세는 통계(stats)는 쓸 수 없습니다. 운영 지표는 콘솔에서 봅니다.
+  · 회원 추천은 검수 대기로만 만들 수 있고, 관리자가 공개로 바꾸기 전에는 남이 볼 수 없습니다.
+    글에 @·http·www 가 들어가면 서버가 거부하고, 이름·전화번호는 앱이 먼저 거릅니다.
+
+  ⚠ 알아 둘 점
+  · 참여한 뒤 여행 문서에 _joinToken(마지막으로 쓰인 초대 토큰)이 남습니다. 구성원은 모두 이 값을
+    볼 수 있으므로, 만료 전에는 구성원 누구나 그 링크로 남을 초대할 수 있습니다.
+    원치 않으면 [초대] 시트의 '모든 초대 링크 중지'를 누르면 즉시 무효가 됩니다.
+  · 여행에서 나간 사람도 링크가 살아 있는 동안은 다시 들어올 수 있습니다. 같은 방법으로 막습니다.
