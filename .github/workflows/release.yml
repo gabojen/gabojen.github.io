@@ -99,7 +99,7 @@ jobs:
         run: |
           mkdir -p _site
           rsync -a --exclude '_site' --exclude '.git' --exclude '.github' --exclude 'tests' --exclude 'backup' \
-            --exclude 'node_modules' --exclude '.project' --exclude '*.jsonl' ./ _site/
+            --exclude 'node_modules' --exclude '.project' --exclude '*.jsonl' --exclude 'firestore_*.txt' --exclude '*.md' ./ _site/
           ls _site | head -50
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
@@ -107,4 +107,3 @@ jobs:
           path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
-
