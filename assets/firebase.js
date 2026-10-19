@@ -64,10 +64,10 @@ async function writeTripDraft(draft){
     const snap=await tx.get(ref);
     if(auth.currentUser?.uid!==uid)throw Object.assign(new Error('로그인 상태가 바뀌어 저장을 멈췄어요.'),{code:'travel/session-changed'});
     if(isNew&&snap.exists())throw new Error('같은 여행 번호가 이미 있어요. 다시 만들어 주세요.');
-    if(!isNew&&!snap.exists())throw new Error('삭제된 여행입니다.');
+    if(!isNew&&!snap.exists())throw Object.assign(new Error('삭제된 여행입니다.'),{code:'travel/deleted'});
     const remote=snap.exists()?snap.data():null;
     if(remote&&!remote.memberUids.includes(auth.currentUser.uid))throw new Error('이 여행에 접근할 수 없습니다.');
-    const merged=isNew?TravelCore.clone(local):TravelCore.merge(stripMeta(base),stripMeta(local),stripMeta(remote));
+    const merged=isNew?TravelCore.clone(local):TravelCore.merge(stripMeta(base||remote),stripMeta(local),stripMeta(remote));
     TravelCore.validateTrip(merged);
     merged._rev=(remote?remote._rev||0:0)+1; merged.updatedAt=Date.now();
     tx.set(ref,merged);
@@ -77,6 +77,9 @@ async function writeTripDraft(draft){
   return saved;
 }
 let unsub = null;
+/* 저장 진단 기록 (2026-10-19) — 화면에 안 보이고 지나가는 저장 실패를 [내 계정 → 저장 진단]에서 볼 수 있게 */
+window.__saveLog=window.__saveLog||[];
+function saveLog(stage,tripId,e){ try{ window.__saveLog.unshift({at:new Date().toISOString().slice(0,19).replace('T',' '),stage,tripId:String(tripId||'').slice(0,12),code:String((e&&e.code)||''),msg:String((e&&e.message)||e||'').slice(0,160)}); window.__saveLog.length=Math.min(window.__saveLog.length,20); }catch(_){} }
 
 // 오류 메시지를 한국어로 바꿔주는 함수
 function msg(e){
@@ -316,8 +319,10 @@ window.FB={
     const uid=auth.currentUser?.uid,generation=authGeneration;
     const current=()=>uid&&auth.currentUser?.uid===uid&&generation===authGeneration;
     const local=TravelCore.clone(t),base=tripBases.get(t);
-    if(!isNew&&!base)throw new Error('여행을 다시 불러온 뒤 수정해 주세요.');
-    const draft={base:TravelCore.clone(base),local,isNew:!!isNew,deletePhotoIds};
+    /* 2026-10-19: 기준본이 없는 객체(옛 참조 등)는 예전엔 조용히 실패해 화면엔 보이는데 저장은 안 되는 일이 생겼음.
+       이제는 서버본을 기준본으로 삼아 저장하고(내 변경이 우선), 진단 기록에 남깁니다. */
+    if(!isNew&&!base)saveLog('base-missing',t.id,{code:'travel/base-missing',message:'기준본 없음 — 서버본 기준으로 저장'});
+    const draft={base:base?TravelCore.clone(base):null,local,isNew:!!isNew,deletePhotoIds};
     tripBases.set(t,TravelCore.clone(local));
     releaseState.pending++;setSyncStatus('saving','변경 내용을 저장하고 있어요…');
     const previous=saveQueues.get(t.id)||Promise.resolve();
@@ -335,6 +340,7 @@ window.FB={
       if(isNew)rememberTrip(t);
       return result;
     }catch(e){
+      saveLog(current()?'save':'session-changed',t.id,e);
       if(!current())throw e;
       if(!releaseState.failed.has(t.id))releaseState.failed.set(t.id,draft);
       setSyncStatus('error',e.code==='travel/conflict'?'다른 구성원의 수정과 겹쳐 저장을 멈췄어요':'변경 내용을 저장하지 못했어요');

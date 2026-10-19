@@ -742,6 +742,20 @@ async function openAdmin(){
   if(typeof axRing==='function')axRing(box);
   if(typeof axCountUp==='function'){axCountUp($('admTotal'),total,{delay:80,duration:800});axCountUp($('admA7'),active7,{delay:180,duration:800});}
 }
+/* 저장 진단 — 최근 저장 실패 기록과 연결 상태 (2026-10-19) */
+async function openSaveLog(){
+  const log=window.__saveLog||[];
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b style="font-size:16px">${svg('i-info','ic')} 저장 진단</b><button class="ibtn" onclick="closeOv()" aria-label="닫기">${svg('i-x','ic')}</button></div>
+    <div class="admlist" style="text-align:left"><div class="admrow"><span style="flex:1">실시간 연결</span><span class="muted small">${lastTripsAt?Math.round((Date.now()-lastTripsAt)/1000)+'초 전 갱신':'아직 없음'}</span></div>
+      <div class="admrow"><span style="flex:1">인터넷</span><span class="muted small">${navigator.onLine?'연결됨':'끊김'}</span></div>
+      <div class="admrow"><span style="flex:1">앱 인증(App Check)</span><span class="muted small" id="slAppCheck">확인 중…</span></div>
+      <div class="admrow"><span style="flex:1">저장 대기·실패</span><span class="muted small">${(typeof releaseState!=='undefined'&&releaseState)?releaseState.pending+'건 진행 · '+releaseState.failed.size+'건 실패':'-'}</span></div></div>
+    <div class="eyebrow" style="margin-top:12px">최근 저장 오류 ${log.length}건</div>
+    <div class="admlist" style="text-align:left">${log.map(x=>`<div class="admrow" style="flex-direction:column;align-items:flex-start;gap:2px"><span class="muted small">${esc(x.at)} · ${esc(x.stage)}${x.tripId?' · '+esc(x.tripId):''}</span><b style="font-size:13px">${esc(x.code||'(코드 없음)')}</b><span class="small" style="overflow-wrap:anywhere">${esc(x.msg)}</span></div>`).join('')||'<p class="muted small" style="padding:8px 2px">이번 접속에서 저장 오류가 없었어요.</p>'}</div>
+    <button class="btn ghost sm" style="margin-top:12px" onclick="copyCode(JSON.stringify({ver:APP_VERSION,online:navigator.onLine,log:(window.__saveLog||[]).slice(0,10)}))">${svg('i-copy','ic')} 진단 내용 복사</button>
+    <p class="muted small" style="margin:10px 2px 0">일정이 저장되지 않을 때 이 화면을 캡처하거나 복사해 보내 주세요. 비밀번호·개인정보는 들어 있지 않아요.</p>`);
+  try{ const r=window.FB&&window.FB.checkAppCheck?await window.FB.checkAppCheck():{ok:false,msg:'확인 불가'}; const el=$('slAppCheck'); if(el)el.textContent=r.ok?'정상':('실패 · '+r.msg); }catch(e){ const el=$('slAppCheck'); if(el)el.textContent='확인 실패'; }
+}
 /* 내 UID — 관리자 등록(Firestore admins) 에 필요합니다.
    내 것을 나에게만 보여 주는 것이라 개인정보 문제는 없습니다. */
 function uidRow(){
@@ -808,6 +822,7 @@ function openAccount(){
     ${menuRow('i-info','문의 · 신고','','openSupport()')}
     ${menuRow('i-file','내 여행 데이터 내려받기','일정과 사진 참조를 JSON으로 보관','exportMyTrips()')}
     ${menuRow('i-compass','내 추천 관리','여행 추천 탭에 올린 다녀온 곳','openMyRecs()')}
+    ${menuRow('i-info','저장 진단','저장이 안 될 때 원인 확인','openSaveLog()')}
     ${IS_ADMIN?menuRow('i-camera','사진 보관소 점검','','runStorageDiag()'):''}
   </div>
   <div id="adminSlot">${IS_ADMIN?adminMenuHtml():''}</div>
@@ -3039,7 +3054,8 @@ function afterItemsSaved(){
 }
 async function commitPlan(t,list,label){
   for(var i=0;i<list.length;i++)pushItem(t,list[i].di,list[i].obj);
-  if(await save()){closeOv();toast(list.length?(list.length+'건을 저장했어요'+(label||'')):'새로 저장할 항목이 없어요');afterItemsSaved();}}
+  if(await save()){closeOv();toast(list.length?(list.length+'건을 저장했어요'+(label||'')):'새로 저장할 항목이 없어요');afterItemsSaved();}
+  else{ for(var k=0;k<list.length;k++)unpushItem(t.id,list[k].obj); rerender(); }}
 function askDup(t,res){
   var rows='';
   for(var i=0;i<res.dups.length;i++){var d=res.dups[i];
@@ -3062,8 +3078,15 @@ function dupAll(){var d=window.__dupPlan;if(!d)return;
   var all=d.res.fresh.slice();for(var i=0;i<d.res.dups.length;i++)all.push(d.res.dups[i].q);
   commitPlan(d.t,all,'');}
 
-function pushItem(t,di,obj){t.days[di].items=t.days[di].items||[];t.days[di].items.push(obj);
-  t.days[di].items.sort(function(a,b){return a.time.localeCompare(b.time);});curDay=di;}
+function pushItem(t,di,obj){
+  /* 2026-10-19: 확인 팝업(중복 등)을 보는 사이 서버에서 새 사본이 내려오면 t 는 옛 객체가 됩니다.
+     옛 객체에 넣으면 저장(save → trip(curTrip))에 빠져 '등록했는데 사라짐'이 됩니다 → 항상 목록의 최신 객체에 넣습니다. */
+  const live=(t&&trip(t.id))||t; if(!live||!live.days||!live.days[di])return;
+  live.days[di].items=live.days[di].items||[];
+  if(!live.days[di].items.some(x=>x._id===obj._id))live.days[di].items.push(obj);
+  live.days[di].items.sort(function(a,b){return a.time.localeCompare(b.time);});curDay=di;}
+/* 저장이 실패했을 때 방금 넣은 항목을 화면에서도 되돌립니다 (안 그러면 보이기만 하고 새로고침하면 사라짐) */
+function unpushItem(tripId,obj){const t=trip(tripId); if(!t||!obj)return; (t.days||[]).forEach(d=>{d.items=(d.items||[]).filter(x=>x._id!==obj._id);});}
 function saveOcr(){var t=trip(curTrip);if(!t)return;var segs=readForm(),plan=[],i;
   for(i=0;i<segs.length;i++){var g=segs[i];
     if(!g.from&&!g.to&&!g.flight)continue;
@@ -3562,7 +3585,7 @@ async function saveAddItem(){const t=trip(curTrip);const title=$('aTitle').value
   takeGeo('aPlace',obj);
   const f=findDup(t,obj.cat,t.days[di].date,obj.time,obj.title,'',obj);
   if(f){confirmDupOne(t,di,obj,f);return;}
-  pushItem(t,di,obj);if(await save()){closeOv();toast('추가했습니다');rerender();}}
+  pushItem(t,di,obj);if(await save()){closeOv();toast('추가했습니다');rerender();}else{unpushItem(t.id,obj);rerender();}}
 /* 한 건 중복 확인 */
 function confirmDupOne(t,di,obj,f){
   window.__dupOne={t:t,di:di,obj:obj};
@@ -3573,7 +3596,7 @@ function confirmDupOne(t,di,obj,f){
     +'<div class="row" style="gap:10px"><button class="btn ghost" style="flex:1" onclick="closeOv()">취소</button>'
     +'<button class="btn brand" style="flex:1" onclick="dupOneGo()">그래도 추가</button></div>');}
 async function dupOneGo(){var d=window.__dupOne;if(!d)return;
-  pushItem(d.t,d.di,d.obj);if(await save()){closeOv();toast('추가했습니다');afterItemsSaved();}}
+  pushItem(d.t,d.di,d.obj);if(await save()){closeOv();toast('추가했습니다');afterItemsSaved();}else{unpushItem(d.t.id,d.obj);rerender();}}
 function openEditItem(id){const f=itemById(id);if(!f)return;const it=f.it;const t=trip(curTrip);
   window.__editTripDraft=window.FB.createDraft?window.FB.createDraft(t):TravelCore.clone(t);
   const catOpts=CAT_ORDER.map(k=>`<option value="${k}" ${k===it.cat?'selected':''}>${CAT[k].name}</option>`).join('');
@@ -6265,14 +6288,18 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.3.1 (2026-10-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.3.2 (2026-10-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
   $('aEmail').value='';$('aPw').value='';$('aName').value='';
   for(const id of ['agreeTerms','agreePrivacy','agreeAge'])$(id).checked=false;};
 let TRIPS_READY=false;
-window.onTrips=function(list){TRIPS=list;TRIPS_READY=true;
+let lastTripsAt=0;
+/* 2026-10-19: 폰에서 다른 앱에 다녀오면 실시간 연결이 끊긴 채 남을 수 있어, 돌아올 때 목록을 다시 구독합니다 */
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&ME.uid&&window.FB&&window.FB.reloadTrips&&Date.now()-lastTripsAt>45000)window.FB.reloadTrips(); });
+window.addEventListener('online',()=>{ if(ME.uid&&window.FB&&window.FB.reloadTrips)window.FB.reloadTrips(); });
+window.onTrips=function(list){TRIPS=list;TRIPS_READY=true;lastTripsAt=Date.now();
   if(curTrip&&!trip(curTrip))curTrip=null;
   if(!curTrip){const act=TRIPS.filter(t=>t.status!=='done');if(act.length)curTrip=act[0].id;}
   healMyMember();
