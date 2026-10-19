@@ -429,7 +429,7 @@ window.FB={
     }catch(e){}
     /* 탈퇴하면 올린 추천 게시물과 신고 기록도 함께 지웁니다 (처리방침 6조) */
     try{
-      for(const name of ['recs','recPhotos','reports']){
+      for(const name of ['recs','recPhotos','reports','recVotes']){
         const mine=await getDocs(query(collection(db,name),where('uid','==',uid),limit(300)));
         for(let i=0;i<mine.docs.length;i+=400){const batch=writeBatch(db);mine.docs.slice(i,i+400).forEach(p=>batch.delete(p.ref));await batch.commit();}
       }
@@ -505,9 +505,46 @@ window.FB={
   async listRecs(){
     const me=auth.currentUser?.uid;
     const snap=await getDocs(query(collection(db,'recs'),where('status','==','public'),limit(300)));
-    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,createdAt:v.createdAt||'',mine:v.uid===me,thumbs:Array.isArray(v.thumbs)?v.thumbs.slice(0,2):[],photoIds:Array.isArray(v.photoIds)?v.photoIds.slice(0,2):[]};})
-      .sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+    return snap.docs.map(d=>{const v=d.data();return {id:d.id,region:v.region,title:v.title,note:v.note,cat:v.cat,month:v.month,createdAt:v.createdAt||'',mine:v.uid===me,helpful:Number(v.helpful)||0,thumbs:Array.isArray(v.thumbs)?v.thumbs.slice(0,2):[],photoIds:Array.isArray(v.photoIds)?v.photoIds.slice(0,2):[]};})
+      .sort((a,b)=>(b.helpful-a.helpful)||String(b.createdAt).localeCompare(String(a.createdAt)));
   },
+  /* ── 도움돼요 (2026-10-19): 한 사람이 한 번만. 표시 문서(recVotes/{추천번호_uid})와 카운터 증가를 한 트랜잭션으로 ── */
+  async helpfulRec(recId){
+    const u=auth.currentUser; if(!u?.emailVerified)throw new Error('이메일 인증이 필요합니다.');
+    const today=new Date().toISOString().slice(0,10);
+    const markRef=doc(db,'recVotes',String(recId)+'_'+u.uid), recRef=doc(db,'recs',String(recId));
+    return await runTransaction(db,async tx=>{
+      const m=await tx.get(markRef); if(m.exists())throw Object.assign(new Error('이미 도움돼요를 눌렀어요.'),{code:'travel/voted'});
+      const r=await tx.get(recRef); if(!r.exists())throw new Error('추천이 지워졌어요.');
+      const n=(Number(r.data().helpful)||0)+1;
+      tx.set(markRef,{recId:String(recId),uid:u.uid,createdAt:today}); tx.update(recRef,{helpful:n});
+      return n;
+    });
+  },
+  async myVotes(){
+    const u=auth.currentUser; if(!u)return [];
+    try{ const snap=await getDocs(query(collection(db,'recVotes'),where('uid','==',u.uid),limit(300))); return snap.docs.map(d=>String(d.data().recId||'')); }catch(e){ return []; }
+  },
+  /* ── 장소별 '일정에 담은 횟수' — 누가 담았는지는 저장하지 않고 숫자만 ── */
+  async bumpPlace(key,title,region){
+    const ref=doc(db,'placeStats',String(key)); const today=new Date().toISOString().slice(0,10);
+    await runTransaction(db,async tx=>{ const s=await tx.get(ref); tx.set(ref,{count:(s.exists()?Number(s.data().count)||0:0)+1,title:String(title||'').slice(0,80),region:String(region||'').slice(0,10),updatedAt:today}); });
+  },
+  async placeStats(region){
+    const snap=await getDocs(query(collection(db,'placeStats'),where('region','==',String(region)),limit(400)));
+    const out={}; snap.forEach(d=>{ out[d.id]=Number(d.data().count)||0; }); return out;
+  },
+  /* ── 운영자 '이달의 추천' (관리자만 씀, 로그인한 사람은 읽음) ── */
+  async listPicks(){
+    const snap=await getDocs(query(collection(db,'picks'),limit(100)));
+    return snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.month||'').localeCompare(String(a.month||''))||(Number(a.order)||9)-(Number(b.order)||9));
+  },
+  async savePick(id,data){
+    const body={title:String(data.title||'').slice(0,80),region:String(data.region||''),reason:String(data.reason||'').slice(0,300),month:String(data.month||'').slice(0,7),order:Math.max(1,Math.min(9,Number(data.order)||5)),link:String(data.link||'').slice(0,300),createdAt:new Date().toISOString().slice(0,10)};
+    if(id){ await setDoc(doc(db,'picks',String(id)),body); return id; }
+    const r=await addDoc(collection(db,'picks'),body); return r.id;
+  },
+  async deletePick(id){ await deleteDoc(doc(db,'picks',String(id))); },
   async myRecs(){
     const u=auth.currentUser; if(!u)return [];
     const snap=await getDocs(query(collection(db,'recs'),where('uid','==',u.uid),limit(100)));

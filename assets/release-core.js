@@ -118,6 +118,9 @@
       hours: plain(x.hours, 160), closed: plain(x.closed, 120), parking: plain(x.parking, 120), tel: plain(x.tel, 40), menu: plain(x.menu, 80),
       pet: yn(x.pet), petText: plain(x.petText, 40), stroller: yn(x.stroller), strollerText: plain(x.strollerText, 40),
       images: (Array.isArray(x.images) ? x.images : []).map(safeImage).filter(Boolean).slice(0, 4),
+      // 붐빔 예상(관광공사 집중률, 2026-10-18) — 이름이 맞은 곳만 들어 있음
+      crowd: record(x.crowd) && ['high','mid','low'].includes(x.crowd.lv) ? {lv:x.crowd.lv, avg:+x.crowd.avg||0,
+        peak:/^\d{8}$/.test(x.crowd.peak||'')?x.crowd.peak:'', we:isFinite(+x.crowd.we)&&x.crowd.we!==null?+x.crowd.we:null, wd:isFinite(+x.crowd.wd)&&x.crowd.wd!==null?+x.crowd.wd:null} : null,
     });
     const images = x => ({...x,id:String(x.id),img:safeImage(x.img),thumb:safeImage(x.thumb),intro:plain(x.intro,200),landmark:plain(x.landmark,40),...details(x)});
     // 관광공사 여행코스: 코스 안의 장소 이름·소개만 (없어도 됨)
@@ -224,5 +227,17 @@
     }
     return clashes;
   }
-  return { clone, merge, validDate, dateRange, safeURL, safeImage, jsText, validateTrip, normalizePlans, normalizeNews, placeTheme, discoveryFor, distanceKm, validateRec, REC_REGIONS, REC_CATS, removeAuthoredContent, planConflicts };
+  // 2030 검색 트렌드(news/trend.json, 네이버 데이터랩) — 숫자만 받아 둡니다. 없거나 깨지면 null.
+  function normalizeTrend(value) {
+    if (!record(value) || !record(value.items)) return null;
+    const items = {};
+    for (const [id, v] of Object.entries(value.items)) {
+      if (!record(v) || !isFinite(+v.lv)) continue;
+      items[String(id)] = {lv:+v.lv, g:v.g===null||v.g===undefined||!isFinite(+v.g)?null:+v.g, up:v.up===true};
+    }
+    const day = x => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : '';
+    return {items, madeAt:day(value.madeAt), ages:typeof value.ages==='string'?value.ages.slice(0,20):'19~34세',
+      recent:Array.isArray(value.recent)?value.recent.map(day):[], base:Array.isArray(value.base)?value.base.map(day):[]};
+  }
+  return { normalizeTrend, clone, merge, validDate, dateRange, safeURL, safeImage, jsText, validateTrip, normalizePlans, normalizeNews, placeTheme, discoveryFor, distanceKm, validateRec, REC_REGIONS, REC_CATS, removeAuthoredContent, planConflicts };
 });

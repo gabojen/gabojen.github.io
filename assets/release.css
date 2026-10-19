@@ -207,3 +207,36 @@ html.dark .mood-tiles .mood{background:var(--card)}
 .rec-photos .rp.on{border-color:var(--teal)}.rec-photos .rp.on::after{content:'✓';position:absolute;right:4px;top:4px;width:20px;height:20px;border-radius:50%;background:var(--teal);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center}
 .rec-photos .rp.add{display:grid;place-items:center;align-content:center;gap:4px;border:1px dashed var(--line-2);color:var(--muted);font-size:11px;font-weight:700;text-align:center;line-height:1.3}.rec-photos .rp.add .ic{width:20px;height:20px}
 .rec-photos .rp.loading{opacity:.45;background:var(--line)}
+
+/* 2030 관심·붐빔 예상·회원 추천 표시 (2026-10-18) — 근거 자료가 있을 때만 그려집니다 */
+.place-photo{position:relative}
+.trend-badge{position:absolute;left:8px;top:8px;display:inline-flex;align-items:center;gap:3px;padding:4px 8px;border-radius:999px;background:rgba(20,30,26,.78);color:#fff;font-size:11px;font-weight:800;font-style:normal;line-height:1}
+.trend-badge svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.place-sigs{display:flex;flex-wrap:wrap;gap:4px}
+.place-sigs .sig{font-size:10.5px;font-weight:800;padding:3px 7px;border-radius:999px;line-height:1.2;background:var(--line);color:var(--ink-2)}
+.sig.crowd-high{background:#fbe3dc;color:#9a3216}.sig.crowd-low{background:#e1f0e8;color:#1f5a40}.sig.rec{background:var(--brand-bg);color:var(--brand-ink)}
+html.dark .sig.crowd-high{background:#5a2a1c;color:#ffc8b4}html.dark .sig.crowd-low{background:#1f4334;color:#b8e6cf}
+.trend-strip{margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.ts-head{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--ink);margin-bottom:9px}
+.ts-head svg{width:16px;height:16px;fill:none;stroke:var(--brand);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ts-list{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.ts-list::-webkit-scrollbar{display:none}
+.ts-chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--ink);font-size:13px;cursor:pointer}
+.ts-chip b{font-weight:700;max-width:12em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ts-chip i{font-style:normal;font-weight:800;color:var(--brand-ink);font-size:12px}
+.rec-count{color:var(--brand-ink);font-weight:800}
+.rec-others{margin:12px 0 0;padding:12px;border-radius:12px;background:var(--paper);border:1px solid var(--line)}
+.rec-others>b{display:block;font-size:13px;margin-bottom:6px}.rec-others p{margin:6px 0 0;font-size:13.5px;line-height:1.55;color:var(--ink-2)}.rec-others em{font-style:normal;color:var(--muted);font-size:12px}
+
+/* ── 2026-10-19 트렌드 신호: 바깥 링크·담은 횟수·이달의 추천 ── */
+.ext-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.ext-links .ext{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 9px;border-radius:11px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font-size:12.5px;font-weight:700;min-height:44px;cursor:pointer;font-family:inherit;line-height:1.3}
+.ext-links .ext .ic{width:18px;height:18px;color:var(--teal)}.ext-links .ext small{font-size:10.5px;color:var(--muted);font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ext-links .ext:hover{border-color:var(--teal)}
+.place-pop{color:var(--brand-ink);font-weight:700}
+.picks-section{margin:0 0 22px}.pick-list{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}
+.pick-card{flex:0 0 72%;max-width:290px;display:flex;flex-direction:column;gap:5px;padding:13px 14px;border-radius:14px;border:1px solid #e3c9b9;background:linear-gradient(180deg,#fff7f2,#fff);color:var(--ink);text-align:left;cursor:pointer;min-height:44px;font-family:inherit}
+.pick-card .pk-region{font-size:11px;font-weight:800;color:var(--brand-ink);letter-spacing:.02em}.pick-card b{font-size:15.5px;line-height:1.4;overflow-wrap:anywhere}
+.pick-card .pk-reason{font-size:12.5px;line-height:1.55;color:var(--ink-2,#3a4650);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.pick-card:hover{border-color:var(--brand)}
+@media(min-width:700px){.pick-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.pick-card{flex:none;max-width:none}}
+html.dark .pick-card{background:var(--card);border-color:#5a4538}html.dark .ext-links .ext{background:var(--card)}
+.place-sigs .sig.pop{background:#fff1e8;color:var(--brand-ink)}html.dark .place-sigs .sig.pop{background:#4a3328;color:#ffc9ad}
