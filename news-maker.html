@@ -330,20 +330,24 @@ $('run').addEventListener('click',async()=>{
       경북:['불국사','석굴암','첨성대','동궁과 월지','하회마을'],경남:['동피랑','진주성','해인사','남해 독일마을'],
       제주:['성산일출봉','한라산','우도','섭지코지']};
     const norm=t=>String(t||'').replace(/[\s()（）\[\]·.]/g,'').toLowerCase();
+    /* 2026-10-22: '창덕궁' → '창덕궁 다래나무', '감천문화마을' → '…어린왕자 전시관'처럼 앞부분만 같은 다른 곳이 뽑혔음.
+       괄호 속 설명([유네스코…], (대구))은 떼고 비교하고, 완전히 같지 않으면 덧붙은 글자가 3자 이하일 때만 인정합니다. */
+    const core=t=>norm(String(t||'').replace(/\([^)]*\)|\[[^\]]*\]|（[^）]*）/g,'')).replace(/(국립공원|도립공원|군립공원|국가지질공원)$/,'');
+    const fits=(title,kw)=>{ const a=core(title), k=norm(kw); return a===k||(a.includes(k)&&a.length-k.length<=3); };
     const prevByMark={}; Object.values(prev.spots).forEach(s=>{ if(s&&s.landmark)prevByMark[s.landmark]=s; });
     let markNew=0, markReuse=0; const markMiss=[];
     for(const [,name] of REGIONS){
       const picked=[], code=areaCodeOf(name);
       for(const kw of (LANDMARKS[name]||[])){
         const old=prevByMark[kw];
-        if(old&&old.id){ picked.push({id:old.id,title:old.title,addr:old.addr,contentTypeId:old.contentTypeId,sg:old.sg||'',img:old.img,thumb:old.thumb,
+        if(old&&old.id&&fits(old.title,kw)){ picked.push({id:old.id,title:old.title,addr:old.addr,contentTypeId:old.contentTypeId,sg:old.sg||'',img:old.img,thumb:old.thumb,
           rights:old.rights,lat:old.lat,lng:old.lng,landmark:kw}); markReuse++; continue; }
         if(left()<=0){ markMiss.push(kw); continue; }
         try{
           const rows=await call(key,'searchKeyword2',{keyword:kw,numOfRows:'10',pageNo:'1',arrange:'O',...(code?{lDongRegnCd:code}:{})});
           const ok=rows.filter(x=>x.firstimage&&x.title&&['12','14','28'].includes(String(x.contenttypeid))&&regionOf(code,x.addr1)===name);
           const k=norm(kw);
-          const hit=ok.find(x=>norm(x.title)===k)||ok.find(x=>norm(x.title).startsWith(k))||ok.find(x=>norm(x.title).includes(k));
+          const hit=ok.find(x=>core(x.title)===k)||ok.find(x=>fits(x.title,kw)&&core(x.title).startsWith(k))||ok.find(x=>fits(x.title,kw));
           if(!hit){ markMiss.push(kw); continue; }
           picked.push({id:String(hit.contentid),title:(hit.title||'').trim(),addr:(hit.addr1||'').trim(),contentTypeId:String(hit.contenttypeid),sg:sgOf(hit),
             img:https(hit.firstimage),thumb:https(hit.firstimage2||hit.firstimage),rights:hit.cpyrhtDivCd||'',
@@ -371,6 +375,8 @@ $('run').addEventListener('click',async()=>{
       if(p&&!sp.sg&&p.sg)sp.sg=p.sg;
       if(p&&typeof p.intro==='string'){ sp.intro=p.intro; needI=false; }
       if(p&&typeof p.hours==='string'){ for(const k of ['hours','closed','parking','tel','menu','pet','petText','stroller','strollerText'])sp[k]=p[k]===undefined?(k==='pet'||k==='stroller'?null:''):p[k]; needD=false; }
+      /* 2026-10-22: 대표 명소 53곳 모두 시군구 코드가 비어 붐빔 예상을 한 번도 조회하지 못했음 → 코드가 없으면 소개를 한 번 다시 받으며 채움 */
+      if(!sp.sg)needI=true;
       if(!needI&&!needD){ reused++; return false; } sp._needI=needI; sp._needD=needD; return true; });
     log(`📝 소개·이용시간: ${reused}곳 재사용 · ${needWork.length}곳 새로 받음 (장소당 최대 2건, 예산 ${left()}건)`);
     await pool(needWork,async sp=>{
