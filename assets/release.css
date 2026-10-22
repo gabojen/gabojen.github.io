@@ -249,3 +249,8 @@ html.dark .pick-card{background:var(--card);border-color:#5a4538}html.dark .ext-
 .cat-pick .cp:hover{border-color:var(--cc)}
 @media(min-width:700px){.cat-pick{grid-template-columns:repeat(6,minmax(0,1fr))}.cat-pick .cp{font-size:12.5px;gap:5px;padding:8px 4px;white-space:nowrap}}
 @media(max-width:360px){.cat-pick{gap:6px}.cat-pick .cp{font-size:12px;padding:8px 4px}}
+/* 운영 현황 회원 목록 열 제목 (2026-10-21) — 가입일을 마지막 접속으로 읽는 일이 있어 제목을 붙임 */
+.admrow.admhead{border:none;padding:0 11px 5px;font-size:11.5px}
+.admrow.admhead span{color:var(--muted)!important;font-weight:700}
+.admrow.admhead .sn{min-width:64px}
+.admlist.tall .admrow .sn{min-width:64px}

@@ -170,6 +170,16 @@ test('여행책(추억)에서도 ⋯ 메뉴로 여행을 지울 수 있다', asy
   await expect(page.locator('#ovc button', { hasText: '이 여행 삭제' })).toBeVisible();
 });
 
+test('운영 현황 회원 목록: 열 제목(가입일·여행·마지막 접속)이 보이고, 내 여행 수를 프로필에 적는다', async ({ page }) => {
+  await boot(page, { trips: [TRIP('t1', '가을 여행', '2026-11-10', '2026-11-11', []), TRIP('t0', '지난 여행', '2026-08-20', '2026-08-21', [])] });
+  const n = await page.evaluate(async () => { const got = []; window.FB.syncTripCount = async n => got.push(n); window.onTrips(TRIPS); return got; });
+  expect(n).toEqual([2]);
+  await page.evaluate(() => { window.__admMembers = [{ email: 'ye12345@kakaocorp.com', joined: '2026-09-30', seen: new Date().toISOString().slice(0, 10), trips: 2 }]; openAdminMembers(); });
+  const head = await page.locator('#ovc .admhead').innerText();
+  expect(head).toContain('가입일'); expect(head).toContain('마지막 접속');
+  expect(await page.locator('#ovc .admlist .admrow').first().innerText()).toContain('2개');
+});
+
 test('화면 가로 넘침 없음 (홈·내 여행·일정·추억)', async ({ page }) => {
   await boot(page, { trips: [TRIP('t1', '가을 여행', '2026-11-10', '2026-11-11', [ITEM('a', 'plan', '10:00', '속초 해변')]), TRIP('t0', '지난 여행', '2026-08-20', '2026-08-21', [ITEM('b', 'plan', '11:00', '설악산')])] });
   for (const tab of ['today', 'trips', 'history']) {

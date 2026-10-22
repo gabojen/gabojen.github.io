@@ -665,15 +665,16 @@ function openAdminMembers(){
   openModal(`<div class="row" style="justify-content:space-between;margin-bottom:8px">
       <b style="font-size:16px">${svg('i-users','ic')} 회원 ${members.length}명</b>
       <button class="ibtn" onclick="closeOv();openAdmin()" aria-label="뒤로">${svg('i-left','ic')}</button></div>
+    <div class="admrow admhead" aria-hidden="true"><span class="em">이메일</span><span class="dt">가입일</span><span class="tp">여행</span><span class="sn">마지막 접속</span></div>
     <div class="admlist tall">${members.slice(0,200).map(m=>{
       const n=daysAgo(m.seen); const cls=n===null?'':(n<=7?'on':(n<=30?'mid':'off'));
       return `<div class="admrow">
         <span class="em">${esc(maskEmail(m.email))}</span>
         <span class="dt">${esc(fmtDay(m.joined)||'-')}</span>
-        <span class="tp">여행 ${m.trips||0}</span>
+        <span class="tp">${m.trips||0}개</span>
         <span class="sn ${cls}">${n===null?'-':(n===0?'오늘':n+'일 전')}</span></div>`;}).join('')
       ||'<p class="muted small" style="padding:10px 2px">아직 없습니다.</p>'}</div>
-    <p class="muted small" style="margin:8px 2px 0">이메일은 앞 두 글자만 보입니다 · 가입일 · 마지막 접속</p>`);
+    <p class="muted small" style="margin:8px 2px 0">이메일은 앞 두 글자만 보입니다. 여행 수는 그 회원이 앱을 연 시점 기준이라, 한동안 안 들어온 회원은 예전 숫자일 수 있어요.</p>`);
 }
 function openAdminLeaves(){
   const {byMonth,avgUsed}=window.__admLeaves||{byMonth:{},avgUsed:null};
@@ -6299,7 +6300,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.3.5 (2026-10-19)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.3.6 (2026-10-22)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');
@@ -6311,6 +6312,7 @@ let lastTripsAt=0;
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&ME.uid&&window.FB&&window.FB.reloadTrips&&Date.now()-lastTripsAt>45000)window.FB.reloadTrips(); });
 window.addEventListener('online',()=>{ if(ME.uid&&window.FB&&window.FB.reloadTrips)window.FB.reloadTrips(); });
 window.onTrips=function(list){TRIPS=list;TRIPS_READY=true;lastTripsAt=Date.now();
+  if(window.FB&&window.FB.syncTripCount)window.FB.syncTripCount(list.length+((window.__invalidTrips||[]).length));
   if(curTrip&&!trip(curTrip))curTrip=null;
   if(!curTrip){const act=TRIPS.filter(t=>t.status!=='done');if(act.length)curTrip=act[0].id;}
   healMyMember();

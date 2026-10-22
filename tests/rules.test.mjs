@@ -121,6 +121,11 @@ await test('프로필: 허용된 필드만, 남의 프로필은 못 쓴다', asy
   await assertFails(setDoc(doc(as('owner'), 'users', 'owner'), { name: '연세아빠', role: 'admin' }));
   await assertFails(setDoc(doc(as('mate'), 'users', 'owner'), { name: '바꿈' }));
 });
+await test('여행 수(tripCount): 내 프로필에는 합쳐 쓰기로 적을 수 있고, 남의 프로필에는 못 쓴다', async () => {
+  await assertSucceeds(setDoc(doc(as('owner'), 'users', 'owner'), { tripCount: 3 }, { merge: true }));
+  await assertFails(setDoc(doc(as('mate'), 'users', 'owner'), { tripCount: 99 }, { merge: true }));
+  const v = await readRaw('users', 'owner'); if (v.tripCount !== 3 || v.name !== '연세아빠') throw new Error('합쳐 쓰기 결과가 다름: ' + JSON.stringify(v));
+});
 await test('stats 는 앱에서 쓸 수 없고, leaveLog 는 두 필드만', async () => {
   await assertFails(setDoc(doc(as('owner'), 'stats', 'x'), { n: 1 }));
   await assertSucceeds(setDoc(doc(as('owner'), 'leaveLog', 'l1'), { date: '2026-10-19', daysUsed: 3 }));

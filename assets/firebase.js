@@ -302,6 +302,16 @@ window.FB={
     }catch(e){ out.leavesErr=(e&&e.code)||String(e); }
     return out;
   },
+  /* 내가 속한 여행 수를 내 프로필(users/{uid}.tripCount)에 적습니다 — 2026-10-21.
+     가입할 때 0으로 만든 뒤 아무도 고치지 않아, 운영 현황의 '여행 N'이 늘 0이었음.
+     관리자는 남의 여행을 읽을 수 없으므로(보안 규칙) 각자 앱이 자기 숫자를 적습니다. 숫자가 바뀔 때만 씁니다. */
+  async syncTripCount(n){
+    try{ const u=auth.currentUser; if(!u||!Number.isInteger(n)||n<0)return;
+      if(this._tripCount&&this._tripCount.uid===u.uid&&this._tripCount.n===n)return;
+      this._tripCount={uid:u.uid,n};
+      await setDoc(doc(db,'users',u.uid),{tripCount:n},{merge:true});
+    }catch(e){ this._tripCount=null; }
+  },
   /* 접속했음을 기록 — 마지막 접속일만 남깁니다(휴면·운영 판단용) */
   async touch(){
     try{ const u=auth.currentUser; if(!u)return;
