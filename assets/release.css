@@ -254,3 +254,9 @@ html.dark .pick-card{background:var(--card);border-color:#5a4538}html.dark .ext-
 .admrow.admhead span{color:var(--muted)!important;font-weight:700}
 .admrow.admhead .sn{min-width:64px}
 .admlist.tall .admrow .sn{min-width:64px}
+
+/* 붐빔 정보 칩 — 평일·주말 비교 (2026-10-22). 경고색 대신 차분한 색 */
+.sig.crowd-we,.sig.crowd-wd{background:#f6ead8;color:#7a4b12}.sig.crowd-even{background:#e1f0e8;color:#1f5a40}
+html.dark .sig.crowd-we,html.dark .sig.crowd-wd{background:#4a3519;color:#f3d6ac}html.dark .sig.crowd-even{background:#1f4334;color:#b8e6cf}
+/* 폰에서 회원 이메일이 잘리지 않게 */
+@media(max-width:699px){.admlist.tall .admrow .em{font-size:12.5px}.admlist.tall .admrow{gap:5px;padding:7px 8px}}

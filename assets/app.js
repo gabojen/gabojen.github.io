@@ -639,10 +639,11 @@ async function doLeave(){
         이메일은 화면에서 가려서 보여 줍니다.
      ③ 개인별 상세 행동(무엇을 눌렀는지 등)은 아예 모으지 않습니다.
    ============================================================================ */
-function maskEmail(e){
+function maskEmail(e,short){
   e=String(e||''); const i=e.indexOf('@'); if(i<1)return '(없음)';
   const id=e.slice(0,i), dom=e.slice(i);
-  return (id.length<=2?id[0]+'*':id.slice(0,2)+'*'.repeat(Math.min(6,id.length-2)))+dom;
+  /* short: 폰처럼 좁은 화면에서는 별표를 3개로 줄여 도메인(@kakaocorp.com)이 잘리지 않게 (2026-10-22) */
+  return (id.length<=2?id[0]+'*':id.slice(0,2)+'*'.repeat(Math.min(short?3:6,id.length-2)))+dom;
 }
 /* 가입일·접속일은 판에 따라 'YYYY-MM-DD' 글자, 숫자(밀리초), Firestore Timestamp 로 섞여 저장돼 있습니다.
    (예전 판 회원은 숫자 → 화면에 1787622835481 처럼 보이던 문제) → 전부 날짜 글자로 통일 */
@@ -669,8 +670,8 @@ function openAdminMembers(){
     <div class="admlist tall">${members.slice(0,200).map(m=>{
       const n=daysAgo(m.seen); const cls=n===null?'':(n<=7?'on':(n<=30?'mid':'off'));
       return `<div class="admrow">
-        <span class="em">${esc(maskEmail(m.email))}</span>
-        <span class="dt">${esc(fmtDay(m.joined)||'-')}</span>
+        <span class="em" title="${esc(maskEmail(m.email))}">${esc(maskEmail(m.email,window.innerWidth<700))}</span>
+        <span class="dt">${esc((window.innerWidth<700?String(fmtDay(m.joined)||'').replace(/^20(\d\d)-(\d\d)-(\d\d)$/,'$1.$2.$3'):fmtDay(m.joined))||'-')}</span>
         <span class="tp">${m.trips||0}개</span>
         <span class="sn ${cls}">${n===null?'-':(n===0?'오늘':n+'일 전')}</span></div>`;}).join('')
       ||'<p class="muted small" style="padding:10px 2px">아직 없습니다.</p>'}</div>
@@ -1662,7 +1663,10 @@ async function loadTrend(){
 }
 const trendOf=sp=>TREND&&sp?TREND.items[String(sp.id)]||null:null;
 const pctUp=g=>g==null?'':'+'+Math.round((g-1)*100)+'%';
-const CROWD_LABEL={high:'붐빔 예상',mid:'보통',low:'한산 예상'};
+/* 붐빔 정보 — 2026-10-22: 예전에는 소식지 안 장소끼리 3등분(붐빔/보통/한산)했는데, 집중률은 장소마다 기준이 달라
+   작은 향교가 '붐빔 예상'으로 보이는 등 오해를 샀음. 이제는 그 장소 안에서 평일과 주말을 비교해 보여 줍니다. */
+const CROWD_LABEL={we:'주말에 붐벼요',wd:'평일에 붐벼요',even:'요일 차이 적어요'};
+function crowdKind(c){ if(!c||c.we==null||c.wd==null||!(c.wd>0)||!(c.we>0))return ''; return c.we>=c.wd*1.1?'we':c.wd>=c.we*1.1?'wd':'even'; }
 /* 회원 추천 — 같은 지역·같은 이름은 한 곳으로 묶어 '몇 명이 추천했는지' 셉니다 */
 const recKey=(region,title)=>String(region||'')+'|'+String(title||'').replace(/\([^)]*\)|\[[^\]]*\]/g,'').replace(/[\s·.,]/g,'').toLowerCase();
 function recGroups(list){ const m=new Map(); (list||[]).forEach(r=>{const k=recKey(r.region,r.title); if(!m.has(k))m.set(k,[]); m.get(k).push(r);}); return m; }
@@ -2104,7 +2108,7 @@ function openSpot(region,id){
     sp.pet!==null&&sp.pet!==undefined?fact('i-heart','반려동물',sp.pet?'동반 가능'+(sp.petText&&!/^가능$/.test(sp.petText)?' · '+sp.petText:''):'동반 불가'):'',
     sp.stroller!==null&&sp.stroller!==undefined?fact('i-users','유모차',sp.stroller?'대여·이용 가능':'이용 어려움'):'',
     sp.tel?fact('i-info','문의',sp.tel,`<a href="tel:${esc(sp.tel.replace(/[^\d+-]/g,''))}">${esc(sp.tel)}</a>`):'',
-    sp.crowd?fact('i-users','붐빔 예상',crowdText(sp.crowd)):'',
+    sp.crowd&&(crowdKind(sp.crowd)||sp.crowd.peak)?fact('i-users','붐빔 정보',crowdText(sp.crowd)):'',
     trendOf(sp)?fact('i-trend','2030 관심',trendText(trendOf(sp))):'',
     recCountOf(region,sp.title)?fact('i-heart','회원 추천',recCountOf(region,sp.title)+'명이 추천했어요'):'',
   ].join('');
@@ -2121,21 +2125,23 @@ function openSpot(region,id){
     ${extLinks(sp.title,region)}
     <button class="btn brand" style="margin-top:14px" onclick="closeOv();window.__editorialPlace={title:'${TravelCore.jsText(sp.title)}',region:'${TravelCore.jsText(region)}',id:'${TravelCore.jsText(sp.id)}'};addEditorialToTrip()">${svg('i-pin','ic')} 내 여행 일정에 담기</button>
     <button class="btn ghost" style="margin-top:8px" onclick="closeOv();openMap('${TravelCore.jsText(sp.title)}')">${svg('i-pin','ic')} 지도에서 보기</button>
-    <p class="muted small" style="margin:12px 2px 0">사진·정보: 한국관광공사 · 이용시간·요금은 방문 전 확인해 주세요.${sp.crowd?'<br>붐빔 예상: 관광공사 관광지 집중률 예측(KT 통신 데이터, 앞으로 30일). 이 소식지의 다른 장소들과 비교한 값이에요.':''}${trendOf(sp)?'<br>2030 관심: 네이버 데이터랩 '+esc(TREND.ages)+' 검색량, 최근 4주와 그 전 8주 비교.':''}</p>`);
+    <p class="muted small" style="margin:12px 2px 0">사진·정보: 한국관광공사 · 이용시간·요금은 방문 전 확인해 주세요.${sp.crowd&&(crowdKind(sp.crowd)||sp.crowd.peak)?'<br>붐빔 정보: 관광공사 관광지 집중률 예측(KT 통신 데이터, 앞으로 30일). 이 장소의 평일과 주말을 비교한 값이라, 다른 장소와 붐빔 정도를 비교하는 숫자는 아니에요.':''}${trendOf(sp)?'<br>2030 관심: 네이버 데이터랩 '+esc(TREND.ages)+' 검색량, 최근 4주와 그 전 8주 비교.':''}</p>`);
 }
 /* 붐빔·관심·회원 추천을 카드 한 줄로 (근거가 있는 것만) */
 function placeSignals(sp,region){
   const out=[];
-  if(sp.crowd)out.push(`<span class="sig crowd-${sp.crowd.lv}">${CROWD_LABEL[sp.crowd.lv]}</span>`);
+  const ck=crowdKind(sp.crowd); if(ck)out.push(`<span class="sig crowd-${ck}">${CROWD_LABEL[ck]}</span>`);
   const n=recCountOf(region,sp.title); if(n)out.push(`<span class="sig rec">회원 추천 ${n}</span>`);
   const c=placeCount(region,sp.id); if(c)out.push(`<span class="sig pop">일정에 ${c}번 담김</span>`);
   return out.length?`<span class="place-sigs">${out.join('')}</span>`:'';
 }
 function recCountOf(region,title){ if(!RECS||!RECS.length)return 0; const k=recKey(region,title); return RECS.filter(r=>recKey(r.region,r.title)===k).length; }
 function crowdText(c){
-  const lv={high:'붐빌 것 같아요',mid:'보통일 것 같아요',low:'한산할 것 같아요'}[c.lv];
-  const wk=c.we!=null&&c.wd!=null?(c.we>c.wd*1.15?' · 주말이 더 붐벼요':c.wd>c.we*1.15?' · 평일이 더 붐벼요':''):'';
-  return `앞으로 30일 ${lv}${wk}${c.peak?` · 가장 붐비는 날 ${fdate(c.peak)}`:''}`;
+  const k=crowdKind(c), pct=(a,b)=>Math.round((a/b-1)*100);
+  const wk=k==='we'?`주말이 평일보다 약 ${pct(c.we,c.wd)}% 더 붐벼요`:k==='wd'?`평일이 주말보다 약 ${pct(c.wd,c.we)}% 더 붐벼요`:k==='even'?'평일과 주말이 비슷해요':'';
+  const dow=v=>'일월화수목금토'[new Date(+v.slice(0,4),+v.slice(4,6)-1,+v.slice(6,8)).getDay()];
+  const peak=c.peak?`가장 붐비는 날 ${fdate(c.peak)}(${dow(c.peak)})`:'';
+  return '앞으로 30일 · '+[wk,peak].filter(Boolean).join(' · ');
 }
 function trendText(t){
   if(t.up)return `19~34세 검색이 최근 4주 ${pctUp(t.g)} 늘었어요`;
@@ -6300,7 +6306,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.3.6 (2026-10-22)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.3.7 (2026-10-22)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

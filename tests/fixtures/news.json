@@ -68,7 +68,15 @@
     "stroller": null,
     "images": [
      "https://tong.visitkorea.or.kr/cms/resource/93/4109193_image2_1.jpg"
-    ]
+    ],
+    "crowd": {
+     "avg": 70.0,
+     "peak": "20261107",
+     "we": 84.0,
+     "wd": 60.0,
+     "src": "x",
+     "lv": "high"
+    }
    },
    {
     "id": "125684",
@@ -86,7 +94,15 @@
     "parking": "가능",
     "pet": null,
     "stroller": true,
-    "images": []
+    "images": [],
+    "crowd": {
+     "avg": 40.0,
+     "peak": "",
+     "we": 41.0,
+     "wd": 40.0,
+     "src": "y",
+     "lv": "low"
+    }
    },
    {
     "id": "127586",

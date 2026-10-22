@@ -138,6 +138,22 @@ test('여행 추천: 분위기 타일·코스·회원 추천이 그려지고 타
   expect(errors).toEqual([]);
 });
 
+test('붐빔 정보: 장소끼리 등급이 아니라 그 장소의 평일·주말 비교로 보인다', async ({ page }) => {
+  const errors = await boot(page);
+  await page.evaluate(() => switchTab('go'));
+  await page.waitForFunction(() => NEWS_STATE === 'ok');
+  await page.evaluate(() => goPick('강원'));
+  await page.waitForTimeout(400);
+  const chips = await page.locator('#go .sig').allInnerTexts();
+  expect(chips).toContain('주말에 붐벼요'); expect(chips).toContain('요일 차이 적어요');
+  expect(chips.join(' ')).not.toContain('붐빔 예상');
+  await page.evaluate(() => openSpot('강원', NEWS.spots['강원'][0].id));
+  await page.waitForTimeout(400);
+  const t = await page.locator('#ovc').innerText();
+  expect(t).toContain('주말이 평일보다 약 40% 더 붐벼요'); expect(t).toContain('11/7(토)'); expect(t).toContain('다른 장소와 붐빔 정도를 비교하는 숫자는 아니에요');
+  expect(errors).toEqual([]);
+});
+
 test('회원 추천 올리기: 연락처는 거부, 정상 글은 검수 대기로 올라간다', async ({ page }) => {
   await boot(page, { trips: [TRIP('t0', '지난 여행', '2026-08-20', '2026-08-21', [ITEM('a', 'plan', '11:00', '속초 해변', '속초해수욕장')])] });
   await page.evaluate(() => openRecCompose('t0', 'a'));
