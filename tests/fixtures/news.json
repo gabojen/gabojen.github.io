@@ -186,6 +186,30 @@
     "rights": "",
     "lat": 38.2,
     "lng": 128.59
+   },
+   {
+    "id": "low1",
+    "title": "속초시청소년수련관",
+    "addr": "강원특별자치도 속초시",
+    "contentTypeId": "28",
+    "img": "https://example.com/l.jpg",
+    "thumb": "https://example.com/l.jpg",
+    "rights": "",
+    "lat": 38.2,
+    "lng": 128.5,
+    "intro": "수련 시설",
+    "hours": "09:00~18:00"
+   },
+   {
+    "id": "thin1",
+    "title": "자료 없는 전망대",
+    "addr": "강원특별자치도 고성군",
+    "contentTypeId": "12",
+    "img": "https://example.com/t.jpg",
+    "thumb": "https://example.com/t.jpg",
+    "rights": "",
+    "lat": 38.3,
+    "lng": 128.4
    }
   ],
   "부산": [

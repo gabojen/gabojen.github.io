@@ -155,7 +155,9 @@
     const editorial = news?.kind === 'editorial';
     // 물건 파는 곳(38 쇼핑)·숙박(32)·여행코스(25)는 '가볼 곳' 추천에 넣지 않는다.
     // 예전 파일에 섞여 있어도 화면에는 나오지 않도록 여기서 거른다. (2026-09-16)
-    const excluded = p => ['38','32','25'].includes(String(p.contentTypeId || ''));
+    // 2026-10-26 레드팀: 수련관·홍보관·캠핑장·비석 같은 곳이 첫 화면에 섞여 신뢰를 깎음 → 대표 명소가 아니면 거른다 (맛집은 제외)
+    const LOW_VALUE = /수련관|수련원|문화원|홍보관|캠핑장|야영장|오토캠핑|글램핑|펜션|석불|비석|공비|신도비|사당|재실|교통공원|시민회관|구민회관|체육관|체육공원|경기장|축구공원|사격|도서관|컨벤션|청소년|복지관|주민센터|연수원|학교|대학교|공단|농협|사무소|센터$|회관$/;
+    const excluded = p => ['38','32','25'].includes(String(p.contentTypeId || '')) || (!p.landmark && String(p.contentTypeId) !== '39' && LOW_VALUE.test(String(p.title || '')));
     const source = (editorial ? (news.places || []).filter(p=>p.region===region) : (news?.spots?.[region] || [])).filter(p=>!excluded(p));
     const unique = rows => { const seen = new Set(); return rows.filter(x=>x && x.id != null && !seen.has(String(x.id)) && seen.add(String(x.id))); };
     const groups = new Map();
@@ -164,6 +166,9 @@
     // This is a display rule, not a popularity rating or a claim of suitability.
     const sightseeing = p => /공장|반려견|체육단지/.test(p.title)?-1:/공원|정원|식물원|수목원|숲|해수욕장|해변|오름|둘레길|호수/.test(p.title)?1:0;
     if (groups.has('관광·자연')) groups.get('관광·자연').sort((a,b)=>sightseeing(b)-sightseeing(a));
+    // 소개·이용시간·사진이 있는 곳(자료가 갖춰진 곳)을 같은 종류 안에서 앞에 둔다 — 반쪽 자료가 첫 화면에 오지 않게 (2026-10-26)
+    const richness = p => (p.intro?1:0)+(p.hours?1:0)+((p.images||[]).length?1:0)+(p.crowd?1:0);
+    for (const a of groups.values()) a.sort((x,y)=>richness(y)-richness(x));
     // 대표 명소(landmark, 2026-10-18 — 불국사·석굴암처럼 누구나 아는 곳)는 종류 섞기 전에 맨 앞에 모두 둔다.
     const marks = [...groups.values()].flat().filter(p=>p.landmark);
     const places = marks.slice();

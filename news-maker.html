@@ -276,6 +276,8 @@ $('run').addEventListener('click',async()=>{
        지역마다 관광지 12 · 문화시설 8 · 레포츠 8 · 맛집/카페 20 (최대 48곳). 목록 호출은 40건을 받아도 1건이라 비용이 같고,
        비용은 장소마다 소개·이용시간 2건입니다. 지난 파일에 있던 장소는 유지(상세 재사용)하고 빈자리만 새로 채우며,
        정원의 30%는 매달 새 장소에 비워 둡니다. 처음 한두 달만 호출이 많고(예산에 걸리면 다음 날/다음 달에 이어서), 그 뒤엔 적습니다. */
+    /* '가볼 곳' 추천에 맞지 않는 이름 (레드팀 2026-10-26: 서귀포시청소년수련관·구포 어린이교통공원·망제동석불입상 등이 첫 화면에 섞임) */
+    const LOW_VALUE=/수련관|수련원|문화원|홍보관|캠핑장|야영장|오토캠핑|글램핑|펜션|석불|비석|공비|신도비|사당|재실|교통공원|시민회관|구민회관|체육관|체육공원|경기장|축구공원|사격|도서관|컨벤션|청소년|복지관|주민센터|연수원|학교|대학교|공단|농협|사무소|센터$|회관$/;
     const KINDS=[['12','관광지',12],['14','문화시설',8],['28','레포츠',8],['39','맛집·카페',20]];
     const spots={}, courses={};
     REGIONS.forEach(([,name])=>{ spots[name]=[]; courses[name]=[]; });
@@ -292,12 +294,12 @@ $('run').addEventListener('click',async()=>{
         try{
           const rows=await call(key,'areaBasedList2',{numOfRows:many?'80':'40',pageNo:'1',arrange:'Q',
             contentTypeId:type,lDongRegnCd:code});
-          const fresh=rows.filter(x=>x.firstimage&&x.title), freshIds=new Set(fresh.map(x=>String(x.contentid)));
+          const fresh=rows.filter(x=>x.firstimage&&x.title&&(type==='39'||!LOW_VALUE.test(x.title))), freshIds=new Set(fresh.map(x=>String(x.contentid)));   /* 2026-10-26: 수련관·홍보관·캠핑장·비석 같은 곳은 애초에 담지 않음 */
           const cnt={}; const room=r=>spots[r]&&(cnt[r]||0)<cap;
           const add=(r,obj,isPrev)=>{ if(!room(r)||spots[r].some(x=>x.id===obj.id))return; cnt[r]=(cnt[r]||0)+1; spots[r].push(obj); if(isPrev)keptPrev++; else addedNew++; };
           /* 1) 지난 파일의 같은 지역·종류 장소를 먼저 (상세가 이미 있어 호출이 들지 않음) — 이번 목록에도 있는 곳 우선, 정원의 70%까지 */
           for(const r of area.regions){
-            const olds=(prev.byRegion[r]||[]).filter(s=>String(s.contentTypeId)===type&&s.img&&!s.landmark)
+            const olds=(prev.byRegion[r]||[]).filter(s=>String(s.contentTypeId)===type&&s.img&&!s.landmark&&(type==='39'||!LOW_VALUE.test(String(s.title||''))))   /* 지난 파일에 남아 있던 수련관·홍보관 류도 이번에 떨어뜨림 */
               .sort((a,b)=>(freshIds.has(String(b.id))?1:0)-(freshIds.has(String(a.id))?1:0));
             olds.slice(0,Math.floor(cap*0.7)).forEach(s=>add(r,fromPrev(s,type),true));
           }
@@ -320,15 +322,24 @@ $('run').addEventListener('click',async()=>{
        위 목록(arrange=Q)은 '최근에 정보가 고쳐진 순'이라 인기와 무관합니다. 그래서 경북인데 불국사·석굴암이
        하나도 없고 작은 향교·문화원만 나오는 일이 생겼습니다(관광공사 API 에는 인기순 정렬이 없음).
        지역마다 누구나 아는 곳을 이름으로 찾아(searchKeyword2) 맨 앞에 둡니다. 한 번 찾은 곳은 다음 달에 재사용. */
-    const LANDMARKS={서울:['경복궁','북촌한옥마을','남산서울타워','창덕궁'],부산:['해운대해수욕장','감천문화마을','태종대','광안리해수욕장'],
-      대구:['김광석다시그리기길','동화사','앞산공원'],인천:['월미도','인천 차이나타운','송도센트럴파크'],
-      광주:['국립아시아문화전당','무등산','양림동'],대전:['한빛탑','장태산자연휴양림','계족산 황톳길'],
-      울산:['대왕암공원','태화강 국가정원','간절곶'],세종:['세종호수공원','국립세종수목원'],
-      경기:['수원 화성','광명동굴','두물머리','남한산성'],강원:['설악산','남이섬','경포해변','정동진'],
-      충북:['도담삼봉','법주사','청남대'],충남:['공산성','독립기념관','외암마을','부소산성'],
-      전북:['전주 한옥마을','내장산','선유도','마이산'],전남:['순천만습지','오동도','죽녹원','보성 녹차밭'],
-      경북:['불국사','석굴암','첨성대','동궁과 월지','하회마을'],경남:['동피랑','진주성','해인사','남해 독일마을'],
-      제주:['성산일출봉','한라산','우도','섭지코지']};
+    const LANDMARKS={
+      서울:['경복궁','북촌한옥마을','남산서울타워','창덕궁','덕수궁','광화문광장','청계천','인사동','명동','롯데월드타워','동대문디자인플라자','서울숲','국립중앙박물관','익선동','여의도 한강공원','경의선숲길'],
+      부산:['해운대해수욕장','감천문화마을','태종대','광안리해수욕장','자갈치시장','국제시장','해동용궁사','송정해수욕장','흰여울문화마을','용두산공원','송도해상케이블카','해운대 블루라인파크','오륙도 스카이워크','다대포해수욕장','전포카페거리','부산 국립해양박물관'],
+      대구:['김광석다시그리기길','동화사','앞산공원','서문시장','팔공산','수성못','이월드','대구 근대골목','83타워','청라언덕','대구 수목원'],
+      인천:['월미도','인천 차이나타운','송도센트럴파크','을왕리해수욕장','전등사','소래포구','인천 개항장','강화 마니산','인천대공원','자유공원','석모도'],
+      광주:['국립아시아문화전당','무등산','양림동','1913송정역시장','펭귄마을','광주호 호수생태원','지산유원지','5·18기념공원','광주 사직공원'],
+      대전:['한빛탑','장태산자연휴양림','계족산 황톳길','대청호','오월드','한밭수목원','국립중앙과학관','뿌리공원','대전 엑스포과학공원'],
+      울산:['대왕암공원','태화강 국가정원','간절곶','울산대교 전망대','장생포 고래문화마을','주전몽돌해변','울산대공원','영남알프스','진하해수욕장'],
+      세종:['세종호수공원','국립세종수목원','베어트리파크','금강보행교','비암사','영평사','세종 중앙공원'],
+      경기:['수원 화성','광명동굴','두물머리','남한산성','에버랜드','한국민속촌','쁘띠프랑스','아침고요수목원','헤이리','임진각','세미원','포천 아트밸리','화담숲','안성팜랜드','용인 농촌테마파크','파주 출판도시'],
+      강원:['설악산','남이섬','경포해변','정동진','오죽헌','안목해변','주문진','속초해수욕장','속초관광수산시장','영금정','낙산사','하조대','강릉 중앙시장','선교장','대관령 양떼목장','소양강 스카이워크','삼양목장','서피비치','삼척 해상케이블카','추암 촛대바위'],
+      충북:['도담삼봉','법주사','청남대','만천하스카이워크','청풍호반 케이블카','수옥폭포','속리산','충주호','의림지','고수동굴','사인암'],
+      충남:['공산성','독립기념관','외암마을','부소산성','꽃지해수욕장','대천해수욕장','해미읍성','예당호 출렁다리','간월암','궁남지','수덕사','신두리 해안사구','정림사지','안면도'],
+      전북:['전주 한옥마을','내장산','선유도','마이산','경기전','전동성당','남부시장','오목대','자만벽화마을','전주향교','덕진공원','경암동 철길마을','선운사','덕유산','채석강','미륵사지'],
+      전남:['순천만습지','오동도','죽녹원','보성 녹차밭','순천만국가정원','향일암','여수 해상케이블카','낙안읍성','돌산공원','이순신광장','목포 해상케이블카','메타세쿼이아길','청산도','땅끝마을','화엄사','다산초당'],
+      경북:['불국사','석굴암','첨성대','동궁과 월지','하회마을','대릉원','황리단길','월정교','국립경주박물관','경주월드','양동마을','호미곶','부석사','문경새재','울릉도','월영교','스페이스워크','주왕산'],
+      경남:['동피랑','진주성','해인사','남해 독일마을','통영 케이블카','바람의 언덕','외도 보타니아','통영 중앙시장','가야테마파크','영남루','사천 케이블카','쌍계사','수승대','우포늪','통도사','거제 포로수용소'],
+      제주:['성산일출봉','한라산','우도','섭지코지','협재해수욕장','천지연폭포','주상절리','만장굴','카멜리아힐','에코랜드','아쿠아플라넷','비자림','오설록','함덕해수욕장','용머리해안','동문시장','이중섭거리','중문색달해수욕장','사려니숲길','새별오름']};
     const norm=t=>String(t||'').replace(/[\s()（）\[\]·.]/g,'').toLowerCase();
     /* 2026-10-22: '창덕궁' → '창덕궁 다래나무', '감천문화마을' → '…어린왕자 전시관'처럼 앞부분만 같은 다른 곳이 뽑혔음.
        괄호 속 설명([유네스코…], (대구))은 떼고 비교하고, 완전히 같지 않으면 덧붙은 글자가 3자 이하일 때만 인정합니다. */
@@ -363,6 +374,24 @@ $('run').addEventListener('click',async()=>{
 
     const all=Object.values(spots).flat(), allCourses=Object.values(courses).flat();
 
+    /* ⑤ 추천 코스 상세 — 코스 안의 장소 목록(detailInfo2) + 소개(detailCommon2) + 거리·소요시간(detailIntro2) */
+    let cmiss=0, creused=0;   /* 2026-10-26: 소개·이용시간보다 먼저 받습니다 — 예산에 밀려 코스가 통째로 빠지던 회귀 방지 */
+    const needCourse=allCourses.filter(c=>{ const p=prev.courses[c.id];
+      if(p&&Array.isArray(p.spots)&&p.spots.length){ c.spots=p.spots; c.intro=p.intro||''; c.distance=p.distance||''; c.taketime=p.taketime||''; creused++; return false; }
+      return true; });
+    log(`🧭 추천 코스: ${creused}개 재사용 · ${needCourse.length}개 새로 받음 (코스당 3건)`);
+    await pool(needCourse,async c=>{
+      if(left()<3){ cmiss++; c.spots=[]; return; }
+      try{
+        const rows=await call(key,'detailInfo2',{contentId:c.id,contentTypeId:'25',numOfRows:'20',pageNo:'1'});
+        c.spots=rows.filter(r=>r.subname).map(r=>({name:clean(r.subname,80),intro:intro(r.subdetailoverview,120)})).slice(0,12);
+        const [cm]=await call(key,'detailCommon2',{contentId:c.id,numOfRows:'1',pageNo:'1'}); c.intro=intro(cm&&cm.overview,200);
+        const [ci]=await call(key,'detailIntro2',{contentId:c.id,contentTypeId:'25',numOfRows:'1',pageNo:'1'}); c.distance=clean(ci&&ci.distance,40); c.taketime=clean(ci&&ci.taketime,40);
+      }catch(e){ cmiss++; c.spots=c.spots||[]; }
+    },'코스');
+    Object.keys(courses).forEach(r=>{ courses[r]=courses[r].filter(c=>c.spots&&c.spots.length); });
+    log(`✅ 추천 코스 ${Object.values(courses).flat().length}개${cmiss?` · ${cmiss}개는 다음 달에 이어서`:''}`,'ok');
+
     /* ③·④ 장소마다 한 줄 소개(detailCommon2) + 이용시간·쉬는 날·주차·문의·반려동물·유모차·대표메뉴(detailIntro2).
        지난 파일에 있으면 재사용. 2026-10-19: 두 단계를 장소 단위로 묶고 우선순위(대표 명소 → 맛집·카페 → 관광지 → 문화시설 → 레포츠)대로 받아,
        예산이 모자라도 '소개만 있고 이용시간 없는' 반쪽 장소 대신 완성된 장소가 앞에서부터 쌓입니다. 못 받은 곳은 소개 없이 실리고 다음에 채웁니다. */
@@ -392,24 +421,6 @@ $('run').addEventListener('click',async()=>{
           sp.pet=yn(pet); sp.petText=clean(pet,40); sp.stroller=yn(baby); sp.strollerText=clean(baby,40); newly++; }catch(e){ dmiss++; } }
     },'소개·이용시간');
     log(`✅ 소개 ${all.length-miss}곳${miss?` · ${miss}곳은 공식 소개가 없거나 못 받음`:''} / 이용시간·주차 ${all.length-dmiss}곳${dmiss?` · ${dmiss}곳은 다음에 이어서 (내일 한 번 더 돌리면 채워집니다)`:''}`,'ok');
-
-    /* ⑤ 추천 코스 상세 — 코스 안의 장소 목록(detailInfo2) + 소개(detailCommon2) + 거리·소요시간(detailIntro2) */
-    reused=0; let cmiss=0;
-    const needCourse=allCourses.filter(c=>{ const p=prev.courses[c.id];
-      if(p&&Array.isArray(p.spots)&&p.spots.length){ c.spots=p.spots; c.intro=p.intro||''; c.distance=p.distance||''; c.taketime=p.taketime||''; reused++; return false; }
-      return true; });
-    log(`🧭 추천 코스: ${reused}개 재사용 · ${needCourse.length}개 새로 받음 (코스당 3건)`);
-    await pool(needCourse,async c=>{
-      if(left()<3){ cmiss++; c.spots=[]; return; }
-      try{
-        const rows=await call(key,'detailInfo2',{contentId:c.id,contentTypeId:'25',numOfRows:'20',pageNo:'1'});
-        c.spots=rows.filter(r=>r.subname).map(r=>({name:clean(r.subname,80),intro:intro(r.subdetailoverview,120)})).slice(0,12);
-        const [cm]=await call(key,'detailCommon2',{contentId:c.id,numOfRows:'1',pageNo:'1'}); c.intro=intro(cm&&cm.overview,200);
-        const [ci]=await call(key,'detailIntro2',{contentId:c.id,contentTypeId:'25',numOfRows:'1',pageNo:'1'}); c.distance=clean(ci&&ci.distance,40); c.taketime=clean(ci&&ci.taketime,40);
-      }catch(e){ cmiss++; c.spots=c.spots||[]; }
-    },'코스');
-    Object.keys(courses).forEach(r=>{ courses[r]=courses[r].filter(c=>c.spots&&c.spots.length); });
-    log(`✅ 추천 코스 ${Object.values(courses).flat().length}개${cmiss?` · ${cmiss}개는 다음 달에 이어서`:''}`,'ok');
 
     /* ⑥ 관광지(12) 사진 여러 장 — 예산이 남을 때만, 없으면 다음 달에 */
     reused=0; let imiss=0;

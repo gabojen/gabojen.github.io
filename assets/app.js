@@ -3908,7 +3908,7 @@ async function saveCreateTrip(){
   const start=$('cStart').value,end=$('cEnd').value;
   if(!placeIn&&!$('cTitle').value.trim()){toast('어디로 가는지 적어 주세요.');$('cPlace').focus();return;}
   if(!start||!end){toast('달력에서 출발일과 도착일을 골라 주세요.');return;}
-  const title=$('cTitle').value.trim()||autoTripTitle(placeIn,start,end);
+  const title=$('cTitle').value.trim()||autoTripTitle(placeIn||'여행지',start,end);
   try{TravelCore.dateRange(start,end);}catch(e){toast(e.message);return;}
   const button=$('cBtn'),createUid=ME.uid;
   button.disabled=true;
@@ -4054,6 +4054,8 @@ async function applyEditTrip(v){
   const before=JSON.stringify({a:t.title,b:t.place,c:t.groupType,d:t.hasStudent,e:t.start,f:t.end,g:t.days});
   const dates=daysBetween(v.start,v.end);
   const old=Object.fromEntries((t.days||[]).map(d=>[d.date,d]));
+  /* 제목이 자동 제목('제주 11/20~22') 그대로였으면 바뀐 여행지·날짜로 다시 짓는다 (레드팀 2026-10-26: 날짜를 바꿔도 제목의 날짜가 틀린 채 남음) */
+  if(typeof autoTripTitle==='function'&&v.title===autoTripTitle(t.place,t.start,t.end))v.title=autoTripTitle(v.place||t.place,v.start,v.end);
   t.title=v.title; t.place=v.place||'여행지'; t.groupType=v.group; t.hasStudent=v.student;
   t.start=v.start; t.end=v.end;
   t.days=dates.map(d=>old[d]||{date:d,items:[]});
@@ -6498,7 +6500,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.4.0 (2026-10-26)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.4.1 (2026-10-26)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

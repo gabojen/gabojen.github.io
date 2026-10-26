@@ -122,6 +122,18 @@ test('discoveryFor: 쇼핑(38)·숙박(32)·코스(25) 제외, 코스 목록 반
   if (d.courses.length !== 1) throw new Error('코스 누락');
   if (d.festivals.length !== news.festivals.filter(f => f.region === '강원').length) throw new Error('축제 수 다름');
 });
+test('discoveryFor: 수련관·홍보관 같은 곳은 대표 명소가 아니면 거르고, 자료가 갖춰진 곳을 앞에 둔다 (레드팀 2026-10-26)', () => {
+  const n = C.normalizeNews(news);
+  const d = C.discoveryFor(n, '강원', '20261019');
+  if (d.places.some(p => /수련관/.test(p.title))) throw new Error('청소년수련관이 걸러지지 않음');
+  const first12 = d.places.filter(p => String(p.contentTypeId) === '12');
+  const thinIdx = first12.findIndex(p => p.id === 'thin1');
+  if (thinIdx !== first12.length - 1) throw new Error('자료 없는 장소가 맨 뒤가 아님: ' + thinIdx + '/' + first12.length);
+  const food = d.places.filter(p => String(p.contentTypeId) === '39');
+  if (!food.length) throw new Error('맛집이 사라짐');
+  const withMark = C.discoveryFor(C.normalizeNews({ ...news, spots: { 강원: [{ id: 'm1', title: '설악산청소년수련원 전망대', contentTypeId: '12', img: 'covers/sea1.webp', landmark: '설악산' }] } }), '강원', '20261019');
+  if (!withMark.places.length) throw new Error('대표 명소는 이름에 수련원이 있어도 남아야 함');
+});
 test('safeImage/safeURL: 위험한 값 거부', () => {
   eq(C.safeImage('javascript:alert(1)'), '');
   eq(C.safeURL('ftp://x'), '');

@@ -239,6 +239,34 @@ test('일정 추가: 선택 화면 없이 바로 입력 칸이 열리고, 예약
   expect(await page.evaluate(() => trip('t1').days[0].items.map(i => i.title))).toContain('흑돼지 저녁');
 });
 
+test('여행 중 홈: 머리글이 "오늘은 어디로 갈까요?"가 되고, 오늘 일정이 다 지나면 내일 첫 일정을 보여 준다 (레드팀)', async ({ page }) => {
+  const ymd = d => d.toISOString().slice(0, 10);
+  const today = new Date(); const y = new Date(today); y.setDate(today.getDate() - 1); const tm = new Date(today); tm.setDate(today.getDate() + 1);
+  const trips = [TRIP('t1', '제주 여행', ymd(y), ymd(tm), [ITEM('a', 'plan', '00:30', '어제 일정')])];
+  trips[0].days = [{ date: ymd(y), items: [ITEM('a', 'plan', '09:00', '어제 일정')] }, { date: ymd(today), items: [ITEM('b', 'plan', '00:01', '오늘 새벽 일정')] }, { date: ymd(tm), items: [] }];
+  await boot(page, { trips });
+  await page.evaluate(() => switchTab('today')); await page.waitForTimeout(400);
+  const t = await page.locator('#today').innerText();
+  expect(t).toContain('오늘은 어디로 갈까요?'); expect(t).toContain('여행 2일째');
+  expect(t).not.toContain('아직 비어 있는 여행');
+  expect(t).toContain('오늘 일정은 모두 마쳤어요'); expect(t).toContain('내일 일정은 아직 비어 있어요');
+  /* 내일에 일정이 있으면 그 일정이 '다가오는 일정'으로 바로 보인다 */
+  await page.evaluate(tmd => { TRIPS[0].days[2].items.push({ _id: 'c', cat: 'plan', time: '10:00', title: '내일 성산일출봉', place: '성산', sub: '', by: '연', createdBy: 'u1', comments: [] }); renderToday(); }, ymd(tm));
+  await page.waitForTimeout(200);
+  expect(await page.locator('#today').innerText()).toContain('내일 성산일출봉');
+});
+
+test('여행 정보 고치기: 자동 제목이면 날짜를 바꿀 때 제목도 따라 바뀌고, 직접 지은 제목은 그대로다', async ({ page }) => {
+  await boot(page, { trips: [TRIP('t1', '제주 11/20~21', '2026-11-20', '2026-11-21', []), TRIP('t2', '우리 가을 여행', '2026-11-20', '2026-11-21', [])] });
+  await page.evaluate(() => { TRIPS[0].place = '제주'; TRIPS[1].place = '제주'; });
+  const r = await page.evaluate(async () => {
+    curTrip = 't1'; await applyEditTrip({ title: '제주 11/20~21', place: '제주', group: '가족', student: false, start: '2026-11-21', end: '2026-11-23' });
+    curTrip = 't2'; await applyEditTrip({ title: '우리 가을 여행', place: '제주', group: '가족', student: false, start: '2026-11-21', end: '2026-11-23' });
+    return [trip('t1').title, trip('t2').title];
+  });
+  expect(r[0]).toBe('제주 11/21~23'); expect(r[1]).toBe('우리 가을 여행');
+});
+
 test('화면 가로 넘침 없음 (홈·내 여행·일정·추억)', async ({ page }) => {
   await boot(page, { trips: [TRIP('t1', '가을 여행', '2026-11-10', '2026-11-11', [ITEM('a', 'plan', '10:00', '속초 해변')]), TRIP('t0', '지난 여행', '2026-08-20', '2026-08-21', [ITEM('b', 'plan', '11:00', '설악산')])] });
   for (const tab of ['today', 'trips', 'history']) {
