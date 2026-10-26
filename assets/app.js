@@ -199,7 +199,90 @@ function sceneField(p,h){
     +`<circle cx="11" cy="-26" r="11" fill="${p.mid}" opacity=".6"/></g>`
     +cvBirds(248,52);
 }
-const SCENE_FN={sea:sceneSea,mount:sceneMount,city:sceneCity,snow:sceneSnow,forest:sceneForest,field:sceneField};
+/* ── 납작한 화풍의 표지 풍경 (2026-10-26) ──
+   첫 여행·대표 명소·동행 초대 일러스트와 같은 화풍으로 표지를 통일합니다: 단색 덩어리, 테두리 없는 언덕,
+   흰 구름 덩어리, 해는 원 하나, 그리고 여행가보젠의 서명인 '주황 점선 길 + 핀'이 모든 표지에 들어갑니다.
+   계절 색(COVER_PAL)과 여행별 변주(h)는 그대로 씁니다. 되돌리려면 FLAT_COVERS=false. */
+const FLAT_COVERS=true;
+const BRAND_ROUTE='#D9552F';
+function fCloud(x,y,s,o){return `<g transform="translate(${x} ${y}) scale(${s})" opacity="${o||.92}"><path d="M0 0h30a8 8 0 0 0-2-16a11 11 0 0 0-21 3a7 7 0 0 0-7 13z" fill="#fff"/></g>`;}
+function fClouds(h){return fCloud(40+(h%5)*12,52+((h>>>2)%3)*8,1.3,.9)+fCloud(150+((h>>>4)%6)*10,30+((h>>>6)%3)*6,.9,.8)+fCloud(290+((h>>>8)%4)*9,70+((h>>>5)%3)*7,1.1,.85);}
+function fSun(p,x,y,r){return `<circle cx="${x}" cy="${y}" r="${r+6}" fill="${p.sun}" opacity=".28"/><circle cx="${x}" cy="${y}" r="${r}" fill="${p.sun}"/><circle cx="${x-r*.3}" cy="${y-r*.3}" r="${(r*.28).toFixed(1)}" fill="#fff" opacity=".5"/>`;}
+function fBirds(x,y){return `<g fill="none" stroke="#2F3D46" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"><path d="M${x} ${y}q5-5 10 0M${x+16} ${y-7}q4-4 8 0M${x+30} ${y+4}q4-4 8 0"/></g>`;}
+function fPin(x,y,s){const k=s||1;return `<g transform="translate(${x} ${y}) scale(${k})"><path d="M0-30c-10 0-16 7-16 16c0 12 16 26 16 26s16-14 16-26c0-9-6-16-16-16z" fill="${BRAND_ROUTE}" stroke="#fff" stroke-width="2.5"/><circle cy="-14" r="5.5" fill="#fff"/></g>`;}
+function fRoute(d){return `<path d="${d}" fill="none" stroke="${BRAND_ROUTE}" stroke-width="3" stroke-dasharray="7 7" stroke-linecap="round" opacity=".95"/>`;}
+function fSkyFlat(p){return `<rect width="400" height="260" fill="${p.sky[0]}"/><rect y="118" width="400" height="142" fill="${p.sky[1]}"/><rect y="146" width="400" height="114" fill="${p.sky[2]}" opacity=".7"/>`;}
+function sceneSeaF(p,h){
+  const sx=300+(h%3)*14, bx=120+((h>>>3)%5)*30;
+  return fSkyFlat(p)+fClouds(h)+fSun(p,sx,70+((h>>>5)%3)*10,22)
+    +`<path d="M-6 ${HZ}q50-34 96-6q22-12 44 6z" fill="${p.far}"/><path d="M236 ${HZ}q40-40 80-12q22-14 50 12z" fill="${p.mid}"/>`
+    +`<rect y="${HZ}" width="400" height="${260-HZ}" fill="${p.water[1]}"/><rect y="${HZ}" width="400" height="22" fill="${p.water[0]}"/>`
+    +`<g fill="#fff" opacity=".55"><rect x="${sx-22}" y="${HZ+30}" width="44" height="4" rx="2"/><rect x="${sx-14}" y="${HZ+44}" width="28" height="4" rx="2"/><rect x="${sx-8}" y="${HZ+58}" width="16" height="4" rx="2"/></g>`
+    +`<g fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2.4" stroke-linecap="round"><path d="M40 ${HZ+48}q10-6 20 0M250 ${HZ+70}q10-6 20 0M120 ${HZ+86}q10-6 20 0"/></g>`
+    /* 돛단배 */
+    +`<g transform="translate(${bx} ${HZ+36})"><path d="M-18 0h40l-6 10h-28z" fill="${BRAND_ROUTE}"/><path d="M2-34v32h22z" fill="#fff"/><path d="M-2-34v32h-14z" fill="#fff" opacity=".8"/><rect x="0" y="-36" width="3" height="36" fill="#2F3D46"/></g>`
+    +fRoute(`M30 236C110 212 170 216 ${bx} ${HZ+48}`)+fBirds(190,52)+fPin(282,HZ-8,.8);
+}
+function sceneMountF(p,h){
+  const sx=72+(h%3)*20;
+  return fSkyFlat(p)+fClouds(h)+fSun(p,sx,66+((h>>>5)%3)*8,22)
+    +`<path d="M-10 230L70 120L130 180L190 90L260 170L320 110L410 220V260H-10Z" fill="${p.far}"/>`
+    +`<path d="M-10 260L80 150L150 210L230 118L300 200L410 150V260Z" fill="${p.mid}"/>`
+    +`<path d="M230 118L214 142q8 6 16 0q8 8 16 0L246 142Z" fill="${p.snowc}"/>`
+    +`<path d="M-10 260L60 212L130 240L200 200L280 236L360 206L410 232V260Z" fill="${p.near}"/>`
+    /* 산장 */
+    +`<g transform="translate(${300+((h>>>3)%3)*14} 222)"><rect x="-13" y="-10" width="26" height="16" rx="2" fill="#fff"/><path d="M-17-9L0-24L17-9Z" fill="${BRAND_ROUTE}"/><rect x="-3" y="-3" width="6" height="9" fill="#2F3D46"/></g>`
+    +fRoute(`M20 246C90 230 140 236 180 214S230 170 228 150`)+fBirds(300,70)+fPin(230,128,.75);
+}
+function sceneCityF(p,h){
+  const b=p.bldg, sx=330+(h%3)*12, W=[[0,150,46],[52,120,40],[98,170,56],[160,110,34],[200,196,58],[264,140,44],[314,176,50],[370,126,40]];
+  let s=fSkyFlat(p)+fClouds(h)+fSun(p,sx,64+((h>>>5)%3)*8,20);
+  W.forEach(([x,hh,w],i)=>{const y=260-hh; s+=`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${i%2?b[1]:b[0]}"/>`;
+    for(let r=0;r<Math.floor((hh-24)/18);r++)for(let c=0;c<Math.floor((w-10)/14);c++){ if(((h>>>((r*3+c+i)%28))&1)===0)continue; s+=`<rect x="${x+8+c*14}" y="${y+12+r*18}" width="6" height="8" rx="1" fill="${p.sun}" opacity=".85"/>`; }});
+  s+=`<rect x="226" y="40" width="4" height="26" fill="#2F3D46"/><circle cx="228" cy="38" r="4" fill="${BRAND_ROUTE}"/>`;
+  s+=`<rect y="240" width="400" height="20" fill="${p.near}"/>`+fRoute(`M14 250C90 250 150 246 200 240S260 226 262 200`)+fBirds(60,60)+fPin(262,190,.75);
+  return s;
+}
+function sceneSnowF(p,h){
+  const sx=306+(h%3)*14;
+  let s=fSkyFlat(p)+fClouds(h)+fSun(p,sx,70+((h>>>5)%3)*8,20)
+    +`<path d="M-10 190L80 110L150 160L230 96L310 158L410 120V260H-10Z" fill="${p.far}"/>`
+    +`<path d="M-10 260Q100 180 200 212T410 190V260Z" fill="${p.snowc}"/>`;
+  const tree=(x,y,k,c)=>`<g transform="translate(${x} ${y}) scale(${k})"><rect x="-3" y="0" width="6" height="14" fill="#6B4A31"/><path d="M0-62L-22-30H-10L-26 0H26L10-30H22Z" fill="${c}"/></g>`;
+  s+=tree(60,236,1,p.near)+tree(110,246,.8,p.mid)+tree(170,240,1.05,p.near)+tree(320,244,.9,p.mid)+tree(368,236,1.1,p.near);
+  s+=`<g fill="#fff" opacity=".9">`+[0,1,2,3,4,5,6,7].map(i=>`<circle cx="${(i*53+((h>>>i)%40))%400}" cy="${30+((h>>>(i+2))%150)}" r="${2+(i%2)}"/>`).join('')+`</g>`;
+  s+=`<g transform="translate(${236+((h>>>3)%3)*12} 232)"><path d="M-20 0L0-30L20 0Z" fill="${BRAND_ROUTE}"/><path d="M-6 0L0-10L6 0Z" fill="#2F3D46"/></g>`;
+  s+=fRoute(`M20 250C80 236 140 244 200 236S236 220 240 208`)+fPin(242,198,.7);
+  return s;
+}
+function sceneForestF(p,h){
+  const sx=66+(h%3)*20;
+  let s=fSkyFlat(p)+fClouds(h)+fSun(p,sx,62+((h>>>5)%3)*8,20);
+  const row=(y,k,c,off)=>{let t='';for(let x=-20+off;x<440;x+=54)t+=`<path d="M${x} ${y}L${x+27} ${y-70*k}L${x+54} ${y}Z" fill="${c}"/>`;return t;};
+  s+=row(200,1.1,p.far,(h%3)*10)+row(226,1.2,p.mid,20+((h>>>2)%3)*8)+row(260,1.25,p.near,((h>>>4)%3)*12);
+  s+=`<rect y="248" width="400" height="12" fill="${p.near}"/>`;
+  /* 텐트와 모닥불 */
+  s+=`<g transform="translate(${250+((h>>>3)%3)*14} 250)"><path d="M-30 0L0-40L30 0Z" fill="${BRAND_ROUTE}"/><path d="M-9 0L0-14L9 0Z" fill="#2F3D46"/></g>`
+    +`<g transform="translate(${190+((h>>>3)%3)*14} 250)"><path d="M-8 0q8-18 16 0z" fill="${p.sun}"/><rect x="-11" y="-2" width="22" height="3" rx="1.5" fill="#6B4A31"/></g>`;
+  s+=fRoute(`M18 252C70 240 120 246 160 236S210 216 214 200`)+fBirds(300,58)+fPin(216,190,.7);
+  return s;
+}
+function sceneFieldF(p,h){
+  const sx=300+(h%3)*14, tx=84+(h%4)*26;
+  return fSkyFlat(p)+fClouds(h)+fSun(p,sx,66+((h>>>5)%3)*8,22)
+    +`<path d="M-10 260Q110 150 220 176T410 136V260Z" fill="${p.far}"/>`
+    +`<path d="M-10 260Q120 190 230 206T410 184V260Z" fill="${p.mid}"/>`
+    +`<path d="M-10 260Q130 222 240 236T410 224V260Z" fill="${p.near}"/>`
+    /* 외딴 나무 — 일러스트 화풍의 둥근 수관 */
+    +`<g transform="translate(${tx} 200)"><rect x="-4" y="-6" width="8" height="34" rx="2.5" fill="#6B4A31"/><circle cy="-26" r="24" fill="${p.near}"/><circle cx="-16" cy="-12" r="14" fill="${p.near}"/><circle cx="16" cy="-13" r="15" fill="${p.near}"/><circle cx="-6" cy="-32" r="12" fill="${p.mid}" opacity=".75"/></g>`
+    /* 풍차 */
+    +`<g transform="translate(${300+((h>>>3)%3)*16} 214)"><path d="M-8 20L-4-30H4L8 20Z" fill="#fff"/><g stroke="#2F3D46" stroke-width="3" stroke-linecap="round"><path d="M0-30L0-56M0-30L24-16M0-30L-24-16"/></g><circle cy="-30" r="4" fill="${BRAND_ROUTE}"/></g>`
+    +fRoute(`M20 252C80 242 140 248 ${tx+30} 230S240 216 252 200`)+fBirds(200,64)+fPin(254,190,.7);
+}
+const SCENE_FN_FLAT={sea:sceneSeaF,mount:sceneMountF,city:sceneCityF,snow:sceneSnowF,forest:sceneForestF,field:sceneFieldF};
+
+const SCENE_FN_SOFT={sea:sceneSea,mount:sceneMount,city:sceneCity,snow:sceneSnow,forest:sceneForest,field:sceneField};
+const SCENE_FN=FLAT_COVERS?SCENE_FN_FLAT:SCENE_FN_SOFT;
 /* ── 표지 사진 ──────────────────────────────────────────────
    covers/ 폴더의 실제 사진(Unsplash License — 상업 사용·수정 허용, 출처 표기 불필요)을
    풍경(바다·산·도시·설경·숲·들판)마다 3장씩 두고, 여행마다 다른 장을 고릅니다.
@@ -207,6 +290,9 @@ const SCENE_FN={sea:sceneSea,mount:sceneMount,city:sceneCity,snow:sceneSnow,fore
       아래 코드로 그린 그림(SVG)이 자동으로 대신 보입니다 — CSS 배경을 두 겹으로 겹치기 때문. */
 const COVER_PHOTO_N=3;
 const COVER_PHOTO_DIR='covers/';
+/* 2026-10-26: 표지·홈 카드는 사진(Unsplash, 풍경 종류별 3장)을 그대로 쓰고, 사진을 못 불러올 때 보이는 뒷그림만
+   새 화풍(납작한 일러스트)으로 둡니다. 사용자 결정: "사진으로 되돌리되 뒷그림만 새 화풍". 그림만 쓰려면 false. */
+const USE_PHOTO_COVERS=true;
 function coverPhoto(scene,h){ return COVER_PHOTO_DIR+scene+((h>>>9)%COVER_PHOTO_N+1)+'.webp'; }
 const _coverCache=new Map();
 /* 여행 한 건의 표지 그림을 CSS background 값으로 돌려줍니다 */
@@ -262,7 +348,8 @@ function coverArt(t,opt){
   /* 작은따옴표로 감쌉니다 — style="…" 안에 들어가므로 큰따옴표를 쓰면 속성이 끊깁니다.
      위치는 CSS(.tcv / .cover / .hero .bg)에서 정합니다 — 납작한 띠는 지평선 부근만 잘라 씁니다. */
   /* 앞 겹 = 사진(여행에서 찍은 사진이 있으면 그것, 없으면 풍경 사진), 뒷 겹 = 코드로 그린 그림(못 불러올 때) */
-  const css=`url('${own||coverPhoto(scene,h)}'), url('data:image/svg+xml,${encodeURIComponent(svgStr)}')`;
+  const art=`url('data:image/svg+xml,${encodeURIComponent(svgStr)}')`;
+  const css=own?`url('${own}'), ${art}`:(USE_PHOTO_COVERS?`url('${coverPhoto(scene,h)}'), ${art}`:art);
   _coverCache.set(key,css);
   return css;
 }
@@ -277,7 +364,7 @@ function heroArt(t){
   const pool=(st==='now')?HERO_ROAD:HERO_SKY;
   const h=coverHash(`${t.id}|hero`);
   const pick=pool[h%pool.length];
-  return `url('hero/${pick}.webp'), `+coverArt(t,{scenic:true});
+  return (USE_PHOTO_COVERS?`url('hero/${pick}.webp'), `:'')+coverArt(t,{scenic:true});
 }
 /* 여행 데이터가 없는 화면(로그인·빈 홈)에서 쓸 대표 표지 — 늘 같은 바다 그림 */
 function brandCover(){return coverArt({id:'gabojen',title:'',place:'바다',start:'2026-07-15'});}
@@ -1602,6 +1689,43 @@ function openTripMenu(){const t=trip(curTrip);if(!t)return;
     ${t.owner===ME.uid?`<button class="btn ghost" style="color:#B23B3B" onclick="closeOv();askDeleteTrip()">${svg('i-trash','ic')} 이 여행 삭제</button>`:`<button class="btn ghost" onclick="leaveCurrentTrip()">${svg('i-out','ic')} 이 여행에서 나가기</button>`}`);}
 /* 신규 사용자가 가장 먼저 보는 화면 — '아직 아무것도 안 적은 기록장의 첫 장'으로 보이게 합니다.
    여행이 생기면 어떤 모습이 되는지 표지 미리보기로 함께 알려 줍니다. */
+/* ── 직접 그린 일러스트 (2026-10-26) — 외부 이미지 없이 브랜드 색으로만 그렸습니다. 다크 모드는 CSS 변수로 따라갑니다. */
+const ILLUS={
+  first:`<svg viewBox="0 0 320 140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="il">
+    <rect width="320" height="140" style="fill:var(--paper)"/>
+    <circle cx="262" cy="34" r="15" style="fill:#E2A856"/>
+    <path d="M70 42h26a7 7 0 0 0-2-14a10 10 0 0 0-19 3a6 6 0 0 0-5 11z" style="fill:var(--card)"/>
+    <path d="M198 30q4-4 8 0M209 24q4-4 8 0" style="fill:none;stroke:var(--ink-2);stroke-width:1.5;stroke-linecap:round"/>
+    <path d="M0 108C60 84 110 84 160 100S260 118 320 96V140H0Z" style="fill:var(--teal);opacity:.18"/>
+    <path d="M0 122C70 104 140 112 200 118S290 112 320 120V140H0Z" style="fill:var(--teal);opacity:.28"/>
+    <path d="M40 112C90 96 118 130 168 106S238 86 266 74" style="fill:none;stroke:var(--brand);stroke-width:3;stroke-dasharray:7 7;stroke-linecap:round"/>
+    <rect x="22" y="104" width="22" height="14" rx="2" style="fill:var(--card);stroke:var(--ink);stroke-width:2"/>
+    <path d="M18 105L33 91L48 105Z" style="fill:var(--brand)"/>
+    <rect x="30" y="110" width="6" height="8" style="fill:var(--ink)"/>
+    <rect x="126" y="98" width="32" height="24" rx="5" style="fill:var(--teal)"/>
+    <rect x="137" y="91" width="10" height="7" rx="2" style="fill:none;stroke:var(--teal);stroke-width:3"/>
+    <rect x="126" y="107" width="32" height="3" style="fill:var(--card);opacity:.7"/>
+    <path d="M268 48c-9 0-15 7-15 15c0 11 15 25 15 25s15-14 15-25c0-8-6-15-15-15z" style="fill:var(--brand)"/>
+    <circle cx="268" cy="63" r="5" style="fill:var(--card)"/></svg>`,
+  fill:`<svg viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="il">
+    <path d="M62 30L120 18L180 30L240 18V92L180 104L120 92L62 104Z" style="fill:var(--card);stroke:var(--ink);stroke-width:2;stroke-linejoin:round"/>
+    <path d="M120 18V92M180 30V104" style="fill:none;stroke:var(--line-2);stroke-width:2"/>
+    <path d="M72 76C100 56 138 86 168 64S214 44 230 56" style="fill:none;stroke:var(--teal);stroke-width:2.5;stroke-dasharray:5 6;stroke-linecap:round"/>
+    <g style="fill:var(--brand)"><path d="M100 36c-7 0-12 5-12 12c0 9 12 20 12 20s12-11 12-20c0-7-5-12-12-12z"/><path d="M150 50c-7 0-12 5-12 12c0 9 12 20 12 20s12-11 12-20c0-7-5-12-12-12z"/><path d="M206 28c-7 0-12 5-12 12c0 9 12 20 12 20s12-11 12-20c0-7-5-12-12-12z"/></g>
+    <g style="fill:var(--card)"><circle cx="100" cy="48" r="4"/><circle cx="150" cy="62" r="4"/><circle cx="206" cy="40" r="4"/></g>
+    <path d="M266 24l4 10l10 4l-10 4l-4 10l-4-10l-10-4l10-4z" style="fill:#E2A856"/>
+    <path d="M42 70l2 5l5 2l-5 2l-2 5l-2-5l-5-2l5-2z" style="fill:#E2A856"/></svg>`,
+  invite:`<svg viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="il">
+    <path d="M86 100a24 24 0 0 1 48 0z" style="fill:var(--teal)"/><circle cx="110" cy="56" r="13" style="fill:var(--brand-bg);stroke:var(--ink);stroke-width:2"/>
+    <path d="M186 100a24 24 0 0 1 48 0z" style="fill:var(--brand)"/><circle cx="210" cy="56" r="13" style="fill:var(--brand-bg);stroke:var(--ink);stroke-width:2"/>
+    <rect x="140" y="66" width="40" height="30" rx="4" style="fill:var(--card);stroke:var(--ink);stroke-width:2"/>
+    <path d="M160 72c-5 0-8 3-8 8c0 6 8 13 8 13s8-7 8-13c0-5-3-8-8-8z" style="fill:var(--brand)"/><circle cx="160" cy="80" r="3" style="fill:var(--card)"/>
+    <path d="M236 44L294 22L266 60L256 46Z" style="fill:var(--card);stroke:var(--ink);stroke-width:2;stroke-linejoin:round"/>
+    <path d="M256 46L294 22" style="fill:none;stroke:var(--ink);stroke-width:2"/>
+    <path d="M184 58C200 50 220 54 236 44" style="fill:none;stroke:var(--ink-2);stroke-width:1.5;stroke-dasharray:3 5;stroke-linecap:round"/>
+    <path d="M60 30l2 5l5 2l-5 2l-2 5l-2-5l-5-2l5-2z" style="fill:#E2A856"/></svg>`};
+function illus(name){return ILLUS[name]||'';}
+
 function renderEmptyHome(){
   /* 2026-09-19: 지난 여행이 있는 분에게 '첫 여행' 안내가 나오던 것 구분 — 다녀온 여행이 있으면 '다음 여행' 안내 */
   const done=doneTrips();
@@ -1625,16 +1749,16 @@ function renderEmptyHome(){
   }
   $('today').innerHTML=`<div class="empty">
       <div class="blankcard">
-        <div class="art" style="background-image:${brandCover()}"></div>
+        <div class="art illus-art">${illus('first')}</div>
         <span class="tape"></span>
         <div class="lbl">${svg('i-plus','ic')} 여기에 첫 여행이 들어갑니다</div>
       </div>
       <h2 style="margin:0 0 6px;font-size:20px">${esc(ME.name)}님, 환영합니다</h2>
-      <p class="muted small" style="margin:0 auto;max-width:280px">첫 여행을 만들면, 흩어진 예약과 일정을 한 곳에 모을 수 있어요.</p>
+      <p class="muted small" style="margin:0 auto;max-width:280px">어디로 언제 가는지만 고르면, 1분 안에 함께 보는 일정이 생겨요.</p>
       <div class="steps">
-        <div class="s"><div class="num">1</div><div><b>여행 만들기</b><div class="muted small">제목·기간만 입력하면 끝</div></div></div>
-        <div class="s"><div class="num">2</div><div><b>예약 붙여넣기</b><div class="muted small">문자·메일을 붙여넣으면 자동 정리</div></div></div>
-        <div class="s"><div class="num">3</div><div><b>멤버 초대해 함께 보기</b><div class="muted small">의견 남기고 투표로 결정</div></div></div>
+        <div class="s"><div class="num">1</div><div><b>여행지와 날짜 고르기</b><div class="muted small">딱 두 가지만</div></div></div>
+        <div class="s"><div class="num">2</div><div><b>대표 명소로 채우기</b><div class="muted small">관광공사 자료에서 골라 넣고, 예약 문자는 붙여넣기</div></div></div>
+        <div class="s"><div class="num">3</div><div><b>동행 초대</b><div class="muted small">링크 하나로 같은 일정을 함께 고쳐요</div></div></div>
       </div><div style="height:18px"></div>
       <button class="btn brand" onclick="openCreateTrip()">${svg('i-plus','ic')} 첫 여행 만들기</button>
       <div style="height:10px"></div>
@@ -3512,19 +3636,8 @@ async function addSuggestion(i){
   pushItem(t,gapCtx.di,obj);if(await save()){closeOv();toast('일정에 추가했어요');rerender();}
 }
 
-function openAddChoice(dayIdx){
-  openSheet(`<div class="grab"></div><h3>무엇을 추가할까요?</h3>
-    <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();openAddItem(${dayIdx})">
-      <div class="tile" style="width:38px;height:38px;background:${CAT_BG.plan};color:var(--brand-ink)">${svg('i-edit')}</div>
-      <div style="text-align:left"><b style="font-size:14.5px">직접 입력</b><div class="muted small">일정·장소·준비물 등을 직접 적기</div></div></button>
-    <div style="height:10px"></div>
-    <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();routeTo('paste')">
-      <div class="tile" style="width:38px;height:38px;background:${CAT_BG.transport};color:var(--c-transport)">${svg('i-clip')}</div>
-      <div style="text-align:left"><b style="font-size:14.5px">예약 문자 붙여넣기</b><div class="muted small">항공·기차·숙박·렌트카·입장권·식당 예약까지 자동 정리</div></div></button>
-    <div style="height:10px"></div>
-    <button class="btn ghost" style="text-align:left;justify-content:flex-start;gap:12px;padding:16px" onclick="closeOv();openPhotoAdd(${dayIdx})">
-      <div class="tile" style="width:38px;height:38px;background:${CAT_BG.ticket};color:var(--c-ticket)">${svg('i-camera')}</div>
-      <div style="text-align:left"><b style="font-size:14.5px">사진으로 추가 <span style="color:var(--brand-ink)">NEW</span></b><div class="muted small">예약 확인 화면을 올리면 자동 인식</div></div></button>`);}
+/* 2026-10-26: '무엇을 추가할까요?' 선택 화면을 없앴습니다 — 바로 입력 칸이 열리고, 예약 문자·사진은 그 안의 버튼으로 */
+function openAddChoice(dayIdx){openAddItem(dayIdx);}
 /* 지금 보고 있는 범위(하루 또는 전체)의 분류별 건수 */
 function catCounts(t,all,di){
   const c={}; const ds = all ? (t.days||[]) : [(t.days||[])[di]].filter(Boolean);
@@ -3585,18 +3698,24 @@ function openComments(id){const f=itemById(id);if(!f)return;const it=f.it;it.com
       <button class="btn brand" style="width:54px;flex-shrink:0" onclick="addComment('${id}')" aria-label="보내기">${svg('i-right','ic')}</button></div>`);}
 async function addComment(id){const f=itemById(id);if(!f)return;const v=$('cIn').value.trim();if(!v)return;
   f.it.comments=f.it.comments||[];f.it.comments.push({_id:uid(),who:ME.name,uid:ME.uid,text:v.slice(0,2000)});if(await save()){closeOv();toast('의견을 남겼어요');rerender();}}
+/* 그 날의 마지막 일정 두 시간 뒤를 기본 시간으로 (없으면 10:00) */
+function nextSlot(t,di){const its=((t.days||[])[di]||{}).items||[]; if(!its.length)return '10:00';
+  const last=its.map(i=>i.time||'').sort().pop(); const h=Math.min(22,(parseInt(last.slice(0,2),10)||9)+2); return String(h).padStart(2,'0')+':00';}
 function openAddItem(dayIdx){const t=trip(curTrip);if(!t||!t.days.length){toast('여행 날짜가 필요해요.');return;}
-  const catOpts=CAT_ORDER.map(k=>`<option value="${k}">${CAT[k].name}</option>`).join('');
+  dayIdx=Math.min(Math.max(0,dayIdx||0),t.days.length-1);
   const dayOpts=t.days.map((d,i)=>`<option value="${i}" ${i===dayIdx?'selected':''}>DAY ${i+1} · ${mdLabel(d.date)}(${dowOf(d.date)})</option>`).join('');
+  /* 2026-10-26: 제목을 맨 위에, 장소·메모는 접어서 입력 6칸 → 3칸. 예약 문자·사진 추가는 선택 화면 대신 여기 버튼으로 */
   openSheet(`<div class="grab"></div><h3>일정·예약 추가</h3>
+    <div class="add-alt"><button type="button" class="chip-btn" onclick="closeOv();routeTo('paste')">${svg('i-clip','ic')} 예약 문자 붙여넣기</button><button type="button" class="chip-btn" onclick="closeOv();openPhotoAdd(${dayIdx})">${svg('i-camera','ic')} 사진으로 추가</button></div>
+    <label class="fld">무엇을 하나요?</label><input class="input" id="aTitle" placeholder="예: 성산일출봉, 흑돼지 저녁" autofocus>
     <label class="fld">분류</label>${catPicker('aCat','plan')}
-    <label class="fld">날짜(Day)</label><select class="input" id="aDay">${dayOpts}</select>
-    <label class="fld">시간</label><input class="input" id="aTime" type="time" value="09:00">
-    <label class="fld">제목</label><input class="input" id="aTitle" placeholder="예: 성산일출봉 트레킹">
-    <label class="fld">장소</label><input class="input" id="aPlace" placeholder="예: 봉평 오일장" autocomplete="off">
-    <label class="fld">메모(선택)</label><input class="input" id="aSub" placeholder="예약번호·인원 등">
+    <div class="row" style="gap:8px;align-items:flex-start"><div style="flex:1.5;min-width:0"><label class="fld">날짜</label><select class="input" id="aDay">${dayOpts}</select></div><div style="flex:1;min-width:0"><label class="fld">시간</label><input class="input" id="aTime" type="time" value="${nextSlot(t,dayIdx)}"></div></div>
+    <details class="more" id="aMore"><summary>${svg('i-pin','ic')} 장소·메모 더 적기</summary>
+      <label class="fld">장소</label><input class="input" id="aPlace" placeholder="예: 봉평 오일장" autocomplete="off">
+      <label class="fld">메모</label><input class="input" id="aSub" placeholder="예약번호·인원 등"></details>
     <button class="btn brand" onclick="saveAddItem()">${svg('i-check','ic')} 추가하기</button>`);
-  attachPlacePicker('aPlace');}
+  attachPlacePicker('aPlace');
+  $('aDay').addEventListener('change',()=>{$('aTime').value=nextSlot(t,parseInt($('aDay').value)||0);});}
 async function saveAddItem(){const t=trip(curTrip);const title=$('aTitle').value.trim();if(!title){toast('제목을 입력해 주세요.');return;}
   const di=parseInt($('aDay').value)||0;const place=$('aPlace').value.trim();
   const obj={_id:uid(),cat:$('aCat').value,time:$('aTime').value||"09:00",title,place,sub:$('aSub').value.trim(),by:ME.name,createdBy:ME.uid,comments:[],map:!!place};
@@ -3764,40 +3883,42 @@ function openCreateTrip(){
   const seed=window.__tripSeed||null; window.__tripSeed=null;
   /* 추천 코스에서 넘어오면 코스의 장소들이 일정으로 들어갑니다 (저장할 때 날짜별로 나눔) */
   window.__seedItems=(seed&&Array.isArray(seed.items)&&seed.items.length)?seed.items:null;
+  /* 2026-10-26: 첫 사용자가 "할 일이 너무 많다"고 해서 입력 5칸 → 2칸(여행지·기간). 제목은 자동, 그룹은 접힘, 학생 체크는 [여행 정보 고치기]로 옮김 */
   openSheet(`<div class="grab"></div><h3>새 여행 만들기</h3>
-    ${seed?`<p class="muted small" style="margin:-4px 2px 10px">${svg('i-compass')} <b>${esc(seed.title)}</b>${window.__seedItems?` 코스의 장소 ${window.__seedItems.length}곳이 일정으로 들어가요. 날짜만 골라 주세요.`:' 일정으로 채웠어요. 고치셔도 됩니다.'}</p>`:''}
-    <label class="fld">여행 제목</label><input class="input" id="cTitle" placeholder="예: 제주 여름 여행" value="${seed?esc(seed.title):''}">
-    <label class="fld">여행지</label><input class="input" id="cPlace" placeholder="예: 제주도" value="${seed?esc(seed.place):''}">
-    <label class="fld">함께 가는 그룹</label>
-    <select class="input" id="cGroup"><option>가족</option><option>친구</option><option>동료</option><option>기타</option></select>
+    ${seed?`<p class="muted small" style="margin:-4px 2px 10px">${svg('i-compass')} <b>${esc(seed.title)}</b>${window.__seedItems?` 코스의 장소 ${window.__seedItems.length}곳이 일정으로 들어가요. 날짜만 골라 주세요.`:' 일정으로 채웠어요. 고치셔도 됩니다.'}</p>`:`<p class="muted small" style="margin:-4px 2px 12px">어디로, 언제 가는지만 고르면 돼요. 제목은 자동으로 붙고 나중에 바꿀 수 있어요.</p>`}
+    <label class="fld">여행지</label><input class="input" id="cPlace" placeholder="예: 제주, 속초, 경주" value="${seed?esc(seed.place):''}" autocomplete="off" ${seed?'':'autofocus'}>
     <label class="fld">여행 기간</label>
     <div class="rp" id="cRange"></div>
     <input type="hidden" id="cStart" value="${seed&&seed.start?esc(seed.start):''}">
     <input type="hidden" id="cEnd" value="${seed&&seed.end?esc(seed.end):''}">
-    <label class="fld" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="cStudent" style="width:18px;height:18px"> 학생(자녀)이 함께 가요 · 체험학습 보고서 기능 켜기</label>
+    <details class="more" id="cMore"${seed?' open':''}><summary>${svg('i-edit','ic')} 제목·그룹 직접 정하기</summary>
+      <label class="fld">여행 제목</label><input class="input" id="cTitle" placeholder="비워 두면 '제주 11/20~22'처럼 자동" value="${seed?esc(seed.title):''}">
+      <label class="fld">함께 가는 그룹</label>
+      <select class="input" id="cGroup"><option>가족</option><option>친구</option><option>동료</option><option>기타</option></select></details>
     <div style="height:6px"></div>
     <button class="btn brand" id="cBtn" onclick="saveCreateTrip()">${svg('i-check','ic')} 여행 만들기</button>`);
   mountRangePicker('cRange','cStart','cEnd');}
+/* 제목 자동 짓기: '제주 11/20~22' (달이 다르면 '11/30~12/2') */
+function autoTripTitle(place,start,end){
+  const [,m1,d1]=start.split('-').map(Number),[,m2,d2]=end.split('-').map(Number);
+  const range=start===end?`${m1}/${d1}`:(m1===m2?`${m1}/${d1}~${d2}`:`${m1}/${d1}~${m2}/${d2}`);
+  return `${(place||'여행').trim()} ${range}`.slice(0,100);}
 async function saveCreateTrip(){
-  const title=$('cTitle').value.trim();if(!title){toast('여행 제목을 입력해 주세요.');return;}
+  const placeIn=$('cPlace').value.trim();
   const start=$('cStart').value,end=$('cEnd').value;
+  if(!placeIn&&!$('cTitle').value.trim()){toast('어디로 가는지 적어 주세요.');$('cPlace').focus();return;}
   if(!start||!end){toast('달력에서 출발일과 도착일을 골라 주세요.');return;}
+  const title=$('cTitle').value.trim()||autoTripTitle(placeIn,start,end);
   try{TravelCore.dateRange(start,end);}catch(e){toast(e.message);return;}
   const button=$('cBtn'),createUid=ME.uid;
   button.disabled=true;
   const t={id:tripId(),title,place:$('cPlace').value.trim()||"여행지",groupType:$('cGroup').value,
-    hasStudent:$('cStudent').checked,status:"active",start,end,   /* 표지는 저장하지 않고 coverArt()가 그때그때 그립니다 */
+    hasStudent:false,status:"active",start,end,   /* 학생 동행은 [여행 정보 고치기]에서 켭니다 · 표지는 저장하지 않고 coverArt()가 그때그때 그립니다 */
     members:[memberRec()],memberUids:[ME.uid],
     days:daysBetween(start,end).map(d=>({date:d,items:[]})),pack:[],proposals:[],owner:ME.uid};
   /* 추천 코스의 장소를 하루 4곳씩 시간순으로 넣습니다 (10:00·12:30·14:30·16:30) */
   const seedItems=window.__seedItems||[]; window.__seedItems=null;
-  if(seedItems.length){
-    const slots=['10:00','12:30','14:30','16:30'];
-    seedItems.forEach((s,i)=>{ const day=t.days[Math.min(t.days.length-1,Math.floor(i/slots.length))];
-      day.items.push({_id:uid(),cat:'plan',time:slots[i%slots.length],title:String(s.title||'').slice(0,200),place:String(s.place||s.title||'').slice(0,200),
-        sub:String(s.sub||'').slice(0,300),by:ME.name,createdBy:ME.uid,comments:[],map:true}); });
-    t.days.forEach(d=>d.items.sort((a,b)=>a.time.localeCompare(b.time)));
-  }
+  if(seedItems.length)seedItemsInto(t,seedItems);
   try{await window.FB.saveTrip(t,true);      // true = 새로 만든 여행(통계용)
     /* 서버에서 목록이 다시 내려오길 기다리지 않고 바로 엽니다.
        (인터넷이 느리면 0.2초 안에 안 내려와서 엉뚱하게 [내 여행] 목록으로 튕기던 문제) */
@@ -3805,9 +3926,80 @@ async function saveCreateTrip(){
     if(!trip(t.id))TRIPS.push(t);
     if(!sheetIsCurrent(button)){toast('여행을 만들었어요. 내 여행에서 확인해 주세요.');rerender();return;}
     curTrip=t.id;curDay=0;curFilter="all";viewAll=true;closeOv();toast('여행을 만들었어요!');
-    routeTo('detail');}
+    routeTo('detail');
+    if(!seedItems.length)setTimeout(()=>offerFirstFill(t.id),450);}
   catch(e){if(ME.uid===createUid)toast(e.code==='travel/conflict'?'여행을 저장하지 못했어요. 다시 시도해 주세요.':e.message&& !/Firebase|[a-z]+\//i.test(e.message)?e.message:'저장 실패: 인터넷 연결을 확인해 주세요.');}
   finally{if(button.isConnected)button.disabled=false;}
+}
+
+/* 장소들을 하루 4곳씩 시간순으로 넣습니다 (10:00·12:30·14:30·16:30) — 여행 만들기·추천 코스·첫 채우기가 같이 씁니다 */
+function seedItemsInto(t,items){
+  const slots=['10:00','12:30','14:30','16:30'];
+  const start=(t.days||[]).reduce((n,d)=>n+(d.items||[]).length,0);
+  items.forEach((s,i)=>{ const k=start+i; const day=t.days[Math.min(t.days.length-1,Math.floor(k/slots.length))];
+    day.items=day.items||[];
+    day.items.push({_id:uid(),cat:'plan',time:slots[k%slots.length],title:String(s.title||'').slice(0,200),place:String(s.place||s.title||'').slice(0,200),
+      sub:String(s.sub||'').slice(0,300),by:ME.name,createdBy:ME.uid,comments:[],map:true}); });
+  t.days.forEach(d=>d.items.sort((a,b)=>a.time.localeCompare(b.time)));
+}
+/* ── 첫 채우기 (2026-10-26) ──
+   체험한 지인들의 답: "할 이유를 못 찾겠다", "동선이 복잡하다". 여행을 만들면 빈 날짜만 보였기 때문입니다.
+   이제 만들자마자 그 지역의 대표 명소·장소를 후보로 보여 주고, 고른 곳을 일정에 넣습니다(관광공사 소식지 자료). 그다음 동행 초대를 권합니다. */
+const REGION_HINTS={서울:['서울','강남','홍대','종로','명동','잠실','이태원','성수'],부산:['부산','해운대','광안리','기장'],대구:['대구','팔공산'],인천:['인천','강화','송도','영종','을왕리'],
+  광주:['광주'],대전:['대전','유성'],울산:['울산'],세종:['세종'],
+  경기:['경기','수원','가평','양평','파주','용인','안성','포천','여주','이천','화성','남양주','양주','연천','김포','고양','성남','안산'],
+  강원:['강원','속초','강릉','춘천','평창','양양','정선','동해','삼척','홍천','인제','고성','원주','영월','태백','횡성','철원','화천'],
+  충북:['충북','청주','충주','단양','제천','보은','옥천','영동','괴산'],충남:['충남','천안','아산','태안','보령','공주','부여','서산','당진','예산','논산','홍성','서천'],
+  전북:['전북','전주','군산','남원','고창','부안','무주','익산','정읍','김제','진안','순창','임실'],
+  전남:['전남','여수','순천','담양','목포','보성','완도','해남','강진','구례','광양','나주','진도','신안','곡성','장흥','영광','함평'],
+  경북:['경북','경주','포항','안동','영주','문경','울진','영덕','구미','울릉','독도','청송','봉화','예천','영천','상주','김천'],
+  경남:['경남','통영','거제','남해','창원','진주','김해','양산','하동','사천','밀양','함양','거창','산청','합천','고성'],
+  제주:['제주','서귀포','우도','성산','애월','중문','한림','표선']};
+function regionFromText(text){
+  const s=String(text||''); let best='',len=0;
+  for(const [r,keys] of Object.entries(REGION_HINTS))for(const k of keys){ if(s.includes(k)&&k.length>len){best=r;len=k.length;} }
+  return best;}
+function firstFillCandidates(region){
+  if(!NEWS||!NEWS.spots||NEWS.kind==='editorial')return [];
+  const d=TravelCore.discoveryFor(NEWS,region,todayYmd());
+  const marks=d.places.filter(p=>p.landmark), rest=d.places.filter(p=>!p.landmark&&String(p.contentTypeId)!=='39'), food=d.places.filter(p=>String(p.contentTypeId)==='39');
+  const out=[]; const seen=new Set();
+  const push=(p,kind)=>{ if(out.length>=10||seen.has(String(p.id))||!p.title)return; seen.add(String(p.id)); out.push({id:p.id,title:p.title,thumb:p.thumb||p.img||'',kind}); };
+  marks.forEach(p=>push(p,'대표 명소')); rest.slice(0,6).forEach(p=>push(p,TravelCore.placeTheme(p))); food.slice(0,2).forEach(p=>push(p,'맛집·카페'));
+  return out;}
+async function offerFirstFill(tripId){
+  const t=trip(tripId); if(!t||curTrip!==tripId)return;
+  if((t.days||[]).some(d=>(d.items||[]).length))return;
+  const region=regionFromText((t.place||'')+' '+(t.title||'')); if(!region){offerInvite();return;}
+  if(NEWS_STATE==='idle')loadNews();
+  if(NEWS_STATE==='loading')await new Promise(r=>{const s=Date.now();const iv=setInterval(()=>{if(NEWS_STATE!=='loading'||Date.now()-s>5000){clearInterval(iv);r();}},100);});
+  if(curTrip!==tripId)return;
+  const c=firstFillCandidates(region); if(c.length<3){offerInvite();return;}
+  window.__fillCand=c; window.__fillRegion=region;
+  openSheet(`<div class="grab"></div><div class="illus">${illus('fill')}</div>
+    <h3>${esc(region)} 대표 명소로 채워 볼까요?</h3>
+    <p class="muted small" style="margin:-2px 2px 12px">관광공사 자료에서 골랐어요. 필요 없는 곳은 체크를 풀어 주세요. 넣은 뒤에도 얼마든지 지우거나 옮길 수 있어요.</p>
+    <div class="fill-list">${c.map((p,i)=>`<label class="fill-row"><input type="checkbox" ${i<6?'checked':''} data-i="${i}" onchange="fillCount()">${p.thumb?`<img src="${esc(p.thumb)}" alt="" loading="lazy">`:`<span class="ph">${svg('i-pin','ic')}</span>`}<span><b>${esc(p.title)}</b><small>${esc(p.kind)}</small></span></label>`).join('')}</div>
+    <button class="btn brand" id="fillBtn" onclick="applyFirstFill()">${svg('i-check','ic')} 고른 ${Math.min(6,c.length)}곳을 일정에 넣기</button>
+    <button class="lnk" style="margin-top:10px" onclick="closeOv();offerInvite()">비워 둘게요</button>`);
+}
+function fillCount(){const n=document.querySelectorAll('.fill-row input:checked').length;const b=$('fillBtn');if(b)b.innerHTML=`${svg('i-check','ic')} ${n?`고른 ${n}곳을 일정에 넣기`:'한 곳 이상 골라 주세요'}`;}
+async function applyFirstFill(){
+  const t=trip(curTrip); const c=window.__fillCand||[]; if(!t)return;
+  const picked=[...document.querySelectorAll('.fill-row input:checked')].map(x=>c[+x.dataset.i]).filter(Boolean);
+  if(!picked.length){toast('한 곳 이상 골라 주세요.');return;}
+  seedItemsInto(t,picked.map(p=>({title:p.title,place:p.title,sub:''})));
+  const btn=$('fillBtn'); if(btn)btn.disabled=true;
+  if(await save()){ closeOv(); toast(`${picked.length}곳을 일정에 넣었어요`); rerender(); setTimeout(offerInvite,500); }
+  else { picked.forEach(p=>unpushItem(t.id,{_id:'x'})); rerender(); if(btn)btn.disabled=false; }
+}
+function offerInvite(){
+  const t=trip(curTrip); if(!t||(t.memberUids||[]).length>1||window.__invitedOnce===t.id)return; window.__invitedOnce=t.id;
+  openModal(`<div class="illus sm">${illus('invite')}</div>
+    <b style="font-size:17px">함께 갈 사람을 불러 볼까요?</b>
+    <p class="muted small" style="margin:8px 0 16px">링크를 받은 사람은 같은 일정을 보고 함께 고칠 수 있어요.<br>혼자 쓰는 메모가 아니라, 우리 일정이 됩니다.</p>
+    <button class="btn brand" onclick="closeOv();openShare()">${svg('i-share','ic')} 카톡·문자로 초대 링크 보내기</button>
+    <button class="lnk" style="margin-top:10px" onclick="closeOv()">나중에 할게요</button>`);
 }
 
 /* ---- 여행 정보 고치기 (제목·여행지·그룹·기간) ----
@@ -6306,7 +6498,7 @@ window.onAuthed=function(user,profile){
   if(firstTime&&!introSeen())setTimeout(()=>{if(ME.uid===user.uid)openIntro();},450);};
 let AUTHED_UID=null;
 let IS_ADMIN=false;          // admins/{내uid} 문서가 있을 때만 true
-const APP_VERSION='v12.3.7 (2026-10-22)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
+const APP_VERSION='v12.4.0 (2026-10-26)';   // [내 계정] 맨 아래에 표시 — 폰이 옛 파일을 쓰는지 확인용
 window.onSignedOut=function(){ME={uid:null,name:"나",email:"",photo:"",verified:false};TRIPS=[];curTrip=null;HEALED.clear();AUTHED_UID=null;TRIPS_READY=false;PHOTOS={};
   paintStaticCovers();
   hideSplash();stack=[];show('login',{push:false});authBusy=false;authMode('login');

@@ -50,7 +50,7 @@ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - 고운바탕(Gowun Batang) — Copyright (c) 2021 Yoon Design · Google Fonts
 
 ## 사진
-- 표지·홈 카드 사진 — Unsplash License (상업 사용·수정 허용, 출처 표기 의무 없음). 작가별 원본 주소는 `covers/README.md`, `hero/README.md`.
+- 표지·홈 카드 사진 — Unsplash License (상업 사용·수정 허용, 출처 표기 의무 없음). 작가별 원본 주소는 `covers/README.md`, `hero/README.md`. 사진을 못 불러올 때의 뒷그림은 앱이 직접 그린 것.
 - [여행 추천] 탭의 축제·장소 사진과 소개글 — 한국관광공사 TourAPI. 화면에 "사진·정보: 한국관광공사"로 출처 표시. `rights`가 Type3인 사진은 변경 금지 조건이며 앱은 어떤 사진도 편집하지 않음.
 
 ## 지도·검색

@@ -88,7 +88,7 @@ test('일정 추가 실패 시 화면에서도 되돌린다 (보이기만 하고
 test('중복 확인 팝업: 취소하면 저장 없음, 사본이 바뀐 뒤 "그래도 추가"해도 최신 사본에 저장된다', async ({ page }) => {
   await boot(page, { trips: [TRIP('t1', '가을 여행', '2026-11-10', '2026-11-11', [ITEM('a', 'plan', '10:00', '속초 해변', '속초')])] });
   await page.evaluate(() => { openTrip('t1'); openAddItem(0); });
-  await page.fill('#aTitle', '속초 해변'); await page.fill('#aPlace', '속초');
+  await page.fill('#aTitle', '속초 해변'); await page.evaluate(() => { document.getElementById('aMore').open = true; }); await page.fill('#aPlace', '속초');
   await page.evaluate(() => { document.getElementById('aTime').value = '10:00'; return saveAddItem(); });
   await wait(page, 300);
   expect(await page.evaluate(() => document.getElementById('ovc').innerText)).toContain('이미 같은 일정');
@@ -97,7 +97,7 @@ test('중복 확인 팝업: 취소하면 저장 없음, 사본이 바뀐 뒤 "�
   expect(await page.evaluate(() => window.__saved.length)).toBe(0);
   // 다시 열어 팝업까지 간 뒤, 서버 사본이 바뀐 상황(남이 x 추가)을 흉내
   await page.evaluate(() => { openAddItem(0); });
-  await page.fill('#aTitle', '속초 해변'); await page.fill('#aPlace', '속초');
+  await page.fill('#aTitle', '속초 해변'); await page.evaluate(() => { document.getElementById('aMore').open = true; }); await page.fill('#aPlace', '속초');
   await page.evaluate(() => { document.getElementById('aTime').value = '10:00'; return saveAddItem(); });
   await wait(page, 300);
   await page.evaluate(() => {
@@ -194,6 +194,49 @@ test('운영 현황 회원 목록: 열 제목(가입일·여행·마지막 접�
   const head = await page.locator('#ovc .admhead').innerText();
   expect(head).toContain('가입일'); expect(head).toContain('마지막 접속');
   expect(await page.locator('#ovc .admlist .admrow').first().innerText()).toContain('2개');
+});
+
+test('첫 사용 흐름: 여행지·날짜 2칸으로 만들면 제목이 자동으로 붙고, 대표 명소 채우기 → 동행 초대 권유가 이어진다', async ({ page }) => {
+  const errors = await boot(page, { trips: [] });
+  await page.evaluate(() => { switchTab('today'); });
+  await page.waitForTimeout(300);
+  expect(await page.locator('#today .illus-art svg').count()).toBe(1);
+  expect(await page.locator('#today').innerText()).toContain('여행지와 날짜 고르기');
+  await page.evaluate(() => openCreateTrip());
+  await page.waitForTimeout(300);
+  expect(await page.locator('#cStudent').count()).toBe(0);
+  expect(await page.locator('#cTitle').isVisible()).toBe(false);
+  await page.fill('#cPlace', '속초');
+  await page.evaluate(() => { document.getElementById('cStart').value = '2026-11-20'; document.getElementById('cEnd').value = '2026-11-21'; return saveCreateTrip(); });
+  await page.waitForTimeout(500);
+  const made = await page.evaluate(() => ({ title: TRIPS[0].title, student: window.__saved[0].hasStudent, group: TRIPS[0].groupType }));
+  expect(made.title).toBe('속초 11/20~21'); expect(made.student).toBe(false);
+  await page.waitForSelector('#ovc .fill-row', { timeout: 8000 });
+  const rows = await page.locator('#ovc .fill-row').count(); expect(rows).toBeGreaterThanOrEqual(3);
+  expect(await page.locator('#ovc').innerText()).toContain('강원 대표 명소로 채워 볼까요');
+  await page.evaluate(() => applyFirstFill());
+  await page.waitForTimeout(600);
+  const items = await page.evaluate(() => TRIPS[0].days.reduce((n, d) => n + d.items.length, 0));
+  expect(items).toBe(Math.min(6, rows));
+  expect(await page.locator('#ovc').innerText()).toContain('함께 갈 사람을 불러 볼까요');
+  expect(errors).toEqual([]);
+});
+
+test('일정 추가: 선택 화면 없이 바로 입력 칸이 열리고, 예약 문자·사진은 버튼으로, 시간은 마지막 일정 2시간 뒤', async ({ page }) => {
+  await boot(page, { trips: [TRIP('t1', '가을 여행', '2026-11-10', '2026-11-11', [ITEM('a', 'plan', '10:00', '속초 해변')])] });
+  await page.evaluate(() => { openTrip('t1'); });
+  await page.waitForTimeout(300);
+  await page.locator('.stickycta button').click();
+  await page.waitForTimeout(300);
+  expect(await page.locator('#ovc').innerText()).not.toContain('무엇을 추가할까요');
+  expect(await page.locator('#aTitle').isVisible()).toBe(true);
+  expect(await page.locator('#ovc .add-alt .chip-btn').count()).toBe(2);
+  expect(await page.evaluate(() => document.getElementById('aTime').value)).toBe('12:00');
+  expect(await page.locator('#aPlace').isVisible()).toBe(false);
+  await page.fill('#aTitle', '흑돼지 저녁');
+  await page.evaluate(() => saveAddItem());
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => trip('t1').days[0].items.map(i => i.title))).toContain('흑돼지 저녁');
 });
 
 test('화면 가로 넘침 없음 (홈·내 여행·일정·추억)', async ({ page }) => {

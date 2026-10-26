@@ -16,7 +16,7 @@
 | `assets/release.css` `legacy.css` `onboarding.css` `onboarding.js` | 스타일·첫 사용 안내 |
 | `assets/brand.svg` `icon-*.png` `apple-touch-icon.png` `favicon.ico` | 아이콘 |
 | `manifest.webmanifest` `sw.js` `offline.html` | 설치형 앱(PWA)·오프라인 안내 |
-| `covers/` `hero/` | 표지·홈 카드 사진 (Unsplash) |
+| `covers/` `hero/` | 표지·홈 카드 사진 (Unsplash). 못 불러올 때는 앱이 직접 그린 풍경 그림이 대신 보임 |
 | `news/latest.json` | 여행 추천 자료 (월 1회 `news-maker.html` 로 생성) |
 | `news-maker.html` | 운영자용 소식지 생성 페이지 (한국 IP에서만 동작) |
 
