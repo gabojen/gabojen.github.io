@@ -157,7 +157,8 @@
     // 예전 파일에 섞여 있어도 화면에는 나오지 않도록 여기서 거른다. (2026-09-16)
     // 2026-10-26 레드팀: 수련관·홍보관·캠핑장·비석 같은 곳이 첫 화면에 섞여 신뢰를 깎음 → 대표 명소가 아니면 거른다 (맛집은 제외)
     const LOW_VALUE = /수련관|수련원|문화원|홍보관|캠핑장|야영장|오토캠핑|글램핑|펜션|석불|비석|공비|신도비|사당|재실|교통공원|시민회관|구민회관|체육관|체육공원|경기장|축구공원|사격|도서관|컨벤션|청소년|복지관|주민센터|연수원|학교|대학교|공단|농협|사무소|센터$|회관$/;
-    const excluded = p => ['38','32','25'].includes(String(p.contentTypeId || '')) || (!p.landmark && String(p.contentTypeId) !== '39' && LOW_VALUE.test(String(p.title || '')));
+    // 전통시장(38)은 대표 명소로 찾은 것만 남긴다 — 자갈치·동문·남부시장은 여행 동선의 핵심 (2026-10-30)
+    const excluded = p => ['32','25'].includes(String(p.contentTypeId || '')) || (String(p.contentTypeId) === '38' && !p.landmark) || (!p.landmark && String(p.contentTypeId) !== '39' && LOW_VALUE.test(String(p.title || '')));
     const source = (editorial ? (news.places || []).filter(p=>p.region===region) : (news?.spots?.[region] || [])).filter(p=>!excluded(p));
     const unique = rows => { const seen = new Set(); return rows.filter(x=>x && x.id != null && !seen.has(String(x.id)) && seen.add(String(x.id))); };
     const groups = new Map();

@@ -134,6 +134,12 @@ test('discoveryFor: 수련관·홍보관 같은 곳은 대표 명소가 아니�
   const withMark = C.discoveryFor(C.normalizeNews({ ...news, spots: { 강원: [{ id: 'm1', title: '설악산청소년수련원 전망대', contentTypeId: '12', img: 'covers/sea1.webp', landmark: '설악산' }] } }), '강원', '20261019');
   if (!withMark.places.length) throw new Error('대표 명소는 이름에 수련원이 있어도 남아야 함');
 });
+test('discoveryFor: 전통시장(38)은 대표 명소로 찾은 것만 남는다', () => {
+  const n = C.normalizeNews({ ...news, spots: { 강원: [...news.spots['강원'], { id: 'mk1', title: '속초관광수산시장', contentTypeId: '38', img: 'covers/sea1.webp', landmark: '속초관광수산시장' }, { id: 'mk2', title: '아무 상가', contentTypeId: '38', img: 'covers/sea1.webp' }] } });
+  const d = C.discoveryFor(n, '강원', '20261019');
+  if (!d.places.some(p => p.id === 'mk1')) throw new Error('대표 명소 시장이 빠짐');
+  if (d.places.some(p => p.id === 'mk2')) throw new Error('일반 쇼핑이 섞임');
+});
 test('safeImage/safeURL: 위험한 값 거부', () => {
   eq(C.safeImage('javascript:alert(1)'), '');
   eq(C.safeURL('ftp://x'), '');

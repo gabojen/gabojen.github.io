@@ -157,6 +157,7 @@ const https=u=>(u||'').replace(/^http:/,'https:');
 const sgOf=x=>{ const a=String(x&&x.lDongRegnCd||''), b=String(x&&x.lDongSignguCd||''); return a&&b?(b.length>=5?b:a+b.padStart(3,'0')):''; };
 
 /* 하루 한도(1,000건) 안에서 멈추기 위해 실제로 보낸 요청 수를 셉니다(재시도 포함) */
+const LANDMARKS_COUNT={서울:16,부산:16,대구:11,인천:11,광주:9,대전:9,울산:9,세종:7,경기:16,강원:22,충북:11,충남:14,전북:16,전남:17,경북:19,경남:16,제주:22};
 const BUDGET=950; let CALLS=0;
 const left=()=>BUDGET-CALLS;
 /* 관광지 집중률(붐빔 예상)은 서비스가 달라 하루 한도도 따로입니다 (2026-10-18) */
@@ -175,7 +176,7 @@ async function call(key,op,params){
       if(text.includes('SERVICE_ACCESS_DENIED')){
         const er=new Error(`"${SERVICE_NAME[svc]||'국문 관광정보 서비스'}" 활용신청이 승인되지 않았습니다.`); er.fatal=true; throw er; }
       if(text.includes('LIMITED_NUMBER_OF_SERVICE_REQUESTS'))
-        throw new Error('오늘 호출 한도(1,000건)를 넘었습니다. 내일 다시 해 주세요.');
+        throw new Error('오늘 관광공사 호출 한도(1,000건)를 이미 다 썼습니다. 하루에 한 번만 만들 수 있어요 — 내일 다시 해 주세요.');
       const j=JSON.parse(text);
       const body=j&&j.response&&j.response.body;
       if(!body)throw new Error('응답이 예상과 다릅니다: '+text.slice(0,120));
@@ -201,7 +202,7 @@ $('run').addEventListener('click',async()=>{
   try{
     const [y,mm]=$('month').value.split('-').map(Number);
     const first=new Date(y,mm-1,1), last=new Date(y,mm,0);
-    log(`📅 ${y}-${String(mm).padStart(2,'0')} 소식지를 만듭니다`);
+    log(`📅 ${y}-${String(mm).padStart(2,'0')} 소식지를 만듭니다 · 생성기 v12.4.2 (대표 명소 ${Object.values(LANDMARKS_COUNT).reduce((a,b)=>a+b,0)}곳 · 코스 우선 · 저가치 제외)`);
     CALLS=0;
     log(`ℹ️ 관광공사 호출은 ${BUDGET}건에서 멈춥니다 (하루 한도 1,000건)`);
     log(`🔑 인증키 ${key.length}자 (${rawKey.includes('%')?'Encoding → 자동 변환':'Decoding'})`);
@@ -332,19 +333,19 @@ $('run').addEventListener('click',async()=>{
       울산:['대왕암공원','태화강 국가정원','간절곶','울산대교 전망대','장생포 고래문화마을','주전몽돌해변','울산대공원','영남알프스','진하해수욕장'],
       세종:['세종호수공원','국립세종수목원','베어트리파크','금강보행교','비암사','영평사','세종 중앙공원'],
       경기:['수원 화성','광명동굴','두물머리','남한산성','에버랜드','한국민속촌','쁘띠프랑스','아침고요수목원','헤이리','임진각','세미원','포천 아트밸리','화담숲','안성팜랜드','용인 농촌테마파크','파주 출판도시'],
-      강원:['설악산','남이섬','경포해변','정동진','오죽헌','안목해변','주문진','속초해수욕장','속초관광수산시장','영금정','낙산사','하조대','강릉 중앙시장','선교장','대관령 양떼목장','소양강 스카이워크','삼양목장','서피비치','삼척 해상케이블카','추암 촛대바위'],
+      강원:['설악산','남이섬','경포해수욕장','경포해변','정동진','오죽헌','강릉 오죽헌','안목해변','주문진','속초해수욕장','속초관광수산시장','영금정','낙산사','하조대','강릉 중앙시장','선교장','대관령 양떼목장','소양강 스카이워크','삼양목장','서피비치','삼척 해상케이블카','추암 촛대바위'],
       충북:['도담삼봉','법주사','청남대','만천하스카이워크','청풍호반 케이블카','수옥폭포','속리산','충주호','의림지','고수동굴','사인암'],
       충남:['공산성','독립기념관','외암마을','부소산성','꽃지해수욕장','대천해수욕장','해미읍성','예당호 출렁다리','간월암','궁남지','수덕사','신두리 해안사구','정림사지','안면도'],
       전북:['전주 한옥마을','내장산','선유도','마이산','경기전','전동성당','남부시장','오목대','자만벽화마을','전주향교','덕진공원','경암동 철길마을','선운사','덕유산','채석강','미륵사지'],
-      전남:['순천만습지','오동도','죽녹원','보성 녹차밭','순천만국가정원','향일암','여수 해상케이블카','낙안읍성','돌산공원','이순신광장','목포 해상케이블카','메타세쿼이아길','청산도','땅끝마을','화엄사','다산초당'],
-      경북:['불국사','석굴암','첨성대','동궁과 월지','하회마을','대릉원','황리단길','월정교','국립경주박물관','경주월드','양동마을','호미곶','부석사','문경새재','울릉도','월영교','스페이스워크','주왕산'],
+      전남:['순천만습지','오동도','죽녹원','보성 녹차밭','순천만국가정원','향일암','여수 해상케이블카','낙안읍성','돌산공원','이순신광장','목포 해상케이블카','담양 메타세쿼이아길','순천만 국가정원','청산도','땅끝마을','화엄사','다산초당'],
+      경북:['불국사','석굴암','첨성대','동궁과 월지','하회마을','대릉원','천마총','황리단길','월정교','국립경주박물관','경주월드','양동마을','호미곶','부석사','문경새재','울릉도','월영교','스페이스워크','주왕산'],
       경남:['동피랑','진주성','해인사','남해 독일마을','통영 케이블카','바람의 언덕','외도 보타니아','통영 중앙시장','가야테마파크','영남루','사천 케이블카','쌍계사','수승대','우포늪','통도사','거제 포로수용소'],
-      제주:['성산일출봉','한라산','우도','섭지코지','협재해수욕장','천지연폭포','주상절리','만장굴','카멜리아힐','에코랜드','아쿠아플라넷','비자림','오설록','함덕해수욕장','용머리해안','동문시장','이중섭거리','중문색달해수욕장','사려니숲길','새별오름']};
+      제주:['성산일출봉','한라산','우도','섭지코지','협재해수욕장','천지연폭포','주상절리','만장굴','카멜리아힐','에코랜드','아쿠아플라넷','비자림','오설록','함덕해수욕장','용머리해안','동문시장','제주동문시장','에코랜드 테마파크','이중섭거리','중문색달해수욕장','사려니숲길','새별오름']};
     const norm=t=>String(t||'').replace(/[\s()（）\[\]·.]/g,'').toLowerCase();
     /* 2026-10-22: '창덕궁' → '창덕궁 다래나무', '감천문화마을' → '…어린왕자 전시관'처럼 앞부분만 같은 다른 곳이 뽑혔음.
        괄호 속 설명([유네스코…], (대구))은 떼고 비교하고, 완전히 같지 않으면 덧붙은 글자가 3자 이하일 때만 인정합니다. */
     const core=t=>norm(String(t||'').replace(/\([^)]*\)|\[[^\]]*\]|（[^）]*）/g,'')).replace(/(국립공원|도립공원|군립공원|국가지질공원)$/,'');
-    const fits=(title,kw)=>{ const a=core(title), k=norm(kw); return a===k||(a.includes(k)&&a.length-k.length<=3); };
+    const fits=(title,kw)=>{ const a=core(title), k=norm(kw); return a===k||(a.includes(k)&&a.length-k.length<=(k.length>=4?6:3)); };
     const prevByMark={}; Object.values(prev.spots).forEach(s=>{ if(s&&s.landmark)prevByMark[s.landmark]=s; });
     let markNew=0, markReuse=0; const markMiss=[];
     for(const [,name] of REGIONS){
@@ -356,7 +357,7 @@ $('run').addEventListener('click',async()=>{
         if(left()<=0){ markMiss.push(kw); continue; }
         try{
           const rows=await call(key,'searchKeyword2',{keyword:kw,numOfRows:'10',pageNo:'1',arrange:'O',...(code?{lDongRegnCd:code}:{})});
-          const ok=rows.filter(x=>x.firstimage&&x.title&&['12','14','28'].includes(String(x.contenttypeid))&&regionOf(code,x.addr1)===name);
+          const ok=rows.filter(x=>x.firstimage&&x.title&&['12','14','28','38'].includes(String(x.contenttypeid))&&regionOf(code,x.addr1)===name);   /* 38(쇼핑)은 대표 명소로 찾을 때만 — 전통시장 (2026-10-30) */
           const k=norm(kw);
           const hit=ok.find(x=>core(x.title)===k)||ok.find(x=>fits(x.title,kw)&&core(x.title).startsWith(k))||ok.find(x=>fits(x.title,kw));
           if(!hit){ markMiss.push(kw); continue; }
